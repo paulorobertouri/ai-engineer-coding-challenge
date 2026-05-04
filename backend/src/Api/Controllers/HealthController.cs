@@ -17,8 +17,9 @@ public sealed class HealthController : ControllerBase
             UtcTime = DateTimeOffset.UtcNow,
             Notes =
             [
-                "Baseline scaffold is running.",
-                "AI, retrieval, and tool orchestration are intentionally left as TODO work."
+                "Service is fully operational.",
+                "RAG Ingestion, JSON Vector Store, and Tool-calling are active.",
+                "Resilience pipelines and strict validation are enabled."
             ]
         });
     }

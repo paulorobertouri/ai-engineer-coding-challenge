@@ -1,3 +1,4 @@
+import { BookOpen, FileText } from 'lucide-react'
 import type { Citation } from '../types/chat'
 
 interface CitationsPanelProps {
@@ -6,19 +7,32 @@ interface CitationsPanelProps {
 
 export function CitationsPanel({ citations }: CitationsPanelProps) {
   return (
-    <section className="sidebar-card" aria-labelledby="citations-heading">
-      <h2 id="citations-heading">Citations</h2>
+    <section className="sidebar-card citations-panel" aria-labelledby="citations-heading">
+      <div className="sidebar-card-header">
+        <div className="sidebar-card-icon" style={{ background: '#eff6ff' }}>
+          <BookOpen size={15} color="#1d4ed8" />
+        </div>
+        <h2 id="citations-heading">Sources</h2>
+        {citations.length > 0 && (
+          <span className="citation-badge" aria-label={`${citations.length} citations`}>
+            {citations.length}
+          </span>
+        )}
+      </div>
       {citations.length === 0 ? (
-        <p className="empty-state">No citations yet. This panel stays empty until grounded retrieval is implemented.</p>
+        <p className="empty-state">Source citations will appear here after each AI response.</p>
       ) : (
         <ul className="citations-list">
           {citations.map((citation, index) => (
             <li key={`${citation.source}-${index}`} className="citation-item">
               <p className="citation-source">
+                <FileText size={11} />
                 {citation.source}
-                {citation.startLine ? ` (${citation.startLine}-${citation.endLine ?? citation.startLine})` : ''}
+                {citation.startLine
+                  ? ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
+                  : ''}
               </p>
-              <p>{citation.snippet}</p>
+              <p className="citation-snippet">{citation.snippet}</p>
             </li>
           ))}
         </ul>

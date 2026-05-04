@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend/src/Api
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-5181}:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/src/Api/Data:/app/Data
+      - ./knowledge-base:/knowledge-base:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:5181}
+    depends_on:
+      - backend

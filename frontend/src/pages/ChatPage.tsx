@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ShoppingCart } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import type { ChatMessage, Citation, StatusMessage } from '../types/chat'
 import { ChatComposer } from '../components/ChatComposer'
@@ -7,7 +8,9 @@ import { CitationsPanel } from '../components/CitationsPanel'
 import { IngestPanel } from '../components/IngestPanel'
 import { StatusBanner } from '../components/StatusBanner'
 
-const defaultSourcePath = '../../../../knowledge-base/Grocery_Store_SOP.md'
+import { ChatRequestSchema, IngestRequestSchema } from '../types/validation'
+
+const defaultSourcePath = 'Data/Grocery_Store_SOP.md'
 
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {
@@ -29,12 +32,7 @@ export function ChatPage() {
     tone: 'info',
     message: 'Checking backend health...',
   })
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    createMessage(
-      'assistant',
-      'This is a baseline scaffold. Chat, retrieval, citations, and vector-store persistence are intentionally left unimplemented for the challenge.',
-    ),
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
 
   useEffect(() => {
     let isCancelled = false
@@ -53,9 +51,10 @@ export function ChatPage() {
         if (!isCancelled) {
           setStatus({
             tone: 'warning',
-            message: error instanceof Error
-              ? `Backend health check failed: ${error.message}`
-              : 'Backend health check failed.',
+            message:
+              error instanceof Error
+                ? `Backend health check failed: ${error.message}`
+                : 'Backend health check failed.',
           })
         }
       }
@@ -73,10 +72,12 @@ export function ChatPage() {
     setStatus({ tone: 'info', message: 'Calling the ingest endpoint...' })
 
     try {
-      const response = await apiClient.ingest({
+      const payload = IngestRequestSchema.parse({
         sourcePath,
         forceReingest: false,
       })
+
+      const response = await apiClient.ingest(payload)
 
       setStatus({
         tone: response.isPlaceholder ? 'warning' : 'success',
@@ -107,7 +108,7 @@ export function ChatPage() {
     setStatus({ tone: 'info', message: 'Sending chat request...' })
 
     try {
-      const response = await apiClient.chat({
+      const payload = ChatRequestSchema.parse({
         conversationId,
         useTools: true,
         messages: nextMessages.map((message) => ({
@@ -116,6 +117,8 @@ export function ChatPage() {
           timestampUtc: message.timestamp,
         })),
       })
+
+      const response = await apiClient.chat(payload)
 
       setMessages((currentMessages) => [
         ...currentMessages,
@@ -144,11 +147,16 @@ export function ChatPage() {
     <main className="app-shell">
       <section className="chat-layout">
         <header className="app-header">
-          <h1>Grocery Store SOP Assistant</h1>
-          <p>
-            A lightweight React shell for a multi-turn employee chatbot backed by a .NET 10 Web API.
-            The ingest form is prefilled with the backend-ready local path for the provided SOP file.
-          </p>
+          <div className="app-header-inner">
+            <div className="app-header-icon">
+              <ShoppingCart size={15} color="white" strokeWidth={2.5} />
+            </div>
+            <div className="app-header-text">
+              <h1>SOP Assistant</h1>
+              <p>Grocery Store Operating Procedures · Powered by AI</p>
+            </div>
+            <span className="app-header-badge">GPT-5-mini</span>
+          </div>
         </header>
         <StatusBanner status={status} />
         <ChatTranscript messages={messages} />

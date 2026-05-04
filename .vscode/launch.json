@@ -1,0 +1,59 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: .NET Launch (Local)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/backend/src/Api/Api.csproj",
+      "launchBrowser": {
+        "enabled": true,
+        "args": "http://localhost:5181/api/health",
+        "windows": {
+          "command": "cmd.exe",
+          "args": "/C start ${auto-generated-url}"
+        },
+        "osx": {
+          "command": "open"
+        },
+        "linux": {
+          "command": "xdg-open"
+        }
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "Frontend: Vite (Local)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "serverReadyAction": {
+        "pattern": "Local:.*(http://localhost:5173/)",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Docker: Compose Up",
+      "type": "docker-compose",
+      "request": "launch",
+      "composeFile": "docker-compose.yml"
+    },
+    {
+      "name": "Docker: Attach Backend",
+      "type": "coreclr",
+      "request": "attach",
+      "processName": "GroceryStore.Chatbot.Api"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: Backend + Frontend",
+      "configurations": ["Backend: .NET Launch (Local)", "Frontend: Vite (Local)"],
+      "stopAll": true
+    }
+  ]
+}

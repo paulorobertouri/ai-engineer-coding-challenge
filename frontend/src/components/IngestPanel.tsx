@@ -1,3 +1,5 @@
+import { Database, UploadCloud, Loader2 } from 'lucide-react'
+
 interface IngestPanelProps {
   sourcePath: string
   onSourcePathChange: (value: string) => void
@@ -5,12 +7,24 @@ interface IngestPanelProps {
   isBusy: boolean
 }
 
-export function IngestPanel({ sourcePath, onSourcePathChange, onIngest, isBusy }: IngestPanelProps) {
+export function IngestPanel({
+  sourcePath,
+  onSourcePathChange,
+  onIngest,
+  isBusy,
+}: IngestPanelProps) {
   return (
     <section className="sidebar-card" aria-labelledby="ingest-heading">
-      <h2 id="ingest-heading">Ingest</h2>
-      <p>Use the backend-ready default path for the provided SOP and trigger the placeholder ingest endpoint.</p>
-      <label htmlFor="source-path">Source document path</label>
+      <div className="sidebar-card-header">
+        <div className="sidebar-card-icon" style={{ background: '#f0fdf4' }}>
+          <Database size={15} color="#166534" />
+        </div>
+        <h2 id="ingest-heading">Knowledge Base</h2>
+      </div>
+      <p className="description">
+        Index the SOP document to enable grounded, citation-backed responses.
+      </p>
+      <label htmlFor="source-path">Document path</label>
       <input
         id="source-path"
         className="source-input"
@@ -18,12 +32,24 @@ export function IngestPanel({ sourcePath, onSourcePathChange, onIngest, isBusy }
         onChange={(event) => onSourcePathChange(event.target.value)}
         disabled={isBusy}
       />
-      <div className="ingest-actions">
-        <span className="hint">Default local path: ../../../../knowledge-base/Grocery_Store_SOP.md</span>
-        <button className="secondary-button" type="button" onClick={onIngest} disabled={isBusy || sourcePath.trim().length === 0}>
-          {isBusy ? 'Ingesting...' : 'Run Ingest'}
-        </button>
-      </div>
+      <button
+        className="ingest-button"
+        type="button"
+        onClick={onIngest}
+        disabled={isBusy || sourcePath.trim().length === 0}
+      >
+        {isBusy ? (
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            Ingesting...
+          </>
+        ) : (
+          <>
+            <UploadCloud size={14} />
+            Run Ingest
+          </>
+        )}
+      </button>
     </section>
   )
 }

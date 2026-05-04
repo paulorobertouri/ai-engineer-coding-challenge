@@ -1,32 +1,39 @@
-# Frontend Scaffold
+# Frontend
 
-This frontend is a minimal React + TypeScript chat UI scaffold for the grocery store SOP assistant challenge.
+React 19 + TypeScript + Vite chat UI for the Grocery Store SOP Assistant.
 
-## What Is Included
+## Features
 
-- Transcript area with scroll behavior
-- Composer with disabled and loading states
-- Ingest trigger wired to the backend placeholder endpoint
-- Status banner for health, ingest, and chat feedback
-- Citations panel hook-up for backend responses
-- Typed API client
+- Chat transcript with streaming-style message display
+- Composer with loading and disabled states
+- Ingest panel to trigger SOP ingestion from the backend
+- Citations panel displaying source chunks returned by the API
+- Zod-validated API client (`services/apiClient.ts`)
+- Status banner for health, ingest, and error feedback
 
-The ingest input is prefilled with `../../../../knowledge-base/Grocery_Store_SOP.md` so it matches the backend scaffold's local default.
+## Local Development
 
-## Run Locally
-
-```powershell
-npm install
+```bash
+cd frontend
 npm run dev
 ```
 
-By default the app calls `http://localhost:5181`.
+The app calls `http://localhost:5181` by default.  
+Override via `VITE_API_BASE_URL` in `frontend/.env` (created automatically by `scripts/setup.sh`).
 
-To override the API base URL:
+## Available Scripts
 
-```powershell
-$env:VITE_API_BASE_URL = "http://localhost:5181"
-npm run dev
+| Command          | Description                          |
+| ---------------- | ------------------------------------ |
+| `npm run dev`    | Start Vite dev server                |
+| `npm run build`  | Type-check and bundle for production |
+| `npm test`       | Run unit tests with Vitest           |
+| `npm run lint`   | ESLint check                         |
+| `npm run format` | Prettier auto-format                 |
+
+Or use the repo-level scripts from the root:
+
+```bash
+./scripts/test.sh frontend
+./scripts/format.sh [--fix]
 ```
-
-The UI is intentionally light. Candidates are expected to extend behavior rather than redesign the scaffold from scratch.

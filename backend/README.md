@@ -1,29 +1,55 @@
-# Backend Scaffold
+# Backend
 
-This backend is a controller-based .NET 10 Web API scaffold for the grocery store SOP assistant challenge.
+.NET 10 Web API for the Grocery Store SOP Assistant.
 
 ## Endpoints
 
-- `GET /api/health`
-- `POST /api/ingest`
-- `POST /api/chat`
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check |
+| `POST` | `/api/ingest` | Chunk, embed, and store the SOP document |
+| `POST` | `/api/chat` | RAG-grounded chat with tool-calling support |
 
-## Intended Extension Points
+## Services
 
-- `Services/IChunkingService.cs`
-- `Services/IEmbeddingService.cs`
-- `Services/IVectorStoreService.cs`
-- `Services/IRetrievalChatService.cs`
-- `Services/IToolRegistryService.cs`
+| Interface | Implementation | Description |
+|---|---|---|
+| `IChunkingService` | `MarkdownChunkingService` | Splits markdown by `#` headers into semantic chunks |
+| `IEmbeddingService` | `OpenAIEmbeddingService` | Generates embeddings via OpenAI `text-embedding-3-small` |
+| `IVectorStoreService` | `JsonVectorStoreService` | Persists and queries vectors using a JSON file (`vector-store.json`) with in-memory cosine similarity |
+| `IRetrievalChatService` | `OpenAIRetrievalChatService` | RAG pipeline with Polly resilience (retries + timeout) |
+| `IToolRegistryService` | — | Registers `get_store_hours` and `search_sop` tools for the agent |
 
-## Vector Store Artifact
+## Vector Store
 
-The placeholder JSON artifact path is under `src/Api/Data/vector-store.json`.
+JSON file stored at `Data/vector-store.json` (configurable via `Challenge__VectorStorePath`).  
+Inside Docker the file lives at `/app/Data/vector-store.json` and is mounted from `./backend/src/Api/Data`.
 
-The scaffold keeps that path in configuration, but the default service does not read, write, or search the artifact yet.
+## Local Development
 
-## Local SOP Path
+```bash
+cd backend/src/Api
+dotnet run
+```
 
-The default local source path is `../../../../knowledge-base/Grocery_Store_SOP.md`, matching the API project's content root during local development.
+Requires the root `.env` (or equivalent environment variables) to be in scope. See the root `README.md` for configuration details.
 
-Candidates are expected to replace the placeholder implementations with working ingest, embedding, retrieval, and chat logic.
+## Testing
+
+```bash
+# from repo root
+./scripts/test.sh backend
+
+# or directly
+dotnet test backend/src/Api.Tests/Api.Tests.csproj -c Release
+```
+
+## Formatting
+
+```bash
+# check only
+./scripts/format.sh
+
+# auto-fix
+./scripts/format.sh --fix
+```
