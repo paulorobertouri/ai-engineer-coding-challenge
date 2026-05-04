@@ -2,11 +2,13 @@ using Api.Contracts;
 using Api.Models;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("ingest")]
 public sealed class IngestController(
     IConfiguration configuration,
     IChunkingService chunkingService,
@@ -18,16 +20,23 @@ public sealed class IngestController(
     public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken, [FromServices] IWebHostEnvironment env)
     {
         var configuredSourcePath = configuration["Challenge:SourceDocumentPath"] ?? "../../../../knowledge-base/Grocery_Store_SOP.md";
-        var requestedPath = string.IsNullOrWhiteSpace(request?.SourcePath) ? configuredSourcePath : request!.SourcePath;
+
+        // Always use the server-side configured path; ignore any path supplied by the caller
+        // to prevent path traversal (OWASP A01). If the caller explicitly passed a path that
+        // differs from what the server has configured, log a warning and reject it.
+        if (!string.IsNullOrWhiteSpace(request?.SourcePath) &&
+            !request.SourcePath.Equals(configuredSourcePath, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("[INGEST] Caller requested path '{RequestedPath}' overridden by server configuration.", request.SourcePath);
+        }
 
         logger.LogInformation("[INGEST] Configured: {ConfiguredPath}", configuration["Challenge:SourceDocumentPath"]);
-        logger.LogInformation("[INGEST] Requested: {RequestedPath}", requestedPath);
         logger.LogInformation("[INGEST] ContentRoot: {ContentRoot}", env.ContentRootPath);
 
         // Resolve path: check absolute, then check relative to content root (useful for Docker/Local mix)
-        var sourcePath = Path.IsPathRooted(requestedPath)
-            ? requestedPath
-            : Path.GetFullPath(Path.Combine(env.ContentRootPath, requestedPath));
+        var sourcePath = Path.IsPathRooted(configuredSourcePath)
+            ? configuredSourcePath
+            : Path.GetFullPath(Path.Combine(env.ContentRootPath, configuredSourcePath));
 
         logger.LogInformation("[INGEST] Resolved: {ResolvedPath}", sourcePath);
 
@@ -42,7 +51,7 @@ public sealed class IngestController(
             }
             else
             {
-                return NotFound(new { error = $"Source document not found. Looked at: {sourcePath} and {localFallback}" });
+                return NotFound(new { error = "Source document not found." });
             }
         }
 

@@ -10,7 +10,7 @@ import { StatusBanner } from '../components/StatusBanner'
 
 import { ChatRequestSchema, IngestRequestSchema } from '../types/validation'
 
-const defaultSourcePath = 'Data/Grocery_Store_SOP.md'
+const defaultSourcePath = 'knowledge-base/Grocery_Store_SOP.md'
 
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {

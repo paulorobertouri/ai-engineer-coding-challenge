@@ -16,11 +16,12 @@ public sealed class OpenAIRetrievalChatService(
     IVectorStoreService vectorStoreService,
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
-    private readonly string _chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-5-mini";
+    private readonly string _chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-4o-mini";
     private readonly ResiliencePipeline _resiliencePipeline = new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions
         {
-            ShouldHandle = new PredicateBuilder().Handle<Exception>(),
+            // Do not retry on cancellation — the caller intentionally stopped the request
+            ShouldHandle = new PredicateBuilder().Handle<Exception>(ex => ex is not OperationCanceledException),
             Delay = TimeSpan.FromSeconds(2),
             MaxRetryAttempts = 3,
             BackoffType = DelayBackoffType.Exponential,
@@ -113,8 +114,18 @@ public sealed class OpenAIRetrievalChatService(
                     }
                     else if (toolCall.FunctionName == "search_sop")
                     {
-                        var args = JsonDocument.Parse(toolCall.FunctionArguments).RootElement;
-                        var query = args.GetProperty("query").GetString() ?? "";
+                        string query;
+                        try
+                        {
+                            var args = JsonDocument.Parse(toolCall.FunctionArguments).RootElement;
+                            query = args.TryGetProperty("query", out var queryProp) ? queryProp.GetString() ?? "" : "";
+                        }
+                        catch (JsonException ex)
+                        {
+                            logger.LogWarning(ex, "Failed to parse search_sop tool arguments; skipping tool call.");
+                            messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, ""));
+                            continue;
+                        }
                         var toolQueryEmbedding = await embeddingService.EmbedAsync(query, ct);
                         var toolMatches = await vectorStoreService.SearchAsync(toolQueryEmbedding, topK: 3, ct);
                         var toolContext = string.Join("\n\n", toolMatches.Select(m => m.Record.ChunkText));
@@ -133,7 +144,7 @@ public sealed class OpenAIRetrievalChatService(
                 ConversationId = request.ConversationId,
                 Status = "success",
                 IsPlaceholder = false,
-                AssistantMessage = chatCompletion.Content[0].Text,
+                AssistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty,
                 Citations = matches.Select(m => new CitationDto
                 {
                     Source = m.Record.Source,

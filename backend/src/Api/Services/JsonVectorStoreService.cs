@@ -13,6 +13,11 @@ public sealed class JsonVectorStoreService : IVectorStoreService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // Protects concurrent writes and cache invalidation
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    // Cached records; null means the cache is cold (not yet loaded)
+    private IReadOnlyList<VectorRecord>? _cachedRecords;
+
     public JsonVectorStoreService(IConfiguration configuration, IWebHostEnvironment environment)
     {
         var configuredPath = configuration["Challenge:VectorStorePath"] ?? "Data/vector-store.json";
@@ -29,18 +34,32 @@ public sealed class JsonVectorStoreService : IVectorStoreService
 
     public async Task<IReadOnlyList<VectorRecord>> LoadAsync(CancellationToken cancellationToken = default)
     {
+        if (_cachedRecords is not null)
+            return _cachedRecords;
+
         if (!File.Exists(_storePath))
             return [];
 
         await using var stream = File.OpenRead(_storePath);
         var records = await JsonSerializer.DeserializeAsync<List<VectorRecord>>(stream, _jsonOptions, cancellationToken);
-        return records ?? [];
+        _cachedRecords = records ?? [];
+        return _cachedRecords;
     }
 
     public async Task SaveAsync(IEnumerable<VectorRecord> records, CancellationToken cancellationToken = default)
     {
-        await using var stream = File.Open(_storePath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await JsonSerializer.SerializeAsync(stream, records, _jsonOptions, cancellationToken);
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            await using var stream = File.Open(_storePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await JsonSerializer.SerializeAsync(stream, records, _jsonOptions, cancellationToken);
+            // Invalidate cache so the next read picks up the fresh data
+            _cachedRecords = null;
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     public async Task<IReadOnlyList<VectorSearchMatch>> SearchAsync(float[] queryEmbedding, int topK, CancellationToken cancellationToken = default)

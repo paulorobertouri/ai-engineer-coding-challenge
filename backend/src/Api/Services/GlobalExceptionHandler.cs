@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Services;
 
-public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
+public sealed class GlobalExceptionHandler(
+    ILogger<GlobalExceptionHandler> logger,
+    IWebHostEnvironment environment) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -12,11 +14,15 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
     {
         logger.LogError(exception, "An unhandled exception occurred: {Message}", exception.Message);
 
+        var detail = environment.IsDevelopment()
+            ? exception.Message
+            : "An unexpected error occurred. Please try again later.";
+
         var problemDetails = new ProblemDetails
         {
             Status = StatusCodes.Status500InternalServerError,
             Title = "An error occurred while processing your request.",
-            Detail = exception.Message, // In production, you might want to hide internal details
+            Detail = detail,
             Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}"
         };
 

@@ -2,6 +2,7 @@ using Api.Services;
 using OpenAI;
 using DotNetEnv;
 using Serilog;
+using System.Threading.RateLimiting;
 
 // Load environment variables from .env file
 DotNetEnv.Env.TraversePath().Load();
@@ -55,6 +56,34 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<IChunkingService, MarkdownChunkingService>();
 builder.Services.AddSingleton<IVectorStoreService, JsonVectorStoreService>();
 
+// Rate limiting: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("chat", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("ingest", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
 if (string.IsNullOrWhiteSpace(openAiApiKey))
 {
@@ -88,6 +117,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors("LocalFrontend");
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 

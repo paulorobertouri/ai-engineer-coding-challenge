@@ -1,6 +1,7 @@
 using Api.Contracts;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
@@ -9,6 +10,7 @@ namespace Api.Controllers;
 public sealed class ChatController(IRetrievalChatService retrievalChatService) : ControllerBase
 {
     [HttpPost]
+    [EnableRateLimiting("chat")]
     public async Task<ActionResult<ChatResponse>> Post([FromBody] ChatRequest request, CancellationToken cancellationToken)
     {
         if (request.Messages.Count == 0)
