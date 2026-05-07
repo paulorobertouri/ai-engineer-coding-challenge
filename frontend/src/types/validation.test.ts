@@ -91,29 +91,18 @@ describe('ChatRequestSchema', () => {
 
 describe('IngestRequestSchema', () => {
   it('accepts a valid ingest request', () => {
-    const result = IngestRequestSchema.safeParse({
-      sourcePath: '/path/to/file.md',
-      forceReingest: false,
-    })
+    const result = IngestRequestSchema.safeParse({ forceReingest: false })
     expect(result.success).toBe(true)
   })
 
-  it('rejects empty sourcePath', () => {
-    const result = IngestRequestSchema.safeParse({ sourcePath: '', forceReingest: false })
-    expect(result.success).toBe(false)
-  })
-
   it('defaults forceReingest to false when omitted', () => {
-    const result = IngestRequestSchema.safeParse({ sourcePath: '/path/file.md' })
+    const result = IngestRequestSchema.safeParse({})
     expect(result.success).toBe(true)
     if (result.success) expect(result.data.forceReingest).toBe(false)
   })
 
   it('accepts forceReingest true', () => {
-    const result = IngestRequestSchema.safeParse({
-      sourcePath: '/path/file.md',
-      forceReingest: true,
-    })
+    const result = IngestRequestSchema.safeParse({ forceReingest: true })
     expect(result.success).toBe(true)
     if (result.success) expect(result.data.forceReingest).toBe(true)
   })

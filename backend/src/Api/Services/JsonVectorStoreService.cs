@@ -34,16 +34,30 @@ public sealed class JsonVectorStoreService : IVectorStoreService
 
     public async Task<IReadOnlyList<VectorRecord>> LoadAsync(CancellationToken cancellationToken = default)
     {
+        // Fast path: cache already populated (volatile read is safe for reference types on .NET)
         if (_cachedRecords is not null)
             return _cachedRecords;
 
-        if (!File.Exists(_storePath))
-            return [];
+        // Slow path: acquire the write lock and double-check to avoid reading stale data
+        // that another thread may have just invalidated.
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_cachedRecords is not null)
+                return _cachedRecords;
 
-        await using var stream = File.OpenRead(_storePath);
-        var records = await JsonSerializer.DeserializeAsync<List<VectorRecord>>(stream, _jsonOptions, cancellationToken);
-        _cachedRecords = records ?? [];
-        return _cachedRecords;
+            if (!File.Exists(_storePath))
+                return [];
+
+            await using var stream = File.OpenRead(_storePath);
+            var records = await JsonSerializer.DeserializeAsync<List<VectorRecord>>(stream, _jsonOptions, cancellationToken);
+            _cachedRecords = records ?? [];
+            return _cachedRecords;
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     public async Task SaveAsync(IEnumerable<VectorRecord> records, CancellationToken cancellationToken = default)
@@ -91,6 +105,6 @@ public sealed class JsonVectorStoreService : IVectorStoreService
         }
 
         var denom = Math.Sqrt(normA) * Math.Sqrt(normB);
-        return denom == 0 ? 0.0 : dot / denom;
+        return denom < 1e-10 ? 0.0 : dot / denom;
     }
 }

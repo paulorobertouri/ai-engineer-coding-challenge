@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1),
-  timestampUtc: z.string().datetime(),
+  timestampUtc: z.iso.datetime(),
 })
 
 export const ChatRequestSchema = z.object({
@@ -13,6 +13,5 @@ export const ChatRequestSchema = z.object({
 })
 
 export const IngestRequestSchema = z.object({
-  sourcePath: z.string().min(1),
   forceReingest: z.boolean().default(false),
 })

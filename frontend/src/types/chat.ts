@@ -38,7 +38,6 @@ export interface ChatResponse {
 }
 
 export interface IngestRequest {
-  sourcePath: string
   forceReingest: boolean
 }
 

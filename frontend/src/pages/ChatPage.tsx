@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import type { ChatMessage, Citation, StatusMessage } from '../types/chat'
@@ -10,11 +10,11 @@ import { StatusBanner } from '../components/StatusBanner'
 
 import { ChatRequestSchema, IngestRequestSchema } from '../types/validation'
 
-const defaultSourcePath = 'knowledge-base/Grocery_Store_SOP.md'
+const MAX_HISTORY_MESSAGES = 20
 
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {
-    id: window.crypto.randomUUID(),
+    id: globalThis.crypto.randomUUID(),
     role,
     content,
     timestamp: new Date().toISOString(),
@@ -22,9 +22,8 @@ function createMessage(role: ChatMessage['role'], content: string): ChatMessage 
 }
 
 export function ChatPage() {
-  const [conversationId] = useState(() => window.crypto.randomUUID())
+  const [conversationId] = useState(() => globalThis.crypto.randomUUID())
   const [draft, setDraft] = useState('')
-  const [sourcePath, setSourcePath] = useState(defaultSourcePath)
   const [isSending, setIsSending] = useState(false)
   const [isIngesting, setIsIngesting] = useState(false)
   const [citations, setCitations] = useState<Citation[]>([])
@@ -77,15 +76,12 @@ export function ChatPage() {
     }
   }, [])
 
-  async function handleIngest() {
+  const handleIngest = useCallback(async () => {
     setIsIngesting(true)
     setStatus({ tone: 'info', message: 'Calling the ingest endpoint...' })
 
     try {
-      const payload = IngestRequestSchema.parse({
-        sourcePath,
-        forceReingest: false,
-      })
+      const payload = IngestRequestSchema.parse({ forceReingest: false })
 
       const response = await apiClient.ingest(payload)
 
@@ -101,9 +97,9 @@ export function ChatPage() {
     } finally {
       setIsIngesting(false)
     }
-  }
+  }, [])
 
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     const trimmedDraft = draft.trim()
     if (!trimmedDraft) {
       return
@@ -118,10 +114,13 @@ export function ChatPage() {
     setStatus({ tone: 'info', message: 'Sending chat request...' })
 
     try {
+      // Limit history sent to the API to avoid unbounded token growth
+      const historyWindow = nextMessages.slice(-MAX_HISTORY_MESSAGES)
+
       const payload = ChatRequestSchema.parse({
         conversationId,
         useTools: true,
-        messages: nextMessages.map((message) => ({
+        messages: historyWindow.map((message) => ({
           role: message.role,
           content: message.content,
           timestampUtc: message.timestamp,
@@ -151,7 +150,7 @@ export function ChatPage() {
     } finally {
       setIsSending(false)
     }
-  }
+  }, [conversationId, draft, messages])
 
   return (
     <main className="app-shell">
@@ -174,12 +173,7 @@ export function ChatPage() {
       </section>
 
       <aside className="sidebar">
-        <IngestPanel
-          sourcePath={sourcePath}
-          onSourcePathChange={setSourcePath}
-          onIngest={handleIngest}
-          isBusy={isIngesting}
-        />
+        <IngestPanel onIngest={handleIngest} isBusy={isIngesting} />
         <CitationsPanel citations={citations} />
       </aside>
     </main>

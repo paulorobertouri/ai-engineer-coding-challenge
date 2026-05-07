@@ -1,18 +1,11 @@
 import { Database, UploadCloud, Loader2 } from 'lucide-react'
 
 interface IngestPanelProps {
-  sourcePath: string
-  onSourcePathChange: (value: string) => void
-  onIngest: () => void
-  isBusy: boolean
+  readonly onIngest: () => void
+  readonly isBusy: boolean
 }
 
-export function IngestPanel({
-  sourcePath,
-  onSourcePathChange,
-  onIngest,
-  isBusy,
-}: IngestPanelProps) {
+export function IngestPanel({ onIngest, isBusy }: Readonly<IngestPanelProps>) {
   return (
     <section className="sidebar-card" aria-labelledby="ingest-heading">
       <div className="sidebar-card-header">
@@ -24,20 +17,7 @@ export function IngestPanel({
       <p className="description">
         Index the SOP document to enable grounded, citation-backed responses.
       </p>
-      <label htmlFor="source-path">Document path</label>
-      <input
-        id="source-path"
-        className="source-input"
-        value={sourcePath}
-        onChange={(event) => onSourcePathChange(event.target.value)}
-        disabled={isBusy}
-      />
-      <button
-        className="ingest-button"
-        type="button"
-        onClick={onIngest}
-        disabled={isBusy || sourcePath.trim().length === 0}
-      >
+      <button className="ingest-button" type="button" onClick={onIngest} disabled={isBusy}>
         {isBusy ? (
           <>
             <Loader2 size={14} className="animate-spin" />

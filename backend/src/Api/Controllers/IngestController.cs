@@ -16,24 +16,16 @@ public sealed class IngestController(
     IChunkingService chunkingService,
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
-    ILogger<IngestController> logger) : ControllerBase
+    ILogger<IngestController> logger,
+    IWebHostEnvironment env) : ControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken, [FromServices] IWebHostEnvironment env)
+    public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken)
     {
         var configuredSourcePath = configuration["Challenge:SourceDocumentPath"] ?? "../../../../knowledge-base/Grocery_Store_SOP.md";
 
-        // Always use the server-side configured path; ignore any path supplied by the caller
-        // to prevent path traversal (OWASP A01). If the caller explicitly passed a path that
-        // differs from what the server has configured, log a warning and reject it.
-        if (!string.IsNullOrWhiteSpace(request?.SourcePath) &&
-            !request.SourcePath.Equals(configuredSourcePath, StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogWarning("[INGEST] Caller requested path '{RequestedPath}' overridden by server configuration.", request.SourcePath);
-        }
-
-        logger.LogInformation("[INGEST] Configured: {ConfiguredPath}", configuration["Challenge:SourceDocumentPath"]);
-        logger.LogInformation("[INGEST] ContentRoot: {ContentRoot}", env.ContentRootPath);
+        logger.LogInformation("[INGEST] Configured: {ConfiguredPath} | ContentRoot: {ContentRoot}",
+            configuration["Challenge:SourceDocumentPath"], env.ContentRootPath);
 
         // Resolve path: check absolute, then check relative to content root (useful for Docker/Local mix)
         var sourcePath = Path.IsPathRooted(configuredSourcePath)

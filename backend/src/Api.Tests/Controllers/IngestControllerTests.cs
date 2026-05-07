@@ -56,7 +56,8 @@ public class IngestControllerTests
             _mockChunking.Object,
             _mockEmbedding.Object,
             _mockVectorStore.Object,
-            _mockLogger.Object);
+            _mockLogger.Object,
+            _mockEnv.Object);
     }
 
     private void Cleanup()
@@ -70,7 +71,7 @@ public class IngestControllerTests
         var controller = BuildController();
         try
         {
-            var result = await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            var result = await controller.Post(null, CancellationToken.None);
 
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             var response = Assert.IsType<IngestResponse>(ok.Value);
@@ -83,33 +84,12 @@ public class IngestControllerTests
     }
 
     [Fact]
-    public async Task Post_WithDifferentCallerPath_LogsWarning()
-    {
-        var controller = BuildController();
-        try
-        {
-            var request = new IngestRequest { SourcePath = "/some/other/path.md" };
-            await controller.Post(request, CancellationToken.None, _mockEnv.Object);
-
-            _mockLogger.Verify(
-                l => l.Log(
-                    LogLevel.Warning,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("overridden")),
-                    null,
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.Once);
-        }
-        finally { Cleanup(); }
-    }
-
-    [Fact]
     public async Task Post_FileNotFound_ReturnsNotFound()
     {
         var controller = BuildController("/nonexistent/path/SOP.md");
         try
         {
-            var result = await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            var result = await controller.Post(null, CancellationToken.None);
             Assert.IsType<NotFoundObjectResult>(result.Result);
         }
         finally { Cleanup(); }
@@ -121,7 +101,7 @@ public class IngestControllerTests
         var controller = BuildController();
         try
         {
-            var result = await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            var result = await controller.Post(null, CancellationToken.None);
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             Assert.IsType<IngestResponse>(ok.Value);
         }
@@ -134,32 +114,11 @@ public class IngestControllerTests
         var controller = BuildController();
         try
         {
-            await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            await controller.Post(null, CancellationToken.None);
 
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
                 Times.Once);
-        }
-        finally { Cleanup(); }
-    }
-
-    [Fact]
-    public async Task Post_WithSamePathAsConfigured_DoesNotLogWarning()
-    {
-        var controller = BuildController();
-        try
-        {
-            var request = new IngestRequest { SourcePath = _sopFile };
-            await controller.Post(request, CancellationToken.None, _mockEnv.Object);
-
-            _mockLogger.Verify(
-                l => l.Log(
-                    LogLevel.Warning,
-                    It.IsAny<EventId>(),
-                    It.IsAny<It.IsAnyType>(),
-                    null,
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.Never);
         }
         finally { Cleanup(); }
     }
@@ -170,7 +129,7 @@ public class IngestControllerTests
         _tempDir = Path.Combine(Path.GetTempPath(), $"ingest-rel-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
         _sopFile = Path.Combine(_tempDir, "SOP.md");
-        File.WriteAllText(_sopFile, "## Rel Section\nContent");
+        await File.WriteAllTextAsync(_sopFile, "## Rel Section\nContent");
 
         _mockConfig.Setup(c => c["Challenge:SourceDocumentPath"]).Returns("SOP.md");
         _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns("store.json");
@@ -188,11 +147,11 @@ public class IngestControllerTests
 
         var controller = new IngestController(
             _mockConfig.Object, _mockChunking.Object, _mockEmbedding.Object,
-            _mockVectorStore.Object, _mockLogger.Object);
+            _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
         {
-            var result = await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            var result = await controller.Post(null, CancellationToken.None);
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             Assert.IsType<IngestResponse>(ok.Value);
         }
@@ -211,7 +170,7 @@ public class IngestControllerTests
         var kbDir = Path.Combine(_tempDir, "knowledge-base");
         Directory.CreateDirectory(kbDir);
         var fbSop = Path.Combine(kbDir, "Grocery_Store_SOP.md");
-        File.WriteAllText(fbSop, "## Fallback Section\nFallback content");
+        await File.WriteAllTextAsync(fbSop, "## Fallback Section\nFallback content");
 
         _mockConfig.Setup(c => c["Challenge:SourceDocumentPath"]).Returns("/nonexistent/SOP.md");
         _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns("store.json");
@@ -229,11 +188,11 @@ public class IngestControllerTests
 
         var controller = new IngestController(
             _mockConfig.Object, _mockChunking.Object, _mockEmbedding.Object,
-            _mockVectorStore.Object, _mockLogger.Object);
+            _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
         {
-            var result = await controller.Post(null, CancellationToken.None, _mockEnv.Object);
+            var result = await controller.Post(null, CancellationToken.None);
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             var response = Assert.IsType<IngestResponse>(ok.Value);
             Assert.True(response.Accepted);

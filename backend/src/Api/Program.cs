@@ -2,6 +2,7 @@ using Api;
 using Api.Services;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using OpenAI;
@@ -61,18 +62,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSingleton(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var apiKey = config["OpenAI:ApiKey"];
-    if (string.IsNullOrWhiteSpace(apiKey))
-    {
-        throw new InvalidOperationException("OpenAI ApiKey is missing.");
-    }
-
-    return new OpenAIClient(apiKey);
-});
-
 builder.Services.AddSingleton<IChunkingService, MarkdownChunkingService>();
 builder.Services.AddSingleton<IVectorStoreService, JsonVectorStoreService>();
 
@@ -112,6 +101,7 @@ if (string.IsNullOrWhiteSpace(openAiApiKey))
 }
 else
 {
+    builder.Services.AddSingleton(new OpenAIClient(openAiApiKey));
     builder.Services.AddSingleton<IEmbeddingService, OpenAIEmbeddingService>();
     builder.Services.AddSingleton<IRetrievalChatService, OpenAIRetrievalChatService>();
 }
@@ -121,16 +111,20 @@ var app = builder.Build();
 app.UseResponseCompression();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+    foreach (var groupName in apiVersionDescriptionProvider.ApiVersionDescriptions.Select(d => d.GroupName))
     {
         options.SwaggerEndpoint(
-            $"/swagger/{description.GroupName}/swagger.json",
-            $"Grocery Store SOP API {description.GroupName.ToUpperInvariant()}");
+            $"/swagger/{groupName}/swagger.json",
+            $"Grocery Store SOP API {groupName.ToUpperInvariant()}");
     }
     options.RoutePrefix = "swagger";
 });
@@ -154,4 +148,4 @@ app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
