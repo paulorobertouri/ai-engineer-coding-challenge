@@ -6,20 +6,20 @@
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/health` | Returns service name, UTC time, and operational notes |
-| `POST` | `/api/ingest` | Chunk → embed → persist the SOP document |
-| `POST` | `/api/chat` | RAG-grounded multi-turn chat with tool-calling support |
+| `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
+| `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
+| `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 
 ## Services
 
 | Interface | Production Implementation | Fallback (no API key) | Description |
 |---|---|---|---|
-| `IChunkingService` | `MarkdownChunkingService` | _(same)_ | Splits markdown on `##` level-2 headers into semantic chunks |
+| `IChunkingService` | `MarkdownChunkingService` | _(same)_ | Splits markdown on `#` level-1 and `##` level-2 headers into semantic chunks using a source-generated regex |
 | `IEmbeddingService` | `OpenAIEmbeddingService` | `DeterministicEmbeddingService` | Generates embeddings via `text-embedding-3-small`; fallback uses FNV1a hashing |
-| `IVectorStoreService` | `JsonVectorStoreService` | _(same)_ | In-memory cosine similarity search backed by `Data/vector-store.json` |
+| `IVectorStoreService` | `JsonVectorStoreService` | _(same)_ | Thread-safe in-memory cosine similarity search backed by `Data/vector-store.json` (double-checked locking on load) |
 | `IRetrievalChatService` | `OpenAIRetrievalChatService` | `FallbackRetrievalChatService` | RAG pipeline with Polly resilience; fallback uses keyword matching |
 
-Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is present the real OpenAI services are wired; otherwise the deterministic fallbacks are used, keeping the app runnable without an API key.
+Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is present the real OpenAI services (including `OpenAIClient`) are wired; otherwise the deterministic fallbacks are used. The health endpoint dynamically reflects the active mode in its `notes` response field.
 
 ## Tool Calling
 
@@ -44,6 +44,17 @@ When `finish_reason` is `tool_calls` each tool is executed, its result appended 
 `OpenAIRetrievalChatService` wraps every OpenAI call in a Polly pipeline:
 - Exponential backoff retry — 3 attempts, 2 s base delay
 - 30 s timeout
+
+## Rate Limiting
+
+Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in rate limiter:
+
+| Endpoint | Policy | Limit |
+|---|---|---|
+| `POST /api/v1/chat` | `chat` | 30 requests / minute |
+| `POST /api/v1/ingest` | `ingest` | 10 requests / minute |
+
+Exceeding the limit returns `429 Too Many Requests`. Client IP is resolved through forwarded headers (`X-Forwarded-For`) to work correctly behind reverse proxies and Docker.
 
 ## Configuration
 
@@ -76,8 +87,14 @@ dotnet test backend/src/Api.Tests/Api.Tests.csproj
 ```
 
 Test coverage:
-- `MarkdownChunkingServiceTests` — verifies chunking by `##` headers and empty-input handling
-- `SqliteVectorStoreServiceTests` — verifies cosine similarity ordering, missing-file graceful load, and save/load round-trip
+- `MarkdownChunkingServiceTests` — verifies chunking by `#`/`##` headers and empty-input handling
+- `JsonVectorStoreServiceTests` — verifies cosine similarity ordering, missing-file graceful load, and save/load round-trip
+- `JsonVectorStoreServiceAdditionalTests` — verifies thread-safe double-checked locking and edge cases
+- `DeterministicEmbeddingServiceTests` — verifies FNV1a determinism and dimensionality
+- `FallbackRetrievalChatServiceTests` — verifies keyword-based response generation
+- `ChatControllerTests` — verifies chat endpoint request handling and validation
+- `HealthControllerTests` — verifies mode-aware notes in both API-key and fallback modes
+- `IngestControllerTests` — verifies path resolution, ingestion pipeline, and 404 on missing document
 
 ## Formatting
 

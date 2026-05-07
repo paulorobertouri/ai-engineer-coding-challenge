@@ -1,0 +1,20 @@
+# Build outputs
+bin/
+obj/
+
+# Runtime artefacts
+Logs/
+Data/vector-store.json
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+.DS_Store
+Thumbs.db
+
+# Development config
+appsettings.Development.json
+
+# HTTP scratch files
+*.http

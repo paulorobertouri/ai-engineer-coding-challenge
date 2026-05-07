@@ -58,8 +58,8 @@ All services (backend, frontend, Docker Compose) are pre-configured to read from
 ## Implemented Features
 
 ### 1. Document Ingestion
-- `POST /api/ingest` reads `knowledge-base/Grocery_Store_SOP.md` (path configurable via `Challenge__SourceDocumentPath`).
-- `MarkdownChunkingService` splits the document on level-2 (`##`) headers, producing one semantic chunk per section.
+- `POST /api/v1/ingest` reads the SOP document from the server-side configured path (`Challenge__SourceDocumentPath`). The source path is never accepted from the client (OWASP A01 path-traversal prevention).
+- `MarkdownChunkingService` splits the document on level-1 (`#`) and level-2 (`##`) headers, producing one semantic chunk per section.
 - Each chunk is embedded with `text-embedding-3-small` and written to `Data/vector-store.json` as a JSON array of `VectorRecord` objects.
 - Path resolution supports absolute paths, paths relative to `ContentRoot`, and a Docker-aware fallback.
 
@@ -87,17 +87,28 @@ When the model returns `finish_reason: tool_calls`, each tool is executed and it
 - Serilog structured logging with daily rolling file sink (`Logs/api-YYYYMMDD.log`) and console output.
 - `GlobalExceptionHandler` maps unhandled exceptions to RFC 9457 `ProblemDetails` responses.
 - Response compression (Gzip / Brotli) enabled for HTTPS.
+- Forwarded headers middleware (`X-Forwarded-For`, `X-Forwarded-Proto`) for accurate client IP detection behind proxies/Docker.
 
-### 6. Security Headers
+### 6. Rate Limiting
+Fixed-window rate limiting applied per client IP:
+
+| Endpoint | Policy | Limit |
+|---|---|---|
+| `POST /api/v1/chat` | `chat` | 30 requests / minute |
+| `POST /api/v1/ingest` | `ingest` | 10 requests / minute |
+
+Exceeding the limit returns `429 Too Many Requests`.
+
+### 7. Security Headers
 `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS (non-development).
 
 ## API Endpoints
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/health` | Returns service name, UTC time, and operational notes |
-| `POST` | `/api/ingest` | Chunk → embed → persist the SOP document |
-| `POST` | `/api/chat` | RAG chat with optional tool-calling |
+| `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
+| `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
+| `POST` | `/api/v1/chat` | RAG chat with optional tool-calling |
 
 ## How to Run
 
@@ -162,10 +173,10 @@ Screenshots captured from the running application:
 
 ## Key Design Decisions
 
-- **Markdown chunking by `##` headers:** Keeps each SOP section (e.g. "Opening Procedures") as a single coherent unit rather than splitting mid-paragraph.
+- **Markdown chunking by `#`/`##` headers:** Splits on both level-1 and level-2 headers so top-level document titles form their own chunk and each SOP section (e.g. "Opening Procedures") is a single coherent unit.
 - **JSON vector store, no SQLite:** Avoids native runtime dependencies; the entire store is a single portable file, trivial to inspect and reset.
-- **Stateless chat server:** The client sends the full history on every request. This eliminates server-side session state and makes horizontal scaling trivial for a future production step.
-- **Conditional service registration:** The DI container wires real OpenAI services when a key is present and deterministic fallbacks otherwise, so the app works in CI and offline environments with no code changes.
+- **Stateless chat server:** The client sends a sliding window of up to the last 20 messages on every request. This eliminates server-side session state and caps token growth for long conversations.
+- **Conditional service registration:** The DI container wires real OpenAI services (including `OpenAIClient`) only when a key is present, and deterministic fallbacks otherwise. The health endpoint dynamically reflects the active mode in its response notes.
 - **Polly over custom retry logic:** Standardised resilience with observable retry events; easy to extend with circuit-breaker or hedging policies later.
 
 See [docs/adr/ARCH_DECISIONS.md](docs/adr/ARCH_DECISIONS.md) for full architectural decision records.
