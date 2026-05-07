@@ -37,16 +37,16 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
 
 export const apiClient = {
   getHealth(): Promise<HealthResponse> {
-    return request<HealthResponse>('/api/health')
+    return request<HealthResponse>('/api/v1/health')
   },
   ingest(payload: IngestRequest): Promise<IngestResponse> {
-    return request<IngestResponse>('/api/ingest', {
+    return request<IngestResponse>('/api/v1/ingest', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
   },
   chat(payload: ChatRequest): Promise<ChatResponse> {
-    return request<ChatResponse>('/api/chat', {
+    return request<ChatResponse>('/api/v1/chat', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

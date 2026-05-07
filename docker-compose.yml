@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./backend/src/Api/Data:/app/Data
+      # - ./backend/src/Api/Data:/app/Data
       - ./knowledge-base:/knowledge-base:ro
 
   frontend:

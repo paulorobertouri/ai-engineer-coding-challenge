@@ -25,9 +25,13 @@ describe('ChatTranscript', () => {
     expect(screen.getByText('Hello user, how can I help?')).toBeInTheDocument()
   })
 
-  it('identifies the speakers correctly', () => {
+  it('shows empty state when there are no messages', () => {
+    render(<ChatTranscript messages={[]} />)
+    expect(screen.getByText(/Ingest the SOP document/i)).toBeInTheDocument()
+  })
+
+  it('does not show empty state when messages are present', () => {
     render(<ChatTranscript messages={mockMessages} />)
-    expect(screen.getByText('You')).toBeInTheDocument()
-    expect(screen.getByText('AI Assistant')).toBeInTheDocument()
+    expect(screen.queryByText(/Ingest the SOP document/i)).not.toBeInTheDocument()
   })
 })

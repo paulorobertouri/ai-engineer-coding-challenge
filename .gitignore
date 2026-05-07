@@ -70,3 +70,10 @@ Thumbs.db
 evidences/raw/
 playwright-report/
 test-results/
+coverage/
+
+
+# =========================
+# Database
+# =========================
+backend/src/Api/Data/vector-store.json

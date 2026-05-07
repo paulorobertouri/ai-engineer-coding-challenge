@@ -1,7 +1,12 @@
+using Api;
 using Api.Services;
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
 using OpenAI;
-using DotNetEnv;
 using Serilog;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Threading.RateLimiting;
 
 // Load environment variables from .env file
@@ -25,6 +30,21 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
     ?? ["http://localhost:5173"];
 
 builder.Services.AddControllers();
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+})
+.AddMvc()
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddResponseCompression(options =>
@@ -101,6 +121,19 @@ var app = builder.Build();
 app.UseResponseCompression();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+
+var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+    {
+        options.SwaggerEndpoint(
+            $"/swagger/{description.GroupName}/swagger.json",
+            $"Grocery Store SOP API {description.GroupName.ToUpperInvariant()}");
+    }
+    options.RoutePrefix = "swagger";
+});
 
 if (!app.Environment.IsDevelopment())
 {

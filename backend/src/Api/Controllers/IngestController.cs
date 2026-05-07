@@ -1,13 +1,15 @@
 using Api.Contracts;
 using Api.Models;
 using Api.Services;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting("ingest")]
 public sealed class IngestController(
     IConfiguration configuration,

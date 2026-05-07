@@ -1,12 +1,14 @@
 using Api.Contracts;
 using Api.Services;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public sealed class ChatController(IRetrievalChatService retrievalChatService) : ControllerBase
 {
     [HttpPost]

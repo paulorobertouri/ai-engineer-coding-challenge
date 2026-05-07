@@ -49,13 +49,23 @@ export function ChatPage() {
         }
       } catch (error) {
         if (!isCancelled) {
-          setStatus({
-            tone: 'warning',
-            message:
-              error instanceof Error
-                ? `Backend health check failed: ${error.message}`
-                : 'Backend health check failed.',
-          })
+          if (error instanceof Error && error.message === 'Failed to fetch') {
+            setStatus({
+              tone: 'info',
+              message: 'Backend health check failed: Failed to fetch. Retrying in 5s...',
+            })
+            setTimeout(() => {
+              if (!isCancelled) void loadHealth()
+            }, 5000)
+          } else {
+            setStatus({
+              tone: 'warning',
+              message:
+                error instanceof Error
+                  ? `Backend health check failed: ${error.message}`
+                  : 'Backend health check failed.',
+            })
+          }
         }
       }
     }
@@ -155,7 +165,7 @@ export function ChatPage() {
               <h1>SOP Assistant</h1>
               <p>Grocery Store Operating Procedures · Powered by AI</p>
             </div>
-            <span className="app-header-badge">GPT-5-mini</span>
+            <span className="app-header-badge">GPT-4o-mini</span>
           </div>
         </header>
         <StatusBanner status={status} />

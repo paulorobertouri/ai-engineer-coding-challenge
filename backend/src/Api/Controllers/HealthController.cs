@@ -1,10 +1,12 @@
 using Api.Contracts;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public sealed class HealthController : ControllerBase
 {
     [HttpGet]

@@ -7,13 +7,20 @@ TARGET="${1:-all}"   # all | backend | frontend
 
 run_backend_tests() {
   echo "==> Backend: dotnet test..."
-  dotnet test "$ROOT/backend/src/Api.Tests/Api.Tests.csproj" -c Release
+  dotnet test "$ROOT/backend/src/Api.Tests/Api.Tests.csproj" -c Release \
+    --collect:"XPlat Code Coverage" \
+    --results-directory "$ROOT/backend/coverage" \
+    /p:CollectCoverage=true \
+    /p:CoverletOutputFormat=cobertura \
+    /p:CoverletOutput="$ROOT/backend/coverage/" \
+    /p:ReportTypes=Html \
+    "/p:Exclude=[GroceryStore.Chatbot.Api]Api.Services.OpenAIRetrievalChatService%2C[GroceryStore.Chatbot.Api]Api.Services.OpenAIEmbeddingService"
 }
 
 run_frontend_tests() {
   echo "==> Frontend: vitest..."
   cd "$ROOT/frontend"
-  npm test
+  npm test -- --coverage
 }
 
 case "$TARGET" in
