@@ -56,6 +56,8 @@ export interface HealthResponse {
   service: string
   utcTime: string
   notes: string[]
+  isIngested: boolean
+  recordCount: number
 }
 
 export interface StatusMessage {

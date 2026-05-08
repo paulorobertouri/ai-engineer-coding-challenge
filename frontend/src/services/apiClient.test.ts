@@ -97,4 +97,74 @@ describe('apiClient', () => {
     } as unknown as Response)
     await expect(apiClient.getHealth()).rejects.toThrow(/500/)
   })
+
+  it('ingestFile sends a multipart POST to /api/v1/ingest/upload', async () => {
+    const ingestResponse = {
+      accepted: true,
+      message: 'done',
+      sourcePath: 'my-file.md',
+      chunksCreated: 3,
+      recordsPersisted: 3,
+      vectorStorePath: '/store',
+      isPlaceholder: false,
+    }
+    mockFetch(ingestResponse)
+    const file = new File(['# Hello'], 'my-file.md', { type: 'text/markdown' })
+    const result = await apiClient.ingestFile(file)
+    expect(result.accepted).toBe(true)
+    expect(result.chunksCreated).toBe(3)
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/ingest/upload'),
+      expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
+    )
+  })
+
+  it('ingestFile appends the file under the "file" key', async () => {
+    mockFetch({
+      accepted: true,
+      message: '',
+      sourcePath: '',
+      chunksCreated: 0,
+      recordsPersisted: 0,
+      vectorStorePath: '',
+      isPlaceholder: false,
+    })
+    const file = new File(['data'], 'doc.txt')
+    await apiClient.ingestFile(file)
+    const [, init] = vi.mocked(fetch).mock.calls[0]
+    const body = (init as RequestInit).body as FormData
+    expect(body.get('file')).toBe(file)
+  })
+
+  it('ingestFile throws the error field from a non-ok response', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: 'Already ingested' }),
+    } as Response)
+    const file = new File(['data'], 'doc.md')
+    await expect(apiClient.ingestFile(file)).rejects.toThrow('Already ingested')
+  })
+
+  it('ingestFile throws a status message when non-ok response has no error field', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 413,
+      json: async () => ({}),
+    } as Response)
+    const file = new File(['data'], 'doc.md')
+    await expect(apiClient.ingestFile(file)).rejects.toThrow(/413/)
+  })
+
+  it('ingestFile swallows JSON parse errors on non-ok responses and still throws', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new Error('bad json')
+      },
+    } as unknown as Response)
+    const file = new File(['data'], 'doc.md')
+    await expect(apiClient.ingestFile(file)).rejects.toThrow(/500/)
+  })
 })

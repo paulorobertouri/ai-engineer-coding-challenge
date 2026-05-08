@@ -3,6 +3,7 @@ using Api.Controllers;
 using Api.Models;
 using Api.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -46,6 +47,10 @@ public class IngestControllerTests
         _mockEmbedding
             .Setup(s => s.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[128]);
+
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
 
         _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
@@ -142,6 +147,10 @@ public class IngestControllerTests
             .Setup(s => s.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[128]);
         _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -183,6 +192,10 @@ public class IngestControllerTests
             .Setup(s => s.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[128]);
         _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -201,5 +214,144 @@ public class IngestControllerTests
         {
             if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Post_WhenVectorStoreAlreadyHasRecords_ReturnsConflict()
+    {
+        var controller = BuildController();
+        // Override LoadAsync to simulate an already-populated store
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorRecord { Id = "existing", Source = "SOP.md", ChunkText = "x", Embedding = [] }]);
+
+        try
+        {
+            var result = await controller.Post(null, CancellationToken.None);
+            Assert.IsType<ConflictObjectResult>(result.Result);
+
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally { Cleanup(); }
+    }
+
+    // ── Upload endpoint ───────────────────────────────────────────────────────
+
+    private static IFormFile MakeFormFile(string content, string fileName, string contentType = "text/markdown")
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var stream = new MemoryStream(bytes);
+        var formFile = new Microsoft.AspNetCore.Http.FormFile(stream, 0, bytes.Length, "file", fileName)
+        {
+            Headers = new Microsoft.AspNetCore.Http.HeaderDictionary(),
+            ContentType = contentType
+        };
+        return formFile;
+    }
+
+    [Fact]
+    public async Task Upload_ValidFile_ReturnsOkWithIngestResponse()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("## Section\nContent here", "upload.md");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<IngestResponse>(ok.Value);
+            Assert.True(response.Accepted);
+            Assert.Equal(1, response.ChunksCreated);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_WhenVectorStoreAlreadyHasRecords_ReturnsConflict()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorRecord { Id = "x", Source = "s", ChunkText = "t", Embedding = [] }]);
+
+        var file = MakeFormFile("content", "doc.md");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            Assert.IsType<ConflictObjectResult>(result.Result);
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_NullFile_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        try
+        {
+            var result = await controller.Upload(null, CancellationToken.None);
+            Assert.IsType<BadRequestObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_EmptyFile_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        var emptyFile = MakeFormFile("", "empty.md");
+        try
+        {
+            var result = await controller.Upload(emptyFile, CancellationToken.None);
+            Assert.IsType<BadRequestObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_DisallowedExtension_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("content", "document.pdf", "application/pdf");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+            Assert.NotNull(bad.Value);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_TxtExtension_IsAccepted()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("Plain text SOP content.", "procedures.txt", "text/plain");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_SavesRecordsToVectorStore()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("## Section\nContent here", "upload.md");
+        try
+        {
+            await controller.Upload(file, CancellationToken.None);
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally { Cleanup(); }
     }
 }

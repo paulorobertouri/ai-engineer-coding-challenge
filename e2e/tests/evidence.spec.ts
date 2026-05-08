@@ -6,22 +6,29 @@ test("generate evidences", async ({ page }) => {
   await page.goto("/");
   await page.screenshot({ path: "../evidences/01-initial-load.png" });
 
-  // 1. Ingest
-  // Updated selector to match "Run Ingest"
-  await page.click('button:has-text("Run Ingest")');
-  await expect(page.locator(".status-banner")).toContainText(
-    "SOP document ingested successfully",
-    { timeout: 60000 },
-  );
+  // 1. Ingest — only needed if the ingest panel is shown (not yet ingested)
+  const ingestBtn = page.locator('button:has-text("Use Default SOP")');
+  const input = page.locator("#chat-input");
+
+  const panelVisible = await ingestBtn
+    .waitFor({ state: "visible", timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (panelVisible) {
+    await ingestBtn.click();
+    await expect(page.locator(".status-banner")).toContainText(
+      "Document ingested successfully",
+      { timeout: 60000 },
+    );
+  }
   await page.screenshot({ path: "../evidences/02-after-ingest.png" });
 
-  // 2. Chat - Question 1
-  // Updated selector to match actual placeholder
-  const input = page.locator('textarea[placeholder*="Example:"]');
+  // 2. Chat - Question 1 — wait for chat layout (input visible once ingested)
+  await input.waitFor({ state: "visible", timeout: 10000 });
   await input.fill("What is the policy on expired items?");
   await page.click('button:has-text("Send")');
 
-  // Updated to wait for 'Assistant' in the meta tag of the message card
   await expect(
     page.locator('.message-card[data-role="assistant"]'),
   ).toBeVisible({ timeout: 60000 });

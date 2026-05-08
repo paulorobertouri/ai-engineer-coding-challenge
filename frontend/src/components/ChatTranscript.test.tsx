@@ -27,11 +27,13 @@ describe('ChatTranscript', () => {
 
   it('shows empty state when there are no messages', () => {
     render(<ChatTranscript messages={[]} />)
-    expect(screen.getByText(/Ingest the SOP document/i)).toBeInTheDocument()
+    expect(screen.getByText(/Ask anything about the operating procedures/i)).toBeInTheDocument()
   })
 
   it('does not show empty state when messages are present', () => {
     render(<ChatTranscript messages={mockMessages} />)
-    expect(screen.queryByText(/Ingest the SOP document/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Ask anything about the operating procedures/i),
+    ).not.toBeInTheDocument()
   })
 })

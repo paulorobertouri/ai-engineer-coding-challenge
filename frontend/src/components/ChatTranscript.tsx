@@ -4,18 +4,26 @@ import { User, Bot, Clock, MessageSquareDashed } from 'lucide-react'
 import type { ChatMessage } from '../types/chat'
 import { format } from 'date-fns'
 import { MarkdownContent } from './MarkdownContent'
+import { TypingIndicator } from './TypingIndicator'
+import { SuggestedPrompts } from './SuggestedPrompts'
 import { cn } from '../services/utils'
 
 interface ChatTranscriptProps {
   messages: ChatMessage[]
+  isSending?: boolean
+  onPromptSelect?: (prompt: string) => void
 }
 
-export function ChatTranscript({ messages }: ChatTranscriptProps) {
+export function ChatTranscript({
+  messages,
+  isSending = false,
+  onPromptSelect,
+}: ChatTranscriptProps) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages])
+  }, [messages, isSending])
 
   return (
     <section
@@ -23,14 +31,13 @@ export function ChatTranscript({ messages }: ChatTranscriptProps) {
       aria-label="Conversation history"
       aria-live="polite"
     >
-      {messages.length === 0 && (
+      {messages.length === 0 && !isSending && (
         <div className="transcript-empty select-none">
           <div className="transcript-empty__icon">
             <MessageSquareDashed size={22} className="text-emerald-700" />
           </div>
-          <p>
-            Ingest the SOP document, then ask anything about grocery store operating procedures.
-          </p>
+          <p>Ask anything about the operating procedures.</p>
+          {onPromptSelect && <SuggestedPrompts onSelect={onPromptSelect} />}
         </div>
       )}
       <AnimatePresence initial={false}>
@@ -74,6 +81,28 @@ export function ChatTranscript({ messages }: ChatTranscriptProps) {
           </motion.article>
         ))}
       </AnimatePresence>
+
+      {isSending && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="message-card message-card--assistant mr-auto"
+        >
+          <div className="message-avatar" aria-hidden>
+            <Bot size={15} />
+          </div>
+          <div className="message-stack">
+            <div className="message-meta message-meta--assistant">
+              <span>AI Assistant</span>
+            </div>
+            <div className="message-bubble">
+              <TypingIndicator />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <div ref={endOfMessagesRef} />
     </section>
   )

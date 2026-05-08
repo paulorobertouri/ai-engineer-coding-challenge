@@ -1,4 +1,5 @@
 using Api.Contracts;
+using Api.Services;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,10 +8,10 @@ namespace Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public sealed class HealthController(IConfiguration configuration) : ControllerBase
+public sealed class HealthController(IConfiguration configuration, IVectorStoreService vectorStoreService) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<HealthResponse> Get()
+    public async Task<ActionResult<HealthResponse>> Get(CancellationToken cancellationToken)
     {
         var hasApiKey = !string.IsNullOrWhiteSpace(configuration["OpenAI:ApiKey"]);
 
@@ -28,12 +29,16 @@ public sealed class HealthController(IConfiguration configuration) : ControllerB
                 "Set OpenAI__ApiKey to enable full AI capabilities."
             };
 
+        var records = await vectorStoreService.LoadAsync(cancellationToken);
+
         return Ok(new HealthResponse
         {
             Status = "ok",
             Service = "grocery-store-sop-assistant-api",
             UtcTime = DateTimeOffset.UtcNow,
-            Notes = notes
+            Notes = notes,
+            IsIngested = records.Count > 0,
+            RecordCount = records.Count
         });
     }
 }

@@ -8,14 +8,25 @@ vi.mock('../services/apiClient', () => ({
     getHealth: vi.fn(),
     chat: vi.fn(),
     ingest: vi.fn(),
+    ingestFile: vi.fn(),
   },
 }))
 
-const healthOk = {
+// Health response when already ingested (shows chat layout)
+const healthIngested = {
   status: 'ok',
   service: 'SOP API',
   utcTime: '2026-01-01T00:00:00Z',
   notes: ['All systems operational'],
+  isIngested: true,
+  recordCount: 10,
+}
+
+// Health response when NOT yet ingested (shows ingest panel)
+const healthNotIngested = {
+  ...healthIngested,
+  isIngested: false,
+  recordCount: 0,
 }
 
 const chatOk = {
@@ -29,7 +40,7 @@ const chatOk = {
 
 describe('ChatPage', () => {
   beforeEach(() => {
-    vi.mocked(apiClient.getHealth).mockResolvedValue(healthOk)
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthIngested)
   })
 
   afterEach(() => {
@@ -48,7 +59,7 @@ describe('ChatPage', () => {
   it('shows initial checking health status before the request completes', () => {
     vi.mocked(apiClient.getHealth).mockReturnValue(new Promise(() => {}))
     render(<ChatPage />)
-    expect(screen.getByText('Checking backend health...')).toBeInTheDocument()
+    expect(screen.getByText('Checking backend health…')).toBeInTheDocument()
   })
 
   it('shows success status after health check succeeds', async () => {
@@ -76,14 +87,26 @@ describe('ChatPage', () => {
     })
   })
 
-  it('shows the empty transcript state initially', () => {
+  it('shows the empty transcript state when ingested', async () => {
     render(<ChatPage />)
-    expect(screen.getByText(/Ingest the SOP document/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/Ask anything about the operating procedures/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows the ingest panel when not yet ingested', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
+    render(<ChatPage />)
+    await waitFor(() => {
+      expect(screen.getByText(/Knowledge Base/i)).toBeInTheDocument()
+    })
   })
 
   it('appends the user message to the transcript after sending', async () => {
     vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
 
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'What are the opening steps?' },
@@ -99,6 +122,8 @@ describe('ChatPage', () => {
     vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'What are the opening steps?' },
     })
@@ -113,6 +138,8 @@ describe('ChatPage', () => {
     vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
     const textarea = screen.getByLabelText(/ask about the grocery store sop/i)
     fireEvent.change(textarea, { target: { value: 'My question' } })
     fireEvent.click(screen.getByRole('button', { name: /send message/i }))
@@ -122,7 +149,7 @@ describe('ChatPage', () => {
     })
   })
 
-  it('shows "Sending chat request..." status while the request is in flight', async () => {
+  it('shows "Sending chat request…" status while the request is in flight', async () => {
     let resolveChatResponse!: (value: typeof chatOk) => void
     vi.mocked(apiClient.chat).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -131,12 +158,14 @@ describe('ChatPage', () => {
     )
     render(<ChatPage />)
 
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'Hello' },
     })
     fireEvent.click(screen.getByRole('button', { name: /send message/i }))
 
-    expect(screen.getByText('Sending chat request...')).toBeInTheDocument()
+    expect(screen.getByText('Sending chat request…')).toBeInTheDocument()
 
     resolveChatResponse(chatOk)
     await waitFor(() => {
@@ -147,6 +176,8 @@ describe('ChatPage', () => {
   it('shows a chat error status when the chat request fails', async () => {
     vi.mocked(apiClient.chat).mockRejectedValueOnce(new Error('Network error'))
     render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
 
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'test message' },
@@ -161,6 +192,8 @@ describe('ChatPage', () => {
   it('adds a fallback assistant message in the transcript when the chat request fails', async () => {
     vi.mocked(apiClient.chat).mockRejectedValueOnce(new Error('Network error'))
     render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
 
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'test message' },
@@ -186,6 +219,8 @@ describe('ChatPage', () => {
     })
     render(<ChatPage />)
 
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
     fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
       target: { value: 'What time do we open?' },
     })
@@ -197,6 +232,7 @@ describe('ChatPage', () => {
   })
 
   it('updates status to success after ingest completes', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
     vi.mocked(apiClient.ingest).mockResolvedValueOnce({
       accepted: true,
       message: 'Ingestion complete.',
@@ -208,7 +244,8 @@ describe('ChatPage', () => {
     })
     render(<ChatPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: /run ingest/i }))
+    await waitFor(() => screen.getByRole('button', { name: /use default sop/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use default sop/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/Ingestion complete/i)).toBeInTheDocument()
@@ -216,17 +253,20 @@ describe('ChatPage', () => {
   })
 
   it('shows error status when ingest fails', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
     vi.mocked(apiClient.ingest).mockRejectedValueOnce(new Error('Ingest failed'))
     render(<ChatPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: /run ingest/i }))
+    await waitFor(() => screen.getByRole('button', { name: /use default sop/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use default sop/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Ingest failed')).toBeInTheDocument()
     })
   })
 
-  it('shows "Calling the ingest endpoint..." status while ingesting', async () => {
+  it('shows "Calling the ingest endpoint…" status while ingesting', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
     let resolveIngest!: (
       value: ReturnType<(typeof apiClient)['ingest']> extends Promise<infer T> ? T : never,
     ) => void
@@ -237,9 +277,10 @@ describe('ChatPage', () => {
     )
     render(<ChatPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: /run ingest/i }))
+    await waitFor(() => screen.getByRole('button', { name: /use default sop/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use default sop/i }))
 
-    expect(screen.getByText('Calling the ingest endpoint...')).toBeInTheDocument()
+    expect(screen.getByText('Calling the ingest endpoint…')).toBeInTheDocument()
 
     resolveIngest({
       accepted: true,
@@ -252,6 +293,159 @@ describe('ChatPage', () => {
     })
     await waitFor(() => {
       expect(screen.getByText(/Done\. Vector store:/i)).toBeInTheDocument()
+    })
+  })
+
+  it('uploads a file and transitions to the chat layout on success', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
+    vi.mocked(apiClient.ingestFile).mockResolvedValueOnce({
+      accepted: true,
+      message: 'File ingested.',
+      sourcePath: 'report.md',
+      chunksCreated: 5,
+      recordsPersisted: 5,
+      vectorStorePath: '/store',
+      isPlaceholder: false,
+    })
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/select a .md or .txt document/i))
+    const input = screen.getByLabelText(/select a .md or .txt document/i)
+    const file = new File(['# Report'], 'report.md')
+    fireEvent.change(input, { target: { files: [file] } })
+    fireEvent.click(screen.getByRole('button', { name: /upload & ingest/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/File ingested/i)).toBeInTheDocument()
+    })
+    expect(apiClient.ingestFile).toHaveBeenCalledWith(file)
+  })
+
+  it('shows uploading status message while uploading a file', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
+    let resolveUpload!: (value: Awaited<ReturnType<typeof apiClient.ingestFile>>) => void
+    vi.mocked(apiClient.ingestFile).mockReturnValueOnce(
+      new Promise((r) => {
+        resolveUpload = r
+      }),
+    )
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/select a .md or .txt document/i))
+    const input = screen.getByLabelText(/select a .md or .txt document/i)
+    fireEvent.change(input, { target: { files: [new File(['x'], 'my-notes.md')] } })
+    fireEvent.click(screen.getByRole('button', { name: /upload & ingest/i }))
+
+    expect(screen.getByText(/Uploading "my-notes.md"/i)).toBeInTheDocument()
+
+    resolveUpload({
+      accepted: true,
+      message: 'Done.',
+      sourcePath: '',
+      chunksCreated: 0,
+      recordsPersisted: 0,
+      vectorStorePath: '',
+      isPlaceholder: false,
+    })
+    await waitFor(() => {
+      expect(screen.getByText(/Done\. Vector store:/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows warning tone when ingest response is a placeholder', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
+    vi.mocked(apiClient.ingest).mockResolvedValueOnce({
+      accepted: true,
+      message: 'Placeholder ingested.',
+      sourcePath: '',
+      chunksCreated: 0,
+      recordsPersisted: 0,
+      vectorStorePath: '',
+      isPlaceholder: true,
+    })
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByRole('button', { name: /use default sop/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use default sop/i }))
+
+    await waitFor(() => {
+      expect(document.querySelector('.status-banner')).toHaveAttribute('data-tone', 'warning')
+    })
+  })
+
+  it('handles "already been ingested" ingest error by marking as ingested', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValue(healthNotIngested)
+    vi.mocked(apiClient.ingest).mockRejectedValueOnce(new Error('has already been ingested'))
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByRole('button', { name: /use default sop/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use default sop/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/already ingested/i)).toBeInTheDocument()
+    })
+  })
+
+  it('dismisses the status banner when the dismiss button is clicked', async () => {
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByText('SOP API is running. All systems operational'))
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    expect(
+      screen.queryByText('SOP API is running. All systems operational'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('fills the draft when a suggested prompt chip is clicked', async () => {
+    render(<ChatPage />)
+
+    await waitFor(() =>
+      screen.getAllByRole('button', {
+        name: /opening procedures|operating hours|complaint|closing checklist/i,
+      }),
+    )
+    const chip = screen.getAllByRole('button', {
+      name: /opening procedures|operating hours|complaint|closing checklist/i,
+    })[0]
+    fireEvent.click(chip)
+
+    await waitFor(() => {
+      const textarea = screen.getByLabelText(/ask about the grocery store sop/i)
+      expect((textarea as HTMLTextAreaElement).value).not.toBe('')
+    })
+  })
+
+  it('shows warning tone when chat response is a placeholder', async () => {
+    vi.mocked(apiClient.chat).mockResolvedValueOnce({
+      ...chatOk,
+      isPlaceholder: true,
+    })
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'Test question' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(document.querySelector('.status-banner')).toHaveAttribute('data-tone', 'warning')
+    })
+  })
+
+  it('shows error message string from non-Error chat failure', async () => {
+    vi.mocked(apiClient.chat).mockRejectedValueOnce('plain string error')
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'Hello' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Chat request failed.')).toBeInTheDocument()
     })
   })
 })

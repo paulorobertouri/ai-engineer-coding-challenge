@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { CitationsPanel } from './CitationsPanel'
 import { describe, it, expect } from 'vitest'
 import type { Citation } from '../types/chat'
@@ -43,5 +43,50 @@ describe('CitationsPanel', () => {
     const citations: Citation[] = [{ source: 'SOP.md', snippet: 'text' }]
     render(<CitationsPanel citations={citations} />)
     expect(screen.queryByText(/citations will appear/i)).not.toBeInTheDocument()
+  })
+
+  it('shows "Show more" button for each citation', () => {
+    const citations: Citation[] = [
+      { source: 'SOP.md', snippet: 'text one' },
+      { source: 'SOP.md', snippet: 'text two' },
+    ]
+    render(<CitationsPanel citations={citations} />)
+    expect(screen.getAllByRole('button', { name: /show more/i })).toHaveLength(2)
+  })
+
+  it('toggles citation expansion when "Show more" is clicked', () => {
+    const citations: Citation[] = [{ source: 'SOP.md', snippet: 'expandable text' }]
+    render(<CitationsPanel citations={citations} />)
+
+    const btn = screen.getByRole('button', { name: /show more/i })
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(btn)
+    expect(screen.getByRole('button', { name: /show less/i })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  it('collapses citation when "Show less" is clicked', () => {
+    const citations: Citation[] = [{ source: 'SOP.md', snippet: 'expandable text' }]
+    render(<CitationsPanel citations={citations} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /show more/i }))
+    fireEvent.click(screen.getByRole('button', { name: /show less/i }))
+    expect(screen.getByRole('button', { name: /show more/i })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('shows "No sources were cited" when hasMessages is true and citations are empty', () => {
+    render(<CitationsPanel citations={[]} hasMessages={true} />)
+    expect(screen.getByText(/No sources were cited/i)).toBeInTheDocument()
+  })
+
+  it('shows generic empty message when hasMessages is false and citations are empty', () => {
+    render(<CitationsPanel citations={[]} hasMessages={false} />)
+    expect(screen.getByText(/citations will appear/i)).toBeInTheDocument()
   })
 })

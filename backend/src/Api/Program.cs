@@ -2,6 +2,7 @@ using Api;
 using Api.Services;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
@@ -31,6 +32,8 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
     ?? ["http://localhost:5173"];
 
 builder.Services.AddControllers();
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 10 * 1024 * 1024);
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -62,7 +65,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSingleton<IChunkingService, MarkdownChunkingService>();
+builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
 builder.Services.AddSingleton<IVectorStoreService, JsonVectorStoreService>();
 
 // Rate limiting: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest

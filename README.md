@@ -174,7 +174,7 @@ Screenshots captured from the running application:
 ## Key Design Decisions
 
 - **Markdown chunking by `#`/`##` headers:** Splits on both level-1 and level-2 headers so top-level document titles form their own chunk and each SOP section (e.g. "Opening Procedures") is a single coherent unit.
-- **JSON vector store, no SQLite:** Avoids native runtime dependencies; the entire store is a single portable file, trivial to inspect and reset.
+- **JSON vector store:** Avoids native runtime dependencies; the entire store is a single portable file, trivial to inspect and reset.
 - **Stateless chat server:** The client sends a sliding window of up to the last 20 messages on every request. This eliminates server-side session state and caps token growth for long conversations.
 - **Conditional service registration:** The DI container wires real OpenAI services (including `OpenAIClient`) only when a key is present, and deterministic fallbacks otherwise. The health endpoint dynamically reflects the active mode in its response notes.
 - **Polly over custom retry logic:** Standardised resilience with observable retry events; easy to extend with circuit-breaker or hedging policies later.

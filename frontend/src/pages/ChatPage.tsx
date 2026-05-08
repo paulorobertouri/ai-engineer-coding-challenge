@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ShoppingCart } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
-import type { ChatMessage, Citation, StatusMessage } from '../types/chat'
+import type { ChatMessage, Citation, IngestResponse, StatusMessage } from '../types/chat'
+import { AppHeader } from '../components/AppHeader'
 import { ChatComposer } from '../components/ChatComposer'
 import { ChatTranscript } from '../components/ChatTranscript'
 import { CitationsPanel } from '../components/CitationsPanel'
@@ -29,9 +29,22 @@ export function ChatPage() {
   const [citations, setCitations] = useState<Citation[]>([])
   const [status, setStatus] = useState<StatusMessage>({
     tone: 'info',
-    message: 'Checking backend health...',
+    message: 'Checking backend health…',
   })
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // null = health check in progress; false = not yet ingested; true = ingested
+  const [isIngested, setIsIngested] = useState<boolean | null>(null)
+
+  // Auto-dismiss success/info banners after 4 s
+  useEffect(() => {
+    if (status.tone === 'success' || status.tone === 'info') {
+      const timer = setTimeout(
+        () => setStatus((s) => (s === status ? { ...s, tone: 'info', message: '' } : s)),
+        4000,
+      )
+      return () => clearTimeout(timer)
+    }
+  }, [status])
 
   useEffect(() => {
     let isCancelled = false
@@ -41,6 +54,7 @@ export function ChatPage() {
         const health = await apiClient.getHealth()
 
         if (!isCancelled) {
+          setIsIngested(health.isIngested)
           setStatus({
             tone: 'success',
             message: `${health.service} is running. ${health.notes[0] ?? ''}`.trim(),
@@ -51,7 +65,7 @@ export function ChatPage() {
           if (error instanceof Error && error.message === 'Failed to fetch') {
             setStatus({
               tone: 'info',
-              message: 'Backend health check failed: Failed to fetch. Retrying in 5s...',
+              message: 'Backend health check failed: Failed to fetch. Retrying in 5s…',
             })
             setTimeout(() => {
               if (!isCancelled) void loadHealth()
@@ -76,24 +90,37 @@ export function ChatPage() {
     }
   }, [])
 
-  const handleIngest = useCallback(async () => {
+  const handleIngest = useCallback(async (file?: File) => {
     setIsIngesting(true)
-    setStatus({ tone: 'info', message: 'Calling the ingest endpoint...' })
+    setStatus({
+      tone: 'info',
+      message: file ? `Uploading "${file.name}"…` : 'Calling the ingest endpoint…',
+    })
 
     try {
-      const payload = IngestRequestSchema.parse({ forceReingest: false })
+      let response: IngestResponse
+      if (file) {
+        response = await apiClient.ingestFile(file)
+      } else {
+        const payload = IngestRequestSchema.parse({ forceReingest: false })
+        response = await apiClient.ingest(payload)
+      }
 
-      const response = await apiClient.ingest(payload)
-
+      setIsIngested(true)
       setStatus({
         tone: response.isPlaceholder ? 'warning' : 'success',
         message: `${response.message} Vector store: ${response.vectorStorePath}`,
       })
     } catch (error) {
-      setStatus({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Ingest request failed.',
-      })
+      if (error instanceof Error && error.message.includes('already been ingested')) {
+        setIsIngested(true)
+        setStatus({ tone: 'success', message: 'Knowledge base is already ingested.' })
+      } else {
+        setStatus({
+          tone: 'error',
+          message: error instanceof Error ? error.message : 'Ingest request failed.',
+        })
+      }
     } finally {
       setIsIngesting(false)
     }
@@ -111,7 +138,7 @@ export function ChatPage() {
     setMessages(nextMessages)
     setDraft('')
     setIsSending(true)
-    setStatus({ tone: 'info', message: 'Sending chat request...' })
+    setStatus({ tone: 'info', message: 'Sending chat request…' })
 
     try {
       // Limit history sent to the API to avoid unbounded token growth
@@ -152,29 +179,41 @@ export function ChatPage() {
     }
   }, [conversationId, draft, messages])
 
+  const handlePromptSelect = useCallback((prompt: string) => {
+    setDraft(prompt)
+  }, [])
+
+  const handleDismissStatus = useCallback(() => {
+    setStatus({ tone: 'info', message: '' })
+  }, [])
+
+  if (!isIngested) {
+    return (
+      <main className="app-shell app-shell--setup">
+        <div className="setup-layout">
+          <AppHeader />
+          {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
+          <IngestPanel onIngest={handleIngest} isBusy={isIngesting || isIngested === null} />
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="app-shell">
       <section className="chat-layout">
-        <header className="app-header">
-          <div className="app-header-inner">
-            <div className="app-header-icon">
-              <ShoppingCart size={15} color="white" strokeWidth={2.5} />
-            </div>
-            <div className="app-header-text">
-              <h1>SOP Assistant</h1>
-              <p>Grocery Store Operating Procedures · Powered by AI</p>
-            </div>
-            <span className="app-header-badge">GPT-4o-mini</span>
-          </div>
-        </header>
-        <StatusBanner status={status} />
-        <ChatTranscript messages={messages} />
+        <AppHeader />
+        {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
+        <ChatTranscript
+          messages={messages}
+          isSending={isSending}
+          onPromptSelect={handlePromptSelect}
+        />
         <ChatComposer value={draft} onChange={setDraft} onSubmit={handleSend} isBusy={isSending} />
       </section>
 
       <aside className="sidebar">
-        <IngestPanel onIngest={handleIngest} isBusy={isIngesting} />
-        <CitationsPanel citations={citations} />
+        <CitationsPanel citations={citations} hasMessages={messages.length > 0} />
       </aside>
     </main>
   )
