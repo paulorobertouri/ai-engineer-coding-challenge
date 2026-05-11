@@ -73,7 +73,6 @@ The chat service defines two OpenAI function tools and lets the model decide whe
 
 | Tool | Schema | Behaviour |
 |---|---|---|
-| `get_store_hours` | No parameters | Returns hard-coded Mon–Sun operating hours |
 | `search_sop` | `{ query: string }` | Re-embeds the query and retrieves 3 more chunks from the vector store |
 
 When the model returns `finish_reason: tool_calls`, each tool is executed and its result is appended as a `tool` message; the model is then called a second time to produce the final response.

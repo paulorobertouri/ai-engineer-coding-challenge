@@ -102,10 +102,6 @@ public sealed class OpenAIRetrievalChatService(
     private static List<ChatTool> BuildToolDefinitions() =>
     [
         ChatTool.CreateFunctionTool(
-            "get_store_hours",
-            "Retrieves the standard operating hours for the grocery store."
-        ),
-        ChatTool.CreateFunctionTool(
             "search_sop",
             "Searches the SOP for more information using a specific query.",
             BinaryData.FromObjectAsJson(new

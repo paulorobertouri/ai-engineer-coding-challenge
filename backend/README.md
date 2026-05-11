@@ -27,7 +27,6 @@ Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is pre
 
 | Tool | Parameters | Behaviour |
 |---|---|---|
-| `get_store_hours` | _(none)_ | Returns hard-coded Mon–Sun operating hours |
 | `search_sop` | `query: string` | Re-embeds the query and retrieves 3 chunks from the vector store |
 
 When `finish_reason` is `tool_calls` each tool is executed, its result appended as a `tool` message, and the model called a second time to produce the final response.
