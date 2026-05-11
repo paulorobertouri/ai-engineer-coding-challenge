@@ -1,8 +1,9 @@
 const PROMPTS = [
   'What are the opening procedures for the manager on duty?',
-  'What are the store operating hours?',
+  'What are the store hours on Monday?',
   'What should I do if a customer makes a complaint?',
   'What is the closing checklist?',
+  'What is the policy on expired items?',
 ]
 
 interface SuggestedPromptsProps {

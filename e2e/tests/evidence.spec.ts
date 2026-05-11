@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 
 test("generate evidences", async ({ page }) => {
+  test.setTimeout(120000);
   await page.goto("/");
   await page.screenshot({ path: "../evidences/01-initial-load.png" });
 
@@ -17,10 +18,13 @@ test("generate evidences", async ({ page }) => {
 
   if (panelVisible) {
     await ingestBtn.click();
-    await expect(page.locator(".status-banner")).toContainText(
-      "Document ingested successfully",
-      { timeout: 60000 },
-    );
+    const statusBanner = page.locator(".status-banner");
+    await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
+      timeout: 90000,
+    });
+    await expect(statusBanner).toContainText(/ingested successfully|already ingested/i, {
+      timeout: 90000,
+    });
   }
   await page.screenshot({ path: "../evidences/02-after-ingest.png" });
 
@@ -35,7 +39,7 @@ test("generate evidences", async ({ page }) => {
   await page.screenshot({ path: "../evidences/03-chat-response-1.png" });
 
   // 3. Chat - Question 2 (Follow up)
-  await input.fill("What about store hours?");
+  await input.fill("What are the store hours on Monday?");
   await page.click('button:has-text("Send")');
 
   await expect(

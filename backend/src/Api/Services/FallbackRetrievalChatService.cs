@@ -13,16 +13,7 @@ public sealed class FallbackRetrievalChatService(
 
         var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, cancellationToken);
         var matches = await vectorStoreService.SearchAsync(queryEmbedding, topK: 3, cancellationToken);
-
-        var lowerMessage = latestUserMessage.ToLowerInvariant();
-        var asksForHours = lowerMessage.Contains("hour") ||
-            lowerMessage.Contains("open") ||
-            lowerMessage.Contains("close") ||
-            lowerMessage.Contains("schedule");
-
-        var answer = asksForHours
-            ? "Monday - Friday: 6:00 AM - 11:00 PM\nSaturday: 7:00 AM - 11:00 PM\nSunday: 7:00 AM - 10:00 PM"
-            : BuildContextualAnswer(matches);
+        var answer = BuildContextualAnswer(matches);
 
         return new ChatResponse
         {
@@ -30,7 +21,7 @@ public sealed class FallbackRetrievalChatService(
             Status = "success",
             IsPlaceholder = true,
             AssistantMessage = answer,
-            ToolCalls = asksForHours ? ["get_store_hours"] : [],
+            ToolCalls = [],
             Citations = matches
                 .Select(m => new CitationDto
                 {

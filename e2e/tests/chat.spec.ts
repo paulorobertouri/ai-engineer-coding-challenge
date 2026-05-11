@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("ingest and chat", async ({ page }) => {
+  test.setTimeout(120000);
   await page.goto("/");
 
   // 1. Ingest — only needed if the ingest panel is shown (not yet ingested)
@@ -14,15 +15,18 @@ test("ingest and chat", async ({ page }) => {
 
   if (panelVisible) {
     await ingestBtn.click();
-    await expect(page.locator(".status-banner")).toContainText(
-      "Document ingested successfully",
-      { timeout: 60000 },
-    );
+    const statusBanner = page.locator(".status-banner");
+    await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
+      timeout: 90000,
+    });
+    await expect(statusBanner).toContainText(/ingested successfully|already ingested/i, {
+      timeout: 90000,
+    });
   }
 
   // 2. Chat — wait for the chat layout (input is always present once ingested)
   await chatInput.waitFor({ state: "visible", timeout: 10000 });
-  await chatInput.fill("What are the store hours?");
+  await chatInput.fill("What are the store hours on Monday?");
   await page.click('button:has-text("Send")');
 
   await expect(

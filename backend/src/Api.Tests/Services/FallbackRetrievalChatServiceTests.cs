@@ -58,43 +58,6 @@ public class FallbackRetrievalChatServiceTests
     }
 
     [Fact]
-    public async Task GenerateResponseAsync_HoursKeyword_ReturnsStoreHours()
-    {
-        _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        var response = await _service.GenerateResponseAsync(BuildRequest("what are the store hours?"), CancellationToken.None);
-
-        Assert.Contains("Monday", response.AssistantMessage);
-        Assert.Contains("get_store_hours", response.ToolCalls);
-    }
-
-    [Fact]
-    public async Task GenerateResponseAsync_OpenKeyword_ReturnsStoreHours()
-    {
-        _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        var response = await _service.GenerateResponseAsync(BuildRequest("when does the store open?"), CancellationToken.None);
-
-        Assert.Contains("Monday", response.AssistantMessage);
-    }
-
-    [Fact]
-    public async Task GenerateResponseAsync_CloseKeyword_ReturnsStoreHours()
-    {
-        _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        var response = await _service.GenerateResponseAsync(BuildRequest("when does it close?"), CancellationToken.None);
-
-        Assert.Contains("Monday", response.AssistantMessage);
-    }
-
-    [Fact]
     public async Task GenerateResponseAsync_LongChunkText_TruncatesCitation()
     {
         var longText = new string('x', 300);
@@ -187,18 +150,6 @@ public class FallbackRetrievalChatServiceTests
         Assert.EndsWith("...", response.AssistantMessage);
         // The truncated snippet is 500 chars + "..." = 503; plus the preamble text
         Assert.Contains("...", response.AssistantMessage);
-    }
-
-    [Fact]
-    public async Task GenerateResponseAsync_ScheduleKeyword_ReturnsStoreHours()
-    {
-        _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        var response = await _service.GenerateResponseAsync(BuildRequest("what is the schedule?"), CancellationToken.None);
-
-        Assert.Contains("Monday", response.AssistantMessage);
     }
 
     [Fact]

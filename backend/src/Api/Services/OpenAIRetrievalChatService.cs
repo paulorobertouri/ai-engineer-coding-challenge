@@ -131,19 +131,7 @@ public sealed class OpenAIRetrievalChatService(
 
         foreach (var toolCall in chatCompletion.ToolCalls)
         {
-            if (toolCall.FunctionName == "get_store_hours")
-            {
-                var hours = """
-                    Monday – Friday: 6:00 AM – 11:00 PM
-                    Saturday: 7:00 AM – 11:00 PM
-                    Sunday: 7:00 AM – 10:00 PM
-                    """;
-                messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, hours));
-            }
-            else if (toolCall.FunctionName == "search_sop")
-            {
-                await HandleSearchSopToolCallAsync(toolCall, messages, allMatches, ct);
-            }
+            await HandleSearchSopToolCallAsync(toolCall, messages, allMatches, ct);
         }
 
         return allMatches;
@@ -164,6 +152,13 @@ public sealed class OpenAIRetrievalChatService(
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "Failed to parse search_sop tool arguments; skipping tool call.");
+            messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, ""));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            logger.LogWarning("Received empty search_sop query; skipping tool call.");
             messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, ""));
             return;
         }
