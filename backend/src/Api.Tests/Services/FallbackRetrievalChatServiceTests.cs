@@ -2,6 +2,7 @@ using Api.Contracts;
 using Api.Models;
 using Api.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -11,6 +12,7 @@ public class FallbackRetrievalChatServiceTests
 {
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
+    private readonly Mock<ILogger<FallbackRetrievalChatService>> _mockLogger = new();
     private readonly IConfiguration _configuration;
     private readonly FallbackRetrievalChatService _service;
 
@@ -24,7 +26,11 @@ public class FallbackRetrievalChatServiceTests
             })
             .Build();
 
-        _service = new FallbackRetrievalChatService(_mockEmbedding.Object, _mockVectorStore.Object, _configuration);
+        _service = new FallbackRetrievalChatService(
+            _mockEmbedding.Object,
+            _mockVectorStore.Object,
+            _configuration,
+            _mockLogger.Object);
         _mockEmbedding
             .Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[1536]);

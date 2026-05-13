@@ -58,6 +58,14 @@ docker compose down -v
 - Exponential backoff retry — 3 attempts, 2 s base delay
 - 30 s timeout
 
+## Observability
+
+Structured logs for retrieval/chat flows now include:
+- `ConversationId`, `Mode` (`openai` or `fallback`), and selected model
+- Retrieved chunk IDs and similarity scores
+- Completion latency and total request latency
+- Warnings when vector store candidate retrieval is empty or tool calls have invalid/empty arguments
+
 Retrieval is threshold-aware in both OpenAI and fallback chat services:
 - Candidate chunks are limited by `Retrieval:TopK`
 - Chunks below `Retrieval:MinSimilarityScore` are filtered out

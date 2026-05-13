@@ -5,6 +5,7 @@ using OpenAI;
 using OpenAI.Chat;
 using Polly;
 using Polly.Retry;
+using System.Diagnostics;
 
 namespace Api.Services;
 
@@ -43,6 +44,7 @@ public sealed class OpenAIRetrievalChatService(
     {
         return await _resiliencePipeline.ExecuteAsync(async ct =>
         {
+            var totalStopwatch = Stopwatch.StartNew();
             var latestUserMessage = request.Messages
                 .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? "";
 
@@ -58,6 +60,14 @@ public sealed class OpenAIRetrievalChatService(
                 rawMatches.Count,
                 matches.Count,
                 string.Join(",", rawMatches.Select(m => m.Score.ToString("F3"))));
+
+            if (rawMatches.Count == 0)
+            {
+                logger.LogWarning(
+                    "Vector store returned no candidates. ConversationId={ConversationId}, Model={Model}",
+                    request.ConversationId,
+                    _chatModel);
+            }
 
             if (matches.Count == 0)
             {
@@ -85,16 +95,32 @@ public sealed class OpenAIRetrievalChatService(
             }
 
             var client = openAiClient.GetChatClient(_chatModel);
+            var completionStopwatch = Stopwatch.StartNew();
             var response = await client.CompleteChatAsync(messages, options, ct);
+            completionStopwatch.Stop();
             var chatCompletion = response.Value;
 
             // 4. Handle Tool Calls (Single Turn)
             if (_enableTools && chatCompletion.FinishReason == ChatFinishReason.ToolCalls)
             {
                 matches = await HandleToolCallsAsync(chatCompletion, messages, matches, request.ConversationId, ct);
+                completionStopwatch.Restart();
                 response = await client.CompleteChatAsync(messages, options, ct);
+                completionStopwatch.Stop();
                 chatCompletion = response.Value;
             }
+
+            totalStopwatch.Stop();
+            logger.LogInformation(
+                "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, ToolingEnabled={ToolingEnabled}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
+                request.ConversationId,
+                _chatModel,
+                "openai",
+                _enableTools,
+                string.Join(",", matches.Select(m => m.Record.Id)),
+                string.Join(",", matches.Select(m => m.Score.ToString("F3"))),
+                completionStopwatch.ElapsedMilliseconds,
+                totalStopwatch.ElapsedMilliseconds);
 
             return BuildChatResponse(request, chatCompletion, matches);
         }, cancellationToken);

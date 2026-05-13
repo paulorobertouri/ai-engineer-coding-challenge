@@ -222,7 +222,7 @@ The current health endpoint says the service is running and reports mode notes. 
 
 ### 10. Improve Observability
 
-- [ ] Add structured logging around RAG and OpenAI calls.
+- [x] Add structured logging around RAG and OpenAI calls.
 
 **Why**
 
