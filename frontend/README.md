@@ -2,6 +2,8 @@
 
 React 19 + TypeScript + Vite chat UI for the Grocery Store SOP Assistant.
 
+When containerized, static assets are served by nginx using `frontend/nginx/default.conf`, which provides SPA fallback routing and modern response security headers.
+
 ## Components
 
 | Component          | Description                                                                                           |

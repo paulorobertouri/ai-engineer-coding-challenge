@@ -119,7 +119,7 @@ The client currently sends `useTools`, and tool calls are handled for one additi
 
 ### 5. Add Modern Security Headers
 
-- [ ] Add current browser security headers and remove legacy ones.
+- [x] Add current browser security headers and remove legacy ones.
 
 **Why**
 

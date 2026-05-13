@@ -107,7 +107,9 @@ Fixed-window rate limiting applied per client IP:
 Exceeding the limit returns `429 Too Many Requests`.
 
 ### 7. Security Headers
-`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS (non-development).
+Backend responses include `Content-Security-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` (plus HSTS in non-development).
+
+Frontend static responses served by nginx include matching `Content-Security-Policy`, `Permissions-Policy`, frame/type/referrer protections, and SPA fallback routing (`try_files ... /index.html`).
 
 ## API Endpoints
 

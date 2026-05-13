@@ -139,9 +139,15 @@ if (!app.Environment.IsDevelopment())
 
 app.Use(async (context, next) =>
 {
+    var isSwaggerRequest = context.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase);
+    var contentSecurityPolicy = isSwaggerRequest
+        ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+    context.Response.Headers.Append("Content-Security-Policy", contentSecurityPolicy);
+    context.Response.Headers.Append("Permissions-Policy", "accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()");
     context.Response.Headers.Append("X-Frame-Options", "DENY");
     context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
     await next();
 });
