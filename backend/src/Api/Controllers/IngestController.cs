@@ -1,7 +1,9 @@
 using Api.Contracts;
 using Api.Models;
+using Api.Options;
 using Api.Services;
 using Asp.Versioning;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -12,7 +14,8 @@ namespace Api.Controllers;
 [Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting("ingest")]
 public sealed class IngestController(
-    IConfiguration configuration,
+    IOptions<ChallengeOptions> challengeOptions,
+    IOptions<UploadOptions> uploadOptions,
     IChunkingService chunkingService,
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
@@ -23,8 +26,6 @@ public sealed class IngestController(
 
     private static readonly HashSet<string> AllowedExtensions =
         new([".md", ".txt"], StringComparer.OrdinalIgnoreCase);
-
-    private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
 
     // ── POST /api/v1/ingest  (default SOP from server-side path) ─────────────
 
@@ -40,10 +41,10 @@ public sealed class IngestController(
                 return Conflict(new { error = "The knowledge base has already been ingested. Re-ingestion is not permitted." });
             }
 
-            var configuredSourcePath = configuration["Challenge:SourceDocumentPath"] ?? "../../../../knowledge-base/Grocery_Store_SOP.md";
+            var configuredSourcePath = challengeOptions.Value.SourceDocumentPath;
 
             logger.LogInformation("[INGEST] Configured: {ConfiguredPath} | ContentRoot: {ContentRoot}",
-                configuration["Challenge:SourceDocumentPath"], env.ContentRootPath);
+                challengeOptions.Value.SourceDocumentPath, env.ContentRootPath);
 
             var sourcePath = Path.IsPathRooted(configuredSourcePath)
                 ? configuredSourcePath
@@ -71,7 +72,6 @@ public sealed class IngestController(
     // ── POST /api/v1/ingest/upload  (user-supplied file) ─────────────────────
 
     [HttpPost("upload")]
-    [RequestSizeLimit(MaxUploadBytes)]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<IngestResponse>> Upload(IFormFile? file, CancellationToken cancellationToken)
     {
@@ -87,8 +87,8 @@ public sealed class IngestController(
             if (file is null || file.Length == 0)
                 return BadRequest(new { error = "No file provided." });
 
-            if (file.Length > MaxUploadBytes)
-                return BadRequest(new { error = "File exceeds the 10 MB limit." });
+            if (file.Length > uploadOptions.Value.MaxUploadBytes)
+                return BadRequest(new { error = $"File exceeds the {uploadOptions.Value.MaxUploadBytes / (1024 * 1024)} MB limit." });
 
             var ext = Path.GetExtension(file.FileName);
             if (!AllowedExtensions.Contains(ext))
@@ -148,7 +148,7 @@ public sealed class IngestController(
 
         await vectorStoreService.SaveAsync(records, cancellationToken);
 
-        var vectorStorePath = configuration["Challenge:VectorStorePath"] ?? "Data/vector-store.json";
+        var vectorStorePath = challengeOptions.Value.VectorStorePath;
 
         return Ok(new IngestResponse
         {

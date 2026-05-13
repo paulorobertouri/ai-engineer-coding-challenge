@@ -1,10 +1,11 @@
 using Api.Contracts;
 using Api.Controllers;
 using Api.Models;
+using Api.Options;
 using Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -20,14 +21,15 @@ public class HealthControllerTests
         var sourcePath = Path.Combine(tempDir, "SOP.md");
         File.WriteAllText(sourcePath, "# SOP\ncontent");
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["OpenAI:ApiKey"] = hasApiKey ? "test-key" : "",
-                ["Challenge:SourceDocumentPath"] = sourcePath,
-                ["Challenge:VectorStorePath"] = "Data/vector-store.json"
-            })
-            .Build();
+        var openAiOptions = Microsoft.Extensions.Options.Options.Create(new OpenAIOptions
+        {
+            ApiKey = hasApiKey ? "test-key" : string.Empty
+        });
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = sourcePath,
+            VectorStorePath = "Data/vector-store.json"
+        });
 
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
@@ -40,7 +42,7 @@ public class HealthControllerTests
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(records);
 
-        return new HealthController(config, mockVectorStore.Object, mockEnv.Object);
+        return new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
     }
 
     [Fact]
@@ -152,14 +154,15 @@ public class HealthControllerTests
         var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-missing-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["OpenAI:ApiKey"] = "",
-                ["Challenge:SourceDocumentPath"] = Path.Combine(tempDir, "missing.md"),
-                ["Challenge:VectorStorePath"] = "Data/vector-store.json"
-            })
-            .Build();
+        var openAiOptions = Microsoft.Extensions.Options.Options.Create(new OpenAIOptions
+        {
+            ApiKey = string.Empty
+        });
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = Path.Combine(tempDir, "missing.md"),
+            VectorStorePath = "Data/vector-store.json"
+        });
 
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
@@ -169,7 +172,7 @@ public class HealthControllerTests
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var controller = new HealthController(config, mockVectorStore.Object, mockEnv.Object);
+        var controller = new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
 
         var result = controller.Ready();
 

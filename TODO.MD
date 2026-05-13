@@ -244,7 +244,7 @@ When RAG behavior is wrong, logs need to answer: what was retrieved, how strong 
 
 ### 11. Move Hardcoded Defaults Into Options Classes
 
-- [ ] Replace scattered constants and configuration lookups with strongly typed options.
+- [x] Replace scattered constants and configuration lookups with strongly typed options.
 
 **Why**
 

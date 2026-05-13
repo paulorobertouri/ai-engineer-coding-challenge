@@ -1,5 +1,5 @@
+using Api.Options;
 using Api.Services;
-using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Api.Tests;
@@ -9,9 +9,9 @@ public class ToolCallingPolicyTests
     [Fact]
     public void IsEnabled_WhenUnset_DefaultsToTrue()
     {
-        var config = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        var options = new OpenAIOptions();
 
-        var enabled = ToolCallingPolicy.IsEnabled(config);
+        var enabled = ToolCallingPolicy.IsEnabled(options);
 
         Assert.True(enabled);
     }
@@ -19,14 +19,9 @@ public class ToolCallingPolicyTests
     [Fact]
     public void IsEnabled_WhenConfiguredFalse_ReturnsFalse()
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["OpenAI:EnableTools"] = "false"
-            })
-            .Build();
+        var options = new OpenAIOptions { EnableTools = false };
 
-        var enabled = ToolCallingPolicy.IsEnabled(config);
+        var enabled = ToolCallingPolicy.IsEnabled(options);
 
         Assert.False(enabled);
     }

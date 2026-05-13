@@ -1,3 +1,4 @@
+using Api.Options;
 using Api.Models;
 using System.Text.Json;
 
@@ -12,8 +13,7 @@ public enum ToolCallQueryParseResult
 
 public static class ToolCallingPolicy
 {
-    public static bool IsEnabled(IConfiguration configuration) =>
-        configuration.GetValue<bool?>("OpenAI:EnableTools") ?? true;
+    public static bool IsEnabled(OpenAIOptions options) => options.EnableTools;
 
     public static ToolCallQueryParseResult TryExtractSearchQuery(string functionArguments, out string query)
     {

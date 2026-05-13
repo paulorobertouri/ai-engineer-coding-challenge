@@ -1,3 +1,5 @@
+using Api.Options;
+using Microsoft.Extensions.Options;
 using Api.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,9 +20,9 @@ public sealed class JsonVectorStoreService : IVectorStoreService
     // Cached records; null means the cache is cold (not yet loaded)
     private IReadOnlyList<VectorRecord>? _cachedRecords;
 
-    public JsonVectorStoreService(IConfiguration configuration, IWebHostEnvironment environment)
+    public JsonVectorStoreService(IOptions<ChallengeOptions> options, IWebHostEnvironment environment)
     {
-        var configuredPath = configuration["Challenge:VectorStorePath"] ?? "Data/vector-store.json";
+        var configuredPath = options.Value.VectorStorePath;
         _storePath = Path.IsPathRooted(configuredPath)
             ? configuredPath
             : Path.Combine(environment.ContentRootPath, configuredPath);

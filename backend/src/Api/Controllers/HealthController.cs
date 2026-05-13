@@ -1,6 +1,8 @@
 using Api.Contracts;
+using Api.Options;
 using Api.Services;
 using Asp.Versioning;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -9,14 +11,15 @@ namespace Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
 public sealed class HealthController(
-    IConfiguration configuration,
+    IOptions<OpenAIOptions> openAiOptions,
+    IOptions<ChallengeOptions> challengeOptions,
     IVectorStoreService vectorStoreService,
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<HealthResponse>> Get(CancellationToken cancellationToken)
     {
-        var hasApiKey = !string.IsNullOrWhiteSpace(configuration["OpenAI:ApiKey"]);
+        var hasApiKey = !string.IsNullOrWhiteSpace(openAiOptions.Value.ApiKey);
 
         var notes = hasApiKey
             ? new List<string>
@@ -48,7 +51,7 @@ public sealed class HealthController(
     [HttpGet("/api/v{version:apiVersion}/ready")]
     public ActionResult<HealthResponse> Ready()
     {
-        var hasApiKey = !string.IsNullOrWhiteSpace(configuration["OpenAI:ApiKey"]);
+        var hasApiKey = !string.IsNullOrWhiteSpace(openAiOptions.Value.ApiKey);
 
         var sourceDocumentPath = ResolveSourceDocumentPath();
         var sourceDocumentReady = sourceDocumentPath is not null && System.IO.File.Exists(sourceDocumentPath);
@@ -85,7 +88,7 @@ public sealed class HealthController(
 
     private string? ResolveSourceDocumentPath()
     {
-        var configuredSourcePath = configuration["Challenge:SourceDocumentPath"] ?? "../../../../knowledge-base/Grocery_Store_SOP.md";
+        var configuredSourcePath = challengeOptions.Value.SourceDocumentPath;
         var sourcePath = Path.IsPathRooted(configuredSourcePath)
             ? configuredSourcePath
             : Path.GetFullPath(Path.Combine(environment.ContentRootPath, configuredSourcePath));
@@ -101,7 +104,7 @@ public sealed class HealthController(
     {
         try
         {
-            var configuredPath = configuration["Challenge:VectorStorePath"] ?? "Data/vector-store.json";
+            var configuredPath = challengeOptions.Value.VectorStorePath;
             var resolvedPath = Path.IsPathRooted(configuredPath)
                 ? configuredPath
                 : Path.Combine(environment.ContentRootPath, configuredPath);

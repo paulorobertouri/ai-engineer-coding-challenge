@@ -1,6 +1,8 @@
 using Api.Contracts;
 using Api.Models;
 using Api.Services;
+using Api.Options;
+using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
 using Polly;
@@ -11,15 +13,16 @@ namespace Api.Services;
 
 public sealed class OpenAIRetrievalChatService(
     OpenAIClient openAiClient,
-    IConfiguration configuration,
+    IOptions<OpenAIOptions> openAiOptions,
+    IOptions<RetrievalOptions> retrievalOptions,
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
-    private readonly string _chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-4o-mini";
-    private readonly int _retrievalTopK = Math.Max(1, configuration.GetValue<int?>("Retrieval:TopK") ?? 3);
-    private readonly double _minSimilarityScore = Math.Clamp(configuration.GetValue<double?>("Retrieval:MinSimilarityScore") ?? 0.3, 0.0, 1.0);
-    private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(configuration);
+    private readonly string _chatModel = openAiOptions.Value.ChatModel;
+    private readonly int _retrievalTopK = Math.Max(1, retrievalOptions.Value.TopK);
+    private readonly double _minSimilarityScore = Math.Clamp(retrievalOptions.Value.MinSimilarityScore, 0.0, 1.0);
+    private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(openAiOptions.Value);
     private readonly ResiliencePipeline _resiliencePipeline = new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions
         {

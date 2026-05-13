@@ -1,8 +1,9 @@
 using Api.Contracts;
 using Api.Models;
+using Api.Options;
 using Api.Services;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -13,23 +14,21 @@ public class FallbackRetrievalChatServiceTests
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
     private readonly Mock<ILogger<FallbackRetrievalChatService>> _mockLogger = new();
-    private readonly IConfiguration _configuration;
+    private readonly IOptions<RetrievalOptions> _retrievalOptions;
     private readonly FallbackRetrievalChatService _service;
 
     public FallbackRetrievalChatServiceTests()
     {
-        _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Retrieval:TopK"] = "3",
-                ["Retrieval:MinSimilarityScore"] = "0.30"
-            })
-            .Build();
+        _retrievalOptions = Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
+        {
+            TopK = 3,
+            MinSimilarityScore = 0.30
+        });
 
         _service = new FallbackRetrievalChatService(
             _mockEmbedding.Object,
             _mockVectorStore.Object,
-            _configuration,
+            _retrievalOptions,
             _mockLogger.Object);
         _mockEmbedding
             .Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

@@ -1,4 +1,6 @@
 using Api.Contracts;
+using Api.Options;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 
 namespace Api.Services;
@@ -6,11 +8,11 @@ namespace Api.Services;
 public sealed class FallbackRetrievalChatService(
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
-    IConfiguration configuration,
+    IOptions<RetrievalOptions> options,
     ILogger<FallbackRetrievalChatService> logger) : IRetrievalChatService
 {
-    private readonly int _retrievalTopK = Math.Max(1, configuration.GetValue<int?>("Retrieval:TopK") ?? 3);
-    private readonly double _minSimilarityScore = Math.Clamp(configuration.GetValue<double?>("Retrieval:MinSimilarityScore") ?? 0.3, 0.0, 1.0);
+    private readonly int _retrievalTopK = Math.Max(1, options.Value.TopK);
+    private readonly double _minSimilarityScore = Math.Clamp(options.Value.MinSimilarityScore, 0.0, 1.0);
     private const string NoRelevantContextMessage =
         "I could not find enough relevant information in the SOP to answer that question.";
 

@@ -1,4 +1,5 @@
 using Api;
+using Api.Options;
 using Api.Services;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
@@ -28,11 +29,45 @@ builder.Host.UseSerilog((ctx, services, config) =>
 });
 builder.Configuration.AddEnvironmentVariables();
 
+builder.Services
+    .AddOptions<OpenAIOptions>()
+    .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<ChallengeOptions>()
+    .Bind(builder.Configuration.GetSection(ChallengeOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<RetrievalOptions>()
+    .Bind(builder.Configuration.GetSection(RetrievalOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<RateLimitingOptions>()
+    .Bind(builder.Configuration.GetSection(RateLimitingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<UploadOptions>()
+    .Bind(builder.Configuration.GetSection(UploadOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
 
+var uploadOptions = builder.Configuration.GetSection(UploadOptions.SectionName).Get<UploadOptions>() ?? new UploadOptions();
+var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>() ?? new RateLimitingOptions();
+var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
+
 builder.Services.AddControllers();
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 10 * 1024 * 1024);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = uploadOptions.MaxUploadBytes);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddApiVersioning(options =>
 {
@@ -68,7 +103,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
 builder.Services.AddSingleton<IVectorStoreService, JsonVectorStoreService>();
 
-// Rate limiting: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
+// Rate limiting defaults: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
 builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("chat", httpContext =>
@@ -76,10 +111,10 @@ builder.Services.AddRateLimiter(options =>
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = rateLimitingOptions.Chat.PermitLimit,
+                Window = TimeSpan.FromSeconds(rateLimitingOptions.Chat.WindowSeconds),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
+                QueueLimit = rateLimitingOptions.Chat.QueueLimit
             }));
 
     options.AddPolicy("ingest", httpContext =>
@@ -87,24 +122,23 @@ builder.Services.AddRateLimiter(options =>
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = rateLimitingOptions.Ingest.PermitLimit,
+                Window = TimeSpan.FromSeconds(rateLimitingOptions.Ingest.WindowSeconds),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
+                QueueLimit = rateLimitingOptions.Ingest.QueueLimit
             }));
 
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
-if (string.IsNullOrWhiteSpace(openAiApiKey))
+if (string.IsNullOrWhiteSpace(openAiOptions.ApiKey))
 {
     builder.Services.AddSingleton<IEmbeddingService, DeterministicEmbeddingService>();
     builder.Services.AddSingleton<IRetrievalChatService, FallbackRetrievalChatService>();
 }
 else
 {
-    builder.Services.AddSingleton(new OpenAIClient(openAiApiKey));
+    builder.Services.AddSingleton(new OpenAIClient(openAiOptions.ApiKey));
     builder.Services.AddSingleton<IEmbeddingService, OpenAIEmbeddingService>();
     builder.Services.AddSingleton<IRetrievalChatService, OpenAIRetrievalChatService>();
 }

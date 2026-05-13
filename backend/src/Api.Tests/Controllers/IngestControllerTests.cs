@@ -1,12 +1,13 @@
 using Api.Contracts;
 using Api.Controllers;
 using Api.Models;
+using Api.Options;
 using Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -14,7 +15,6 @@ namespace Api.Tests;
 
 public class IngestControllerTests
 {
-    private readonly Mock<IConfiguration> _mockConfig = new();
     private readonly Mock<IChunkingService> _mockChunking = new();
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
@@ -31,10 +31,12 @@ public class IngestControllerTests
         _sopFile = Path.Combine(_tempDir, "SOP.md");
         File.WriteAllText(_sopFile, "## Section\nContent");
 
-        _mockConfig.Setup(c => c["Challenge:SourceDocumentPath"])
-            .Returns(configuredPath ?? _sopFile);
-        _mockConfig.Setup(c => c["Challenge:VectorStorePath"])
-            .Returns(Path.Combine(_tempDir, "store.json"));
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = configuredPath ?? _sopFile,
+            VectorStorePath = Path.Combine(_tempDir, "store.json")
+        });
+        var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
 
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
 
@@ -57,7 +59,8 @@ public class IngestControllerTests
             .Returns(Task.CompletedTask);
 
         return new IngestController(
-            _mockConfig.Object,
+            challengeOptions,
+            uploadOptions,
             _mockChunking.Object,
             _mockEmbedding.Object,
             _mockVectorStore.Object,
@@ -136,8 +139,12 @@ public class IngestControllerTests
         _sopFile = Path.Combine(_tempDir, "SOP.md");
         await File.WriteAllTextAsync(_sopFile, "## Rel Section\nContent");
 
-        _mockConfig.Setup(c => c["Challenge:SourceDocumentPath"]).Returns("SOP.md");
-        _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns("store.json");
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = "SOP.md",
+            VectorStorePath = "store.json"
+        });
+        var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
 
         _mockChunking
@@ -155,7 +162,7 @@ public class IngestControllerTests
             .Returns(Task.CompletedTask);
 
         var controller = new IngestController(
-            _mockConfig.Object, _mockChunking.Object, _mockEmbedding.Object,
+            challengeOptions, uploadOptions, _mockChunking.Object, _mockEmbedding.Object,
             _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
@@ -181,8 +188,12 @@ public class IngestControllerTests
         var fbSop = Path.Combine(kbDir, "Grocery_Store_SOP.md");
         await File.WriteAllTextAsync(fbSop, "## Fallback Section\nFallback content");
 
-        _mockConfig.Setup(c => c["Challenge:SourceDocumentPath"]).Returns("/nonexistent/SOP.md");
-        _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns("store.json");
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = "/nonexistent/SOP.md",
+            VectorStorePath = "store.json"
+        });
+        var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
         _mockEnv.Setup(e => e.ContentRootPath).Returns(deepRoot);
 
         _mockChunking
@@ -200,7 +211,7 @@ public class IngestControllerTests
             .Returns(Task.CompletedTask);
 
         var controller = new IngestController(
-            _mockConfig.Object, _mockChunking.Object, _mockEmbedding.Object,
+            challengeOptions, uploadOptions, _mockChunking.Object, _mockEmbedding.Object,
             _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try

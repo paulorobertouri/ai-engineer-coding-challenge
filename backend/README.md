@@ -92,8 +92,15 @@ Exceeding the limit returns `429 Too Many Requests`. Client IP is resolved throu
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
 | `Retrieval:TopK` | `3` | Maximum number of retrieved chunks considered for response context |
 | `Retrieval:MinSimilarityScore` | `0.3` | Minimum cosine similarity score for a chunk to be considered relevant |
-| `Challenge:SourceDocumentPath` | `Data/Grocery_Store_SOP.md` | Path to the SOP markdown file |
+| `Challenge:SourceDocumentPath` | `../../../../knowledge-base/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
+| `RateLimiting:Chat:PermitLimit` | `30` | Chat requests allowed per window |
+| `RateLimiting:Chat:WindowSeconds` | `60` | Chat rate-limit window size in seconds |
+| `RateLimiting:Chat:QueueLimit` | `0` | Queue size for excess chat requests |
+| `RateLimiting:Ingest:PermitLimit` | `10` | Ingest requests allowed per window |
+| `RateLimiting:Ingest:WindowSeconds` | `60` | Ingest rate-limit window size in seconds |
+| `RateLimiting:Ingest:QueueLimit` | `0` | Queue size for excess ingest requests |
+| `Upload:MaxUploadBytes` | `10485760` | Maximum upload size in bytes for `/ingest/upload` |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
 
 ## Local Development

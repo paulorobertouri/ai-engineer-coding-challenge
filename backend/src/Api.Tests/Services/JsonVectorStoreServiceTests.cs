@@ -1,7 +1,8 @@
 using Api.Models;
+using Api.Options;
 using Api.Services;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -10,21 +11,21 @@ namespace Api.Tests;
 public class JsonVectorStoreServiceTests : IDisposable
 {
     private readonly string _storeFile;
-    private readonly Mock<IConfiguration> _mockConfig = new();
     private readonly Mock<IWebHostEnvironment> _mockEnv = new();
+    private readonly IOptions<ChallengeOptions> _challengeOptions;
 
     public JsonVectorStoreServiceTests()
     {
         _storeFile = Path.Combine(Path.GetTempPath(), $"test-vector-store-{Guid.NewGuid():N}.json");
         _mockEnv.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
-        _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns(_storeFile);
+        _challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions { VectorStorePath = _storeFile });
     }
 
     [Fact]
     public async Task SearchAsync_ReturnsHighestScoreFirst()
     {
         // Arrange
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var v1 = new float[1536]; v1[0] = 1.0f;
         var v2 = new float[1536]; v2[1] = 1.0f;
@@ -54,7 +55,7 @@ public class JsonVectorStoreServiceTests : IDisposable
     [Fact]
     public async Task LoadAsync_ReturnsEmpty_WhenFileDoesNotExist()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
         var records = await service.LoadAsync();
         Assert.Empty(records);
     }
@@ -62,7 +63,7 @@ public class JsonVectorStoreServiceTests : IDisposable
     [Fact]
     public async Task SaveAsync_ThenLoadAsync_RoundTripsRecords()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var embedding = new float[1536]; embedding[0] = 0.5f;
         var original = new List<VectorRecord>

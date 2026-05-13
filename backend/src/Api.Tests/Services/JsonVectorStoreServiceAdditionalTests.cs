@@ -1,7 +1,8 @@
 using Api.Models;
+using Api.Options;
 using Api.Services;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -10,14 +11,14 @@ namespace Api.Tests;
 public class JsonVectorStoreServiceAdditionalTests : IDisposable
 {
     private readonly string _storeFile;
-    private readonly Mock<IConfiguration> _mockConfig = new();
     private readonly Mock<IWebHostEnvironment> _mockEnv = new();
+    private readonly IOptions<ChallengeOptions> _challengeOptions;
 
     public JsonVectorStoreServiceAdditionalTests()
     {
         _storeFile = Path.Combine(Path.GetTempPath(), $"test-vs-{Guid.NewGuid():N}.json");
         _mockEnv.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
-        _mockConfig.Setup(c => c["Challenge:VectorStorePath"]).Returns(_storeFile);
+        _challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions { VectorStorePath = _storeFile });
     }
 
     public void Dispose()
@@ -28,7 +29,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task LoadAsync_ReturnsCachedRecords_OnSecondCall()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var embedding = new float[4]; embedding[0] = 1f;
         var records = new List<VectorRecord>
@@ -46,7 +47,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task SaveAsync_InvalidatesCacheSoNextLoadReadsFreshData()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var e1 = new float[4]; e1[0] = 1f;
         await service.SaveAsync([new() { Id = "v1", Source = "s", ChunkText = "first", Embedding = e1 }]);
@@ -63,7 +64,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task SearchAsync_RespectsTopK()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var records = Enumerable.Range(1, 10).Select(i =>
         {
@@ -82,7 +83,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task SearchAsync_CosineSimilarity_MismatchedLengthReturnsZero()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         // Store a 4-dim record
         var shortEmb = new float[4]; shortEmb[0] = 1f;
@@ -99,7 +100,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task SearchAsync_AllZeroEmbeddings_ReturnsZeroScore()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
 
         var zeroEmb = new float[4]; // all zeros
         await service.SaveAsync([new() { Id = "z", Source = "s", ChunkText = "zero", Embedding = zeroEmb }]);
@@ -113,7 +114,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public async Task SearchAsync_EmptyStore_ReturnsEmptyList()
     {
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
         var query = new float[4]; query[0] = 1f;
         var results = await service.SearchAsync(query, topK: 5);
         Assert.Empty(results);
@@ -125,14 +126,13 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
         var tempBase = Path.Combine(Path.GetTempPath(), $"vs-dir-{Guid.NewGuid():N}");
         var storePath = Path.Combine(tempBase, "sub", "store.json");
 
-        var config = new Mock<IConfiguration>();
-        config.Setup(c => c["Challenge:VectorStorePath"]).Returns(storePath);
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions { VectorStorePath = storePath });
         var env = new Mock<IWebHostEnvironment>();
         env.Setup(e => e.ContentRootPath).Returns(tempBase);
 
         try
         {
-            _ = new JsonVectorStoreService(config.Object, env.Object);
+            _ = new JsonVectorStoreService(challengeOptions, env.Object);
             Assert.True(Directory.Exists(Path.GetDirectoryName(storePath)));
         }
         finally
@@ -144,13 +144,12 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     [Fact]
     public void Constructor_UsesDefaultPath_WhenConfigIsNull()
     {
-        var config = new Mock<IConfiguration>();
-        config.Setup(c => c["Challenge:VectorStorePath"]).Returns((string?)null);
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions { VectorStorePath = "Data/vector-store.json" });
         var env = new Mock<IWebHostEnvironment>();
         env.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
 
         // Should not throw
-        var service = new JsonVectorStoreService(config.Object, env.Object);
+        var service = new JsonVectorStoreService(challengeOptions, env.Object);
         Assert.NotNull(service);
     }
 
@@ -158,7 +157,7 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     public async Task LoadAsync_HandlesCorruptJson_WhenFileIsEmpty()
     {
         File.WriteAllText(_storeFile, "");
-        var service = new JsonVectorStoreService(_mockConfig.Object, _mockEnv.Object);
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
         await Assert.ThrowsAnyAsync<Exception>(() => service.LoadAsync());
     }
 }

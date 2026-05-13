@@ -1,5 +1,6 @@
+using Api.Options;
 using Api.Services;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Api.Tests;
@@ -8,7 +9,7 @@ public class OpenAIEmbeddingServiceTests
 {
     private static OpenAIEmbeddingService CreateService() => new(
         null!,
-        new ConfigurationBuilder().AddInMemoryCollection().Build());
+        Microsoft.Extensions.Options.Options.Create(new OpenAIOptions()));
 
     [Fact]
     public async Task EmbedAsync_EmptyText_ReturnsZeroVector()
