@@ -26,6 +26,7 @@ public sealed class IngestController(
 
     private static readonly HashSet<string> AllowedExtensions =
         new([".md", ".txt"], StringComparer.OrdinalIgnoreCase);
+    private const string ResetConfirmationValue = "RESET";
 
     // ── POST /api/v1/ingest  (default SOP from server-side path) ─────────────
 
@@ -104,6 +105,35 @@ public sealed class IngestController(
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
             return await ProcessIngestAsync(sourceText, sourceName, sourceName, cancellationToken);
+        }, cancellationToken);
+    }
+
+    [HttpDelete("reset")]
+    public async Task<ActionResult<object>> Reset([FromQuery] string? confirm, CancellationToken cancellationToken)
+    {
+        if (!env.IsDevelopment())
+            return NotFound(new { error = "Reset endpoint is only available in Development." });
+
+        if (!string.Equals(confirm, ResetConfirmationValue, StringComparison.Ordinal))
+            return BadRequest(new
+            {
+                error = $"Reset requires explicit confirmation. Call with '?confirm={ResetConfirmationValue}'."
+            });
+
+        return await ExecuteExclusiveIngestAsync(async () =>
+        {
+            var existingRecords = await vectorStoreService.LoadAsync(cancellationToken);
+            await vectorStoreService.SaveAsync([], cancellationToken);
+
+            logger.LogWarning("[INGEST] Knowledge base reset executed. Removed {Count} records.", existingRecords.Count);
+
+            return Ok(new
+            {
+                accepted = true,
+                message = "Knowledge base reset completed. Reingestion is now allowed.",
+                deletedRecords = existingRecords.Count,
+                vectorStorePath = challengeOptions.Value.VectorStorePath
+            });
         }, cancellationToken);
     }
 

@@ -285,7 +285,7 @@ Current citations show the source and a short chunk snippet. Users would benefit
 
 ### 13. Add Controlled Reset/Reingest Flow
 
-- [ ] Add a safe way to reset and reingest the knowledge base.
+- [x] Add a safe way to reset and reingest the knowledge base.
 
 **Why**
 

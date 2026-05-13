@@ -9,6 +9,7 @@
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
 | `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
+| `DELETE` | `/api/v1/ingest/reset?confirm=RESET` | Development-only explicit reset of the vector store to allow reingestion |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 
 ## Services
@@ -51,6 +52,12 @@ To reset persisted Docker ingestion data intentionally:
 ```bash
 docker compose down -v
 ```
+
+For local development without Docker volume reset, the API also supports a guarded reset endpoint:
+
+- Only available when `ASPNETCORE_ENVIRONMENT=Development`
+- Requires explicit query confirmation: `DELETE /api/v1/ingest/reset?confirm=RESET`
+- Clears the vector store atomically so reingestion can happen safely
 
 ## Resilience
 

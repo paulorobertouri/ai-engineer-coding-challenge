@@ -24,7 +24,7 @@ public class IngestControllerTests
     private string _tempDir = string.Empty;
     private string _sopFile = string.Empty;
 
-    private IngestController BuildController(string? configuredPath = null)
+    private IngestController BuildController(string? configuredPath = null, bool isDevelopment = true)
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"ingest-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
@@ -39,6 +39,7 @@ public class IngestControllerTests
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
 
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
+        _mockEnv.Setup(e => e.EnvironmentName).Returns(isDevelopment ? "Development" : "Production");
 
         _mockChunking
             .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -408,6 +409,49 @@ public class IngestControllerTests
             await controller.Upload(file, CancellationToken.None);
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Reset_NonDevelopment_ReturnsNotFound()
+    {
+        var controller = BuildController(isDevelopment: false);
+        try
+        {
+            var result = await controller.Reset("RESET", CancellationToken.None);
+            Assert.IsType<NotFoundObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Reset_DevelopmentWithoutConfirmation_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        try
+        {
+            var result = await controller.Reset(null, CancellationToken.None);
+            Assert.IsType<BadRequestObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Reset_DevelopmentWithConfirmation_ClearsVectorStore()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorRecord { Id = "existing", Source = "SOP.md", ChunkText = "x", Embedding = [] }]);
+
+        try
+        {
+            var result = await controller.Reset("RESET", CancellationToken.None);
+            Assert.True(result.Result is OkObjectResult || result.Value is not null);
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(It.Is<IEnumerable<VectorRecord>>(records => !records.Any()), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
         finally { Cleanup(); }
