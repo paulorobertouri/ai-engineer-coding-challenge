@@ -13,7 +13,6 @@ export const ChatMessageSchema = z.object({
 export const ChatRequestSchema = z
   .object({
     conversationId: z.string().min(1).max(CHAT_MAX_CONVERSATION_ID_LENGTH),
-    useTools: z.boolean(),
     messages: z.array(ChatMessageSchema).min(1).max(CHAT_MAX_MESSAGES),
   })
   .refine((request) => request.messages.some((message) => message.role === 'user'), {

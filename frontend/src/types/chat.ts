@@ -25,7 +25,6 @@ export interface ChatApiMessage {
 export interface ChatRequest {
   conversationId: string
   messages: ChatApiMessage[]
-  useTools: boolean
 }
 
 export interface ChatResponse {

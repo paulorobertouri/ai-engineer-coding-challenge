@@ -17,6 +17,7 @@ public sealed class ChatRequest : IValidatableObject
     [MaxLength(MaxMessages, ErrorMessage = "Chat requests are limited to 20 messages.")]
     public List<ChatMessageDto> Messages { get; init; } = [];
 
+    // Preserved for backward compatibility; server configuration controls tool usage.
     public bool UseTools { get; init; } = true;
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

@@ -5,7 +5,6 @@ using OpenAI;
 using OpenAI.Chat;
 using Polly;
 using Polly.Retry;
-using System.Text.Json;
 
 namespace Api.Services;
 
@@ -19,6 +18,7 @@ public sealed class OpenAIRetrievalChatService(
     private readonly string _chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-4o-mini";
     private readonly int _retrievalTopK = Math.Max(1, configuration.GetValue<int?>("Retrieval:TopK") ?? 3);
     private readonly double _minSimilarityScore = Math.Clamp(configuration.GetValue<double?>("Retrieval:MinSimilarityScore") ?? 0.3, 0.0, 1.0);
+    private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(configuration);
     private readonly ResiliencePipeline _resiliencePipeline = new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions
         {
@@ -71,11 +71,17 @@ public sealed class OpenAIRetrievalChatService(
             // 2. Prepare Chat Messages
             var messages = BuildChatMessages(request, matches);
 
-            // 3. Define Tools (only when the caller opted in)
+            // 3. Define Tools (server-controlled)
             var options = new ChatCompletionOptions();
-            if (request.UseTools)
+            if (_enableTools)
             {
                 foreach (var tool in BuildToolDefinitions()) options.Tools.Add(tool);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Tool calling is disabled by server configuration. ConversationId={ConversationId}",
+                    request.ConversationId);
             }
 
             var client = openAiClient.GetChatClient(_chatModel);
@@ -83,9 +89,9 @@ public sealed class OpenAIRetrievalChatService(
             var chatCompletion = response.Value;
 
             // 4. Handle Tool Calls (Single Turn)
-            if (chatCompletion.FinishReason == ChatFinishReason.ToolCalls)
+            if (_enableTools && chatCompletion.FinishReason == ChatFinishReason.ToolCalls)
             {
-                matches = await HandleToolCallsAsync(chatCompletion, messages, matches, ct);
+                matches = await HandleToolCallsAsync(chatCompletion, messages, matches, request.ConversationId, ct);
                 response = await client.CompleteChatAsync(messages, options, ct);
                 chatCompletion = response.Value;
             }
@@ -145,6 +151,7 @@ public sealed class OpenAIRetrievalChatService(
         ChatCompletion chatCompletion,
         List<ChatMessage> messages,
         IReadOnlyList<VectorSearchMatch> matches,
+        string conversationId,
         CancellationToken ct)
     {
         messages.Add(ChatMessage.CreateAssistantMessage(chatCompletion));
@@ -152,7 +159,7 @@ public sealed class OpenAIRetrievalChatService(
 
         foreach (var toolCall in chatCompletion.ToolCalls)
         {
-            await HandleSearchSopToolCallAsync(toolCall, messages, allMatches, ct);
+            await HandleSearchSopToolCallAsync(toolCall, messages, allMatches, conversationId, ct);
         }
 
         return allMatches;
@@ -162,24 +169,28 @@ public sealed class OpenAIRetrievalChatService(
         ChatToolCall toolCall,
         List<ChatMessage> messages,
         List<VectorSearchMatch> allMatches,
+        string conversationId,
         CancellationToken ct)
     {
-        string query;
-        try
+        var queryParseResult = ToolCallingPolicy.TryExtractSearchQuery(toolCall.FunctionArguments.ToString(), out var query);
+        if (queryParseResult == ToolCallQueryParseResult.InvalidJson)
         {
-            var args = JsonDocument.Parse(toolCall.FunctionArguments).RootElement;
-            query = args.TryGetProperty("query", out var queryProp) ? queryProp.GetString() ?? "" : "";
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Failed to parse search_sop tool arguments; skipping tool call.");
+            logger.LogWarning(
+                "Tool call parse failed. ConversationId={ConversationId}, ToolCallId={ToolCallId}, ToolName={ToolName}, Reason=InvalidJson",
+                conversationId,
+                toolCall.Id,
+                toolCall.FunctionName);
             messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, ""));
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (queryParseResult == ToolCallQueryParseResult.EmptyQuery)
         {
-            logger.LogWarning("Received empty search_sop query; skipping tool call.");
+            logger.LogWarning(
+                "Tool call rejected. ConversationId={ConversationId}, ToolCallId={ToolCallId}, ToolName={ToolName}, Reason=EmptyQuery",
+                conversationId,
+                toolCall.Id,
+                toolCall.FunctionName);
             messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, ""));
             return;
         }
@@ -198,12 +209,18 @@ public sealed class OpenAIRetrievalChatService(
 
         if (toolMatches.Count == 0)
         {
-            logger.LogWarning("Tool retrieval returned no relevant matches above threshold {Threshold}.", _minSimilarityScore);
+            logger.LogWarning(
+                "Tool retrieval returned no relevant matches. ConversationId={ConversationId}, ToolCallId={ToolCallId}, ToolName={ToolName}, Query={Query}, Threshold={Threshold}",
+                conversationId,
+                toolCall.Id,
+                toolCall.FunctionName,
+                query,
+                _minSimilarityScore);
             messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, string.Empty));
             return;
         }
 
-        var toolContext = string.Join("\n\n", toolMatches.Select(m => m.Record.ChunkText));
+        var toolContext = ToolCallingPolicy.BuildToolContext(toolMatches);
         messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, toolContext));
 
         allMatches.AddRange(toolMatches.Where(m => allMatches.All(existing => existing.Record.Id != m.Record.Id)));

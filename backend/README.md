@@ -29,7 +29,14 @@ Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is pre
 |---|---|---|
 | `search_sop` | `query: string` | Re-embeds the query and retrieves up to `Retrieval:TopK` chunks above `Retrieval:MinSimilarityScore` |
 
+Tool enablement is server-controlled by `OpenAI:EnableTools` (the client request flag is ignored for execution policy).
+
 When `finish_reason` is `tool_calls` each tool is executed, its result appended as a `tool` message, and the model called a second time to produce the final response.
+
+Tool-call observability:
+- Invalid JSON tool arguments are logged with `ConversationId`, `ToolCallId`, and `ToolName`
+- Empty `query` arguments are logged with the same structured fields
+- Tool calls that produce no relevant matches above threshold are logged with `ConversationId`, `ToolCallId`, `ToolName`, and `Threshold`
 
 ## Vector Store
 
@@ -71,6 +78,7 @@ Exceeding the limit returns `429 Too Many Requests`. Client IP is resolved throu
 | Key | Default | Description |
 |---|---|---|
 | `OpenAI:ApiKey` | _(empty)_ | OpenAI API key — triggers fallback mode if absent |
+| `OpenAI:EnableTools` | `true` | Enables/disables OpenAI tool calling on the server |
 | `OpenAI:ChatModel` | `gpt-4o-mini` | Chat completion model |
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
 | `Retrieval:TopK` | `3` | Maximum number of retrieved chunks considered for response context |

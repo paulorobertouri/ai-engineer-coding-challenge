@@ -144,7 +144,6 @@ export function ChatPage() {
 
       const payload = ChatRequestSchema.parse({
         conversationId,
-        useTools: true,
         messages: historyWindow.map((message) => ({
           role: message.role,
           content: message.content,

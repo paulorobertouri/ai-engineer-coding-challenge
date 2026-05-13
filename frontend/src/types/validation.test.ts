@@ -65,7 +65,6 @@ describe('ChatRequestSchema', () => {
   it('accepts a valid chat request', () => {
     const result = ChatRequestSchema.safeParse({
       conversationId: 'abc',
-      useTools: true,
       messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
     })
     expect(result.success).toBe(true)
@@ -74,7 +73,6 @@ describe('ChatRequestSchema', () => {
   it('rejects empty messages array', () => {
     const result = ChatRequestSchema.safeParse({
       conversationId: 'abc',
-      useTools: false,
       messages: [],
     })
     expect(result.success).toBe(false)
@@ -82,7 +80,6 @@ describe('ChatRequestSchema', () => {
 
   it('rejects missing conversationId', () => {
     const result = ChatRequestSchema.safeParse({
-      useTools: true,
       messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
     })
     expect(result.success).toBe(false)
@@ -91,7 +88,6 @@ describe('ChatRequestSchema', () => {
   it('rejects too many messages', () => {
     const result = ChatRequestSchema.safeParse({
       conversationId: 'abc',
-      useTools: true,
       messages: Array.from({ length: 21 }, () => ({
         role: 'user',
         content: 'hi',
@@ -105,7 +101,6 @@ describe('ChatRequestSchema', () => {
   it('rejects too-long conversationId', () => {
     const result = ChatRequestSchema.safeParse({
       conversationId: 'a'.repeat(129),
-      useTools: true,
       messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
     })
 
@@ -115,7 +110,6 @@ describe('ChatRequestSchema', () => {
   it('rejects request without a user message', () => {
     const result = ChatRequestSchema.safeParse({
       conversationId: 'abc',
-      useTools: true,
       messages: [{ role: 'assistant', content: 'hello', timestampUtc: validTimestamp }],
     })
 

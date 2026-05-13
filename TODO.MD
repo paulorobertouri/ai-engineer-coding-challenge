@@ -98,7 +98,7 @@ The current retrieval flow always sends the top 3 chunks to the model, even if t
 
 ### 4. Tighten Tool-Calling Behavior
 
-- [ ] Make tool use server-controlled and more observable.
+- [x] Make tool use server-controlled and more observable.
 
 **Why**
 

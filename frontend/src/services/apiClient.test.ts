@@ -61,7 +61,7 @@ describe('apiClient', () => {
       citations: [],
     }
     mockFetch(chatResponse)
-    const result = await apiClient.chat({ conversationId: 'c1', messages: [], useTools: true })
+    const result = await apiClient.chat({ conversationId: 'c1', messages: [] })
     expect(result.assistantMessage).toBe('Hi there')
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/chat'),

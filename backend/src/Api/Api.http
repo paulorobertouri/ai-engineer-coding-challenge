@@ -20,7 +20,6 @@ Content-Type: application/json
 
 {
 	"conversationId": "sample-session",
-	"useTools": true,
 	"messages": [
 		{
 			"role": "user",
