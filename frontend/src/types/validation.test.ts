@@ -87,6 +87,54 @@ describe('ChatRequestSchema', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('rejects too many messages', () => {
+    const result = ChatRequestSchema.safeParse({
+      conversationId: 'abc',
+      useTools: true,
+      messages: Array.from({ length: 21 }, () => ({
+        role: 'user',
+        content: 'hi',
+        timestampUtc: validTimestamp,
+      })),
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects too-long conversationId', () => {
+    const result = ChatRequestSchema.safeParse({
+      conversationId: 'a'.repeat(129),
+      useTools: true,
+      messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects request without a user message', () => {
+    const result = ChatRequestSchema.safeParse({
+      conversationId: 'abc',
+      useTools: true,
+      messages: [{ role: 'assistant', content: 'hello', timestampUtc: validTimestamp }],
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('ChatMessageSchema limits', () => {
+  const validTimestamp = new Date().toISOString()
+
+  it('rejects content above max length', () => {
+    const result = ChatMessageSchema.safeParse({
+      role: 'user',
+      content: 'x'.repeat(4001),
+      timestampUtc: validTimestamp,
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('IngestRequestSchema', () => {

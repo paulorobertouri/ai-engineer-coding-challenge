@@ -8,9 +8,7 @@ import { CitationsPanel } from '../components/CitationsPanel'
 import { IngestPanel } from '../components/IngestPanel'
 import { StatusBanner } from '../components/StatusBanner'
 
-import { ChatRequestSchema, IngestRequestSchema } from '../types/validation'
-
-const MAX_HISTORY_MESSAGES = 20
+import { ChatRequestSchema, IngestRequestSchema, CHAT_MAX_MESSAGES } from '../types/validation'
 
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {
@@ -142,7 +140,7 @@ export function ChatPage() {
 
     try {
       // Limit history sent to the API to avoid unbounded token growth
-      const historyWindow = nextMessages.slice(-MAX_HISTORY_MESSAGES)
+      const historyWindow = nextMessages.slice(-CHAT_MAX_MESSAGES)
 
       const payload = ChatRequestSchema.parse({
         conversationId,

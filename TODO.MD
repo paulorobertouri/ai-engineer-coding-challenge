@@ -52,7 +52,7 @@ The ingest endpoints currently load the vector store, check whether records exis
 
 ### 2. Add Backend API Payload Limits
 
-- [ ] Enforce backend limits for chat payload size, not just frontend history trimming.
+- [x] Enforce backend limits for chat payload size, not just frontend history trimming.
 
 **Why**
 

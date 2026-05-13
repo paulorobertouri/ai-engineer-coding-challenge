@@ -2,14 +2,30 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Api.Contracts;
 
-public sealed class ChatRequest
+public sealed class ChatRequest : IValidatableObject
 {
+    public const int MaxMessages = 20;
+    public const int MaxConversationIdLength = 128;
+    public const int MaxMessageContentLength = 4000;
+
     [Required]
+    [MaxLength(MaxConversationIdLength, ErrorMessage = "ConversationId must not exceed 128 characters.")]
     public string ConversationId { get; init; } = Guid.NewGuid().ToString("N");
 
     [Required]
     [MinLength(1, ErrorMessage = "At least one chat message is required.")]
+    [MaxLength(MaxMessages, ErrorMessage = "Chat requests are limited to 20 messages.")]
     public List<ChatMessageDto> Messages { get; init; } = [];
 
     public bool UseTools { get; init; } = true;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (!Messages.Any(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase)))
+        {
+            yield return new ValidationResult(
+                "At least one user message is required.",
+                [nameof(Messages)]);
+        }
+    }
 }

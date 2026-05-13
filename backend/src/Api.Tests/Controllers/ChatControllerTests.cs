@@ -23,6 +23,84 @@ public class ChatControllerTests
         var request = new ChatRequest { Messages = [] };
         var result = await _controller.Post(request, CancellationToken.None);
         Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Post_TooManyMessages_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            Messages = Enumerable
+                .Range(1, ChatRequest.MaxMessages + 1)
+                .Select(_ => new ChatMessageDto { Role = "user", Content = "hello" })
+                .ToList()
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Post_TooLongConversationId_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            ConversationId = new string('a', ChatRequest.MaxConversationIdLength + 1),
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hi" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Post_TooLongMessageContent_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            Messages =
+            [
+                new ChatMessageDto
+                {
+                    Role = "user",
+                    Content = new string('x', ChatRequest.MaxMessageContentLength + 1)
+                }
+            ]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Post_NoUserMessage_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            Messages = [new ChatMessageDto { Role = "assistant", Content = "Hello" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
