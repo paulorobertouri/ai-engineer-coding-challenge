@@ -143,7 +143,7 @@ The backend has useful baseline headers, but it does not include a Content Secur
 
 ### 6. Make Docker Vector-Store Persistence Explicit
 
-- [ ] Decide whether Docker mode should persist vector-store data or be intentionally ephemeral.
+- [x] Decide whether Docker mode should persist vector-store data or be intentionally ephemeral.
 
 **Why**
 

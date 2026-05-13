@@ -34,9 +34,15 @@ When `finish_reason` is `tool_calls` each tool is executed, its result appended 
 ## Vector Store
 
 - File: `Data/vector-store.json` (configurable via `Challenge__VectorStorePath`)
-- Inside Docker the file lives at `/app/Data/vector-store.json` (mounted from `./backend/src/Api/Data`)
+- Inside Docker the file lives at `/app/Data/vector-store.json` (persisted in the `backend_data` named volume)
 - Format: JSON array of `VectorRecord` objects (`id`, `source`, `chunkText`, `embedding`, `metadata`)
 - Search: cosine similarity computed in-process over all records (suitable for POC scale)
+
+To reset persisted Docker ingestion data intentionally:
+
+```bash
+docker compose down -v
+```
 
 ## Resilience
 

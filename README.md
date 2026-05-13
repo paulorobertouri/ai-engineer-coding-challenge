@@ -149,6 +149,8 @@ Scope to a single service: `.\scripts\docker.ps1 up backend`
 | Backend API | `http://localhost:5181` |
 | Frontend | `http://localhost:5173` |
 
+Docker persistence note: the backend vector store is persisted in the `backend_data` named volume. Use `docker compose down -v` only when you want to wipe ingested data.
+
 ### Local Development
 1. **Backend:**
    ```bash
