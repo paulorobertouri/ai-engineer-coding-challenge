@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
 const root = path.resolve(__dirname, "..");
+const isCi = !!process.env.CI;
 
 export default defineConfig({
   testDir: "./tests",
@@ -28,15 +29,22 @@ export default defineConfig({
       timeout: 30_000,
     },
   ],
-  projects: [
-    {
-      name: "google-chrome",
-      use: {
-        channel: "chrome",
-        launchOptions: {
-          executablePath: "/usr/bin/google-chrome",
+  projects: isCi
+    ? [
+        {
+          name: "chromium",
+          use: { ...devices["Desktop Chrome"] },
         },
-      },
-    },
-  ],
+      ]
+    : [
+        {
+          name: "google-chrome",
+          use: {
+            channel: "chrome",
+            launchOptions: {
+              executablePath: "/usr/bin/google-chrome",
+            },
+          },
+        },
+      ],
 });

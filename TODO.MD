@@ -180,7 +180,7 @@ Lint and unit tests do not catch every production build issue. Vite and TypeScri
 
 ### 8. Add Playwright E2E Coverage To CI
 
-- [ ] Run Playwright tests in CI against the full stack.
+- [x] Run Playwright tests in CI against the full stack.
 
 **Why**
 
