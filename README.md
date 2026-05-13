@@ -118,6 +118,7 @@ Frontend static responses served by nginx include matching `Content-Security-Pol
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
+| `GET` | `/api/v1/ready` | Readiness probe for source-document and vector-store availability |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
 | `POST` | `/api/v1/chat` | RAG chat with optional tool-calling |
 

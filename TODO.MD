@@ -201,7 +201,7 @@ Unit tests cover the parts, but e2e tests validate that the backend, frontend, D
 
 ### 9. Split Health And Readiness Checks
 
-- [ ] Add a readiness endpoint separate from basic health.
+- [x] Add a readiness endpoint separate from basic health.
 
 **Why**
 

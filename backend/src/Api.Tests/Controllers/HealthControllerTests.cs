@@ -2,6 +2,7 @@ using Api.Contracts;
 using Api.Controllers;
 using Api.Models;
 using Api.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Moq;
@@ -13,12 +14,23 @@ public class HealthControllerTests
 {
     private static HealthController CreateController(bool hasApiKey = true, int recordCount = 0)
     {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var sourcePath = Path.Combine(tempDir, "SOP.md");
+        File.WriteAllText(sourcePath, "# SOP\ncontent");
+
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["OpenAI:ApiKey"] = hasApiKey ? "test-key" : ""
+                ["OpenAI:ApiKey"] = hasApiKey ? "test-key" : "",
+                ["Challenge:SourceDocumentPath"] = sourcePath,
+                ["Challenge:VectorStorePath"] = "Data/vector-store.json"
             })
             .Build();
+
+        var mockEnv = new Mock<IWebHostEnvironment>();
+        mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
 
         var mockVectorStore = new Mock<IVectorStoreService>();
         var records = Enumerable.Range(0, recordCount)
@@ -28,7 +40,7 @@ public class HealthControllerTests
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(records);
 
-        return new HealthController(config, mockVectorStore.Object);
+        return new HealthController(config, mockVectorStore.Object, mockEnv.Object);
     }
 
     [Fact]
@@ -122,5 +134,49 @@ public class HealthControllerTests
         var response = (HealthResponse)ok.Value!;
         Assert.True(response.IsIngested);
         Assert.Equal(5, response.RecordCount);
+    }
+
+    [Fact]
+    public void Ready_WhenDependenciesAvailable_ReturnsOkReady()
+    {
+        var result = CreateController().Ready();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<HealthResponse>(ok.Value);
+        Assert.Equal("ready", response.Status);
+    }
+
+    [Fact]
+    public void Ready_WhenSourceDocumentMissing_ReturnsServiceUnavailable()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-missing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["OpenAI:ApiKey"] = "",
+                ["Challenge:SourceDocumentPath"] = Path.Combine(tempDir, "missing.md"),
+                ["Challenge:VectorStorePath"] = "Data/vector-store.json"
+            })
+            .Build();
+
+        var mockEnv = new Mock<IWebHostEnvironment>();
+        mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
+
+        var mockVectorStore = new Mock<IVectorStoreService>();
+        mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var controller = new HealthController(config, mockVectorStore.Object, mockEnv.Object);
+
+        var result = controller.Ready();
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, objectResult.StatusCode);
+
+        var response = Assert.IsType<HealthResponse>(objectResult.Value);
+        Assert.Equal("not_ready", response.Status);
     }
 }

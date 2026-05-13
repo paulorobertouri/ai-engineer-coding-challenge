@@ -7,6 +7,7 @@
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
+| `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 
