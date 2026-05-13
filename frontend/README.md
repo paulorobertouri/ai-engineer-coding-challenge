@@ -50,6 +50,13 @@ Or use the repo-level scripts from the root:
 ./scripts/format.sh [--fix]
 ```
 
+PowerShell on Windows:
+
+```powershell
+.\scripts\test.ps1 frontend
+.\scripts\format.ps1 [--fix]
+```
+
 ## Unit Tests
 
 | File                        | Coverage                                                                        |

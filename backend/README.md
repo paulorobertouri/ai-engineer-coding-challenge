@@ -85,6 +85,12 @@ Requires the root `.env` (or equivalent environment variables) to be in scope. S
 dotnet test backend/src/Api.Tests/Api.Tests.csproj
 ```
 
+PowerShell on Windows:
+
+```powershell
+.\scripts\test.ps1 backend
+```
+
 Test coverage:
 - `MarkdownChunkingServiceTests` — verifies chunking by `#`/`##` headers and empty-input handling
 - `JsonVectorStoreServiceTests` — verifies cosine similarity ordering, missing-file graceful load, and save/load round-trip
@@ -103,4 +109,11 @@ Test coverage:
 
 # auto-fix
 ./scripts/format.sh --fix
+```
+
+PowerShell on Windows:
+
+```powershell
+.\scripts\format.ps1
+.\scripts\format.ps1 --fix
 ```

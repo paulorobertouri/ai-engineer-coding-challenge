@@ -30,6 +30,14 @@ A Proof of Concept internal chatbot for a grocery store chain. Employees ask que
 docker compose up -d
 ```
 
+PowerShell equivalents are available on Windows:
+
+```powershell
+.\scripts\setup.ps1
+.\scripts\build.ps1
+docker compose up -d
+```
+
 ## Configuration
 
 The project uses a central `.env` file at the root for configuration and secret management.
@@ -46,14 +54,14 @@ All services (backend, frontend, Docker Compose) are pre-configured to read from
 
 ## Scripts
 
-| Script | Purpose |
-|---|---|
-| `./scripts/setup.sh` | Copy `.env` files, `npm ci`, `dotnet restore` |
-| `./scripts/format.sh [--fix]` | Check / auto-fix formatting and linting |
-| `./scripts/test.sh [all\|backend\|frontend]` | Run unit tests |
-| `./scripts/build.sh [all\|backend\|frontend]` | Build Docker images |
-| `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
-| `./scripts/e2e.sh [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
+| Bash | PowerShell | Purpose |
+|---|---|---|
+| `./scripts/setup.sh` | `.\scripts\setup.ps1` | Copy `.env` files, `npm ci`, `dotnet restore` |
+| `./scripts/format.sh [--fix]` | `.\scripts\format.ps1 [--fix]` | Check / auto-fix formatting and linting |
+| `./scripts/test.sh [all\|backend\|frontend]` | `.\scripts\test.ps1 [all\|backend\|frontend]` | Run unit tests |
+| `./scripts/build.sh [all\|backend\|frontend]` | `.\scripts\build.ps1 [all\|backend\|frontend]` | Build Docker images |
+| `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | `.\scripts\docker.ps1 <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
+| `./scripts/e2e.sh [test\|evidence]` | `.\scripts\e2e.ps1 [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
 
 ## Implemented Features
 
@@ -122,6 +130,18 @@ Exceeding the limit returns `429 Too Many Requests`.
 
 Scope to a single service: `./scripts/docker.sh up backend`
 
+PowerShell:
+
+```powershell
+.\scripts\setup.ps1
+.\scripts\docker.ps1 up
+.\scripts\docker.ps1 down
+.\scripts\docker.ps1 restart
+.\scripts\docker.ps1 logs
+```
+
+Scope to a single service: `.\scripts\docker.ps1 up backend`
+
 | Service | URL |
 |---|---|
 | Backend API | `http://localhost:5181` |
@@ -146,16 +166,32 @@ Scope to a single service: `./scripts/docker.sh up backend`
 ./scripts/test.sh frontend   # vitest only
 ```
 
+```powershell
+.\scripts\test.ps1
+.\scripts\test.ps1 backend
+.\scripts\test.ps1 frontend
+```
+
 ### Format & Lint
 ```bash
 ./scripts/format.sh          # check only
 ./scripts/format.sh --fix    # auto-fix (backend + frontend + e2e)
 ```
 
+```powershell
+.\scripts\format.ps1
+.\scripts\format.ps1 --fix
+```
+
 ### E2E Tests & Evidence
 ```bash
 ./scripts/e2e.sh             # run all Playwright e2e tests
 ./scripts/e2e.sh evidence    # capture evidence screenshots → evidences/
+```
+
+```powershell
+.\scripts\e2e.ps1
+.\scripts\e2e.ps1 evidence
 ```
 
 ## Visual Evidence
