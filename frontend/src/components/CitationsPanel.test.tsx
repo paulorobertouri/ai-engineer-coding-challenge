@@ -33,6 +33,22 @@ describe('CitationsPanel', () => {
     expect(screen.getByText(/lines 5–10/)).toBeInTheDocument()
   })
 
+  it('renders section, score, and chunk metadata when present', () => {
+    const citations: Citation[] = [
+      {
+        source: 'SOP.md',
+        snippet: 'snippet',
+        sectionTitle: 'Store Opening',
+        score: 0.9182,
+        chunkId: 'chunk-1',
+      },
+    ]
+    render(<CitationsPanel citations={citations} />)
+    expect(screen.getByText(/Section: Store Opening/)).toBeInTheDocument()
+    expect(screen.getByText(/score 0.918/)).toBeInTheDocument()
+    expect(screen.getByText(/Chunk: chunk-1/)).toBeInTheDocument()
+  })
+
   it('renders startLine only when endLine is absent', () => {
     const citations: Citation[] = [{ source: 'SOP.md', snippet: 'snippet', startLine: 7 }]
     render(<CitationsPanel citations={citations} />)

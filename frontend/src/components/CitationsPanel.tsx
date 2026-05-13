@@ -45,8 +45,10 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
         <ul className="citations-list">
           {citations.map((citation, index) => {
             const isExpanded = expanded.has(index)
+            const scoreLabel =
+              typeof citation.score === 'number' ? `score ${citation.score.toFixed(3)}` : null
             return (
-              <li key={`${citation.source}-${index}`} className="citation-item">
+              <li key={`${citation.chunkId ?? citation.source}-${index}`} className="citation-item">
                 <p className="citation-source">
                   <FileText size={11} />
                   {citation.source}
@@ -54,6 +56,15 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
                     ? ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
                     : ''}
                 </p>
+                {(citation.sectionTitle || scoreLabel || citation.chunkId) && (
+                  <p className="citation-source">
+                    {citation.sectionTitle ? `Section: ${citation.sectionTitle}` : ''}
+                    {citation.sectionTitle && scoreLabel ? ' · ' : ''}
+                    {scoreLabel ?? ''}
+                    {(citation.sectionTitle || scoreLabel) && citation.chunkId ? ' · ' : ''}
+                    {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
+                  </p>
+                )}
                 <p className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}>
                   {citation.snippet}
                 </p>

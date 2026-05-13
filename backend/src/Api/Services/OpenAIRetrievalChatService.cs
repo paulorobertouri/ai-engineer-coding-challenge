@@ -273,10 +273,6 @@ public sealed class OpenAIRetrievalChatService(
             Status = "success",
             IsPlaceholder = false,
             AssistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty,
-            Citations = matches.Select(m => new CitationDto
-            {
-                Source = m.Record.Source,
-                Snippet = m.Record.ChunkText.Length > 200 ? m.Record.ChunkText[..200] + "..." : m.Record.ChunkText
-            }).ToList()
+            Citations = matches.Select(CitationMapper.FromMatch).ToList()
         };
 }

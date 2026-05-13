@@ -10,8 +10,11 @@ export interface ChatMessage {
 }
 
 export interface Citation {
+  chunkId?: string
   source: string
+  sectionTitle?: string
   snippet: string
+  score?: number
   startLine?: number
   endLine?: number
 }

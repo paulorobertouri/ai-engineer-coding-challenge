@@ -133,16 +133,27 @@ public sealed class IngestController(
         foreach (var chunk in chunks)
         {
             var embedding = await embeddingService.EmbedAsync(chunk.Content, cancellationToken);
+            var metadata = new Dictionary<string, string>
+            {
+                ["Index"] = chunk.Index.ToString()
+            };
+
+            if (chunk.StartLine.HasValue)
+                metadata["StartLine"] = chunk.StartLine.Value.ToString();
+
+            if (chunk.EndLine.HasValue)
+                metadata["EndLine"] = chunk.EndLine.Value.ToString();
+
+            if (!string.IsNullOrWhiteSpace(chunk.SectionTitle))
+                metadata["SectionTitle"] = chunk.SectionTitle;
+
             records.Add(new VectorRecord
             {
                 Id = chunk.Id,
                 Source = chunk.Source,
                 ChunkText = chunk.Content,
                 Embedding = embedding,
-                Metadata = new Dictionary<string, string>
-                {
-                    ["Index"] = chunk.Index.ToString()
-                }
+                Metadata = metadata
             });
         }
 

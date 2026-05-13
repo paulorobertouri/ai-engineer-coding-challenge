@@ -1,4 +1,5 @@
 using Api.Contracts;
+using Api.Models;
 using Api.Options;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
@@ -53,19 +54,11 @@ public sealed class FallbackRetrievalChatService(
             IsPlaceholder = true,
             AssistantMessage = answer,
             ToolCalls = [],
-            Citations = matches
-                .Select(m => new CitationDto
-                {
-                    Source = m.Record.Source,
-                    Snippet = m.Record.ChunkText.Length > 200
-                        ? m.Record.ChunkText[..200] + "..."
-                        : m.Record.ChunkText
-                })
-                .ToList()
+            Citations = matches.Select(CitationMapper.FromMatch).ToList()
         };
     }
 
-    private static string BuildContextualAnswer(IReadOnlyList<Api.Models.VectorSearchMatch> matches)
+    private static string BuildContextualAnswer(IReadOnlyList<VectorSearchMatch> matches)
     {
         if (matches.Count == 0)
         {

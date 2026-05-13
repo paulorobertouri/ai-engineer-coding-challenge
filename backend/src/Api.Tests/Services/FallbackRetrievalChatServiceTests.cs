@@ -92,7 +92,18 @@ public class FallbackRetrievalChatServiceTests
     [Fact]
     public async Task GenerateResponseAsync_WithMatches_ReturnsContextualAnswer()
     {
-        var record = new VectorRecord { Id = "1", Source = "SOP.md", ChunkText = "Store opens at 9am", Embedding = new float[1536] };
+        var record = new VectorRecord
+        {
+            Id = "1",
+            Source = "SOP.md",
+            ChunkText = "## Store Hours\nStore opens at 9am",
+            Embedding = new float[1536],
+            Metadata = new Dictionary<string, string>
+            {
+                ["StartLine"] = "12",
+                ["EndLine"] = "18"
+            }
+        };
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
 
         _mockVectorStore
@@ -103,7 +114,12 @@ public class FallbackRetrievalChatServiceTests
 
         Assert.Contains("Store opens at 9am", response.AssistantMessage);
         Assert.Single(response.Citations);
+        Assert.Equal("1", response.Citations[0].ChunkId);
         Assert.Equal("SOP.md", response.Citations[0].Source);
+        Assert.Equal("Store Hours", response.Citations[0].SectionTitle);
+        Assert.Equal(0.9, response.Citations[0].Score);
+        Assert.Equal(12, response.Citations[0].StartLine);
+        Assert.Equal(18, response.Citations[0].EndLine);
     }
 
     [Fact]

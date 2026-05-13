@@ -264,7 +264,7 @@ Defaults such as model names, retry counts, upload limits, paths, retrieval `top
 
 ### 12. Improve Citations
 
-- [ ] Return richer and more accurate citation metadata.
+- [x] Return richer and more accurate citation metadata.
 
 **Why**
 

@@ -61,6 +61,23 @@ public class MarkdownChunkingServiceTests
     }
 
     [Fact]
+    public async Task ChunkAsync_SetsSectionTitleAndLineRange()
+    {
+        var service = new MarkdownChunkingService();
+        var markdown = "# Intro\nLine A\n## Policy\nLine B\nLine C";
+
+        var chunks = await service.ChunkAsync(markdown, "test.md");
+
+        Assert.Equal("Intro", chunks[0].SectionTitle);
+        Assert.Equal(1, chunks[0].StartLine);
+        Assert.Equal(2, chunks[0].EndLine);
+
+        Assert.Equal("Policy", chunks[1].SectionTitle);
+        Assert.Equal(3, chunks[1].StartLine);
+        Assert.Equal(5, chunks[1].EndLine);
+    }
+
+    [Fact]
     public async Task ChunkAsync_SetsSourceName()
     {
         var service = new MarkdownChunkingService();

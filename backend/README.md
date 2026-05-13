@@ -71,6 +71,12 @@ Retrieval is threshold-aware in both OpenAI and fallback chat services:
 - Chunks below `Retrieval:MinSimilarityScore` are filtered out
 - If no chunk passes the threshold, the assistant returns a grounded "not enough information in the SOP" response with no citations
 
+Citations returned by `/api/v1/chat` now include richer metadata for traceability:
+- `chunkId` (stable ID for the cited chunk in the vector store)
+- `score` (retrieval similarity score)
+- `sectionTitle` (derived from chunk heading when available)
+- `startLine` / `endLine` (line range when available from ingestion metadata)
+
 ## Rate Limiting
 
 Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in rate limiter:

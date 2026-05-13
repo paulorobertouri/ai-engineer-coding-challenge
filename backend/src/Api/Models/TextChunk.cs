@@ -8,5 +8,11 @@ public sealed class TextChunk
 
     public int Index { get; init; }
 
+    public int? StartLine { get; init; }
+
+    public int? EndLine { get; init; }
+
+    public string SectionTitle { get; init; } = string.Empty;
+
     public string Content { get; init; } = string.Empty;
 }
