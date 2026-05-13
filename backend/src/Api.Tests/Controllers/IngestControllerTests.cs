@@ -237,6 +237,53 @@ public class IngestControllerTests
         finally { Cleanup(); }
     }
 
+    [Fact]
+    public async Task Post_ConcurrentRequests_OnlyOneSucceeds()
+    {
+        var controller = BuildController();
+
+        _mockVectorStore
+            .SetupSequence(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([])
+            .ReturnsAsync([new VectorRecord { Id = "existing", Source = "SOP.md", ChunkText = "x", Embedding = [] }]);
+
+        var firstRequestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var chunkCallCount = 0;
+        _mockChunking
+            .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                if (Interlocked.Increment(ref chunkCallCount) == 1)
+                {
+                    firstRequestStarted.SetResult();
+                    await releaseFirstRequest.Task;
+                }
+
+                return [new TextChunk { Id = "c1", Source = "SOP.md", Index = 0, Content = "## Section\nContent" }];
+            });
+
+        try
+        {
+            var firstRequest = controller.Post(null, CancellationToken.None);
+            await firstRequestStarted.Task;
+
+            var secondRequest = controller.Post(null, CancellationToken.None);
+
+            Assert.False(secondRequest.IsCompleted);
+
+            releaseFirstRequest.SetResult();
+
+            var firstResult = await firstRequest;
+            var secondResult = await secondRequest;
+
+            Assert.IsType<OkObjectResult>(firstResult.Result);
+            Assert.IsType<ConflictObjectResult>(secondResult.Result);
+        }
+        finally { Cleanup(); }
+    }
+
     // ── Upload endpoint ───────────────────────────────────────────────────────
 
     private static IFormFile MakeFormFile(string content, string fileName, string contentType = "text/markdown")
