@@ -162,7 +162,7 @@ The compose file currently leaves the data volume commented out. That can surpri
 
 ### 7. Add Frontend Production Build To CI
 
-- [ ] Run `npm run build` in the frontend CI job.
+- [x] Run `npm run build` in the frontend CI job.
 
 **Why**
 
