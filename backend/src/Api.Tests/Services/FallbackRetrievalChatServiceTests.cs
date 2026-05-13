@@ -1,6 +1,7 @@
 using Api.Contracts;
 using Api.Models;
 using Api.Services;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
 
@@ -10,11 +11,20 @@ public class FallbackRetrievalChatServiceTests
 {
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
+    private readonly IConfiguration _configuration;
     private readonly FallbackRetrievalChatService _service;
 
     public FallbackRetrievalChatServiceTests()
     {
-        _service = new FallbackRetrievalChatService(_mockEmbedding.Object, _mockVectorStore.Object);
+        _configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Retrieval:TopK"] = "3",
+                ["Retrieval:MinSimilarityScore"] = "0.30"
+            })
+            .Build();
+
+        _service = new FallbackRetrievalChatService(_mockEmbedding.Object, _mockVectorStore.Object, _configuration);
         _mockEmbedding
             .Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[1536]);
@@ -35,9 +45,43 @@ public class FallbackRetrievalChatServiceTests
 
         var response = await _service.GenerateResponseAsync(BuildRequest("tell me something"), CancellationToken.None);
 
-        Assert.Contains("ingest", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("could not find enough relevant information", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("success", response.Status);
         Assert.Empty(response.Citations);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_FiltersLowConfidenceMatches_ReturnsNotFoundMessage()
+    {
+        var lowConfidenceRecord = new VectorRecord
+        {
+            Id = "1",
+            Source = "SOP.md",
+            ChunkText = "Weakly related text",
+            Embedding = new float[1536]
+        };
+
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorSearchMatch { Record = lowConfidenceRecord, Score = 0.12 }]);
+
+        var response = await _service.GenerateResponseAsync(BuildRequest("what is the policy?"), CancellationToken.None);
+
+        Assert.Contains("could not find enough relevant information", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(response.Citations);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_UsesConfiguredTopK()
+    {
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([])
+            .Verifiable();
+
+        await _service.GenerateResponseAsync(BuildRequest("topk check"), CancellationToken.None);
+
+        _mockVectorStore.Verify();
     }
 
     [Fact]

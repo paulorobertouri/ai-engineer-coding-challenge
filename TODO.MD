@@ -76,7 +76,7 @@ The frontend caps history, but clients can call the API directly. Without backen
 
 ### 3. Improve RAG Retrieval Quality
 
-- [ ] Add configurable retrieval behavior: `topK`, score thresholds, and no-relevant-context handling.
+- [x] Add configurable retrieval behavior: `topK`, score thresholds, and no-relevant-context handling.
 
 **Why**
 

@@ -27,7 +27,7 @@ Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is pre
 
 | Tool | Parameters | Behaviour |
 |---|---|---|
-| `search_sop` | `query: string` | Re-embeds the query and retrieves 3 chunks from the vector store |
+| `search_sop` | `query: string` | Re-embeds the query and retrieves up to `Retrieval:TopK` chunks above `Retrieval:MinSimilarityScore` |
 
 When `finish_reason` is `tool_calls` each tool is executed, its result appended as a `tool` message, and the model called a second time to produce the final response.
 
@@ -43,6 +43,11 @@ When `finish_reason` is `tool_calls` each tool is executed, its result appended 
 `OpenAIRetrievalChatService` wraps every OpenAI call in a Polly pipeline:
 - Exponential backoff retry — 3 attempts, 2 s base delay
 - 30 s timeout
+
+Retrieval is threshold-aware in both OpenAI and fallback chat services:
+- Candidate chunks are limited by `Retrieval:TopK`
+- Chunks below `Retrieval:MinSimilarityScore` are filtered out
+- If no chunk passes the threshold, the assistant returns a grounded "not enough information in the SOP" response with no citations
 
 ## Rate Limiting
 
@@ -62,6 +67,8 @@ Exceeding the limit returns `429 Too Many Requests`. Client IP is resolved throu
 | `OpenAI:ApiKey` | _(empty)_ | OpenAI API key — triggers fallback mode if absent |
 | `OpenAI:ChatModel` | `gpt-4o-mini` | Chat completion model |
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
+| `Retrieval:TopK` | `3` | Maximum number of retrieved chunks considered for response context |
+| `Retrieval:MinSimilarityScore` | `0.3` | Minimum cosine similarity score for a chunk to be considered relevant |
 | `Challenge:SourceDocumentPath` | `Data/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |

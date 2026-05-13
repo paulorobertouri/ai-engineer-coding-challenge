@@ -4,15 +4,22 @@ namespace Api.Services;
 
 public sealed class FallbackRetrievalChatService(
     IEmbeddingService embeddingService,
-    IVectorStoreService vectorStoreService) : IRetrievalChatService
+    IVectorStoreService vectorStoreService,
+    IConfiguration configuration) : IRetrievalChatService
 {
+    private readonly int _retrievalTopK = Math.Max(1, configuration.GetValue<int?>("Retrieval:TopK") ?? 3);
+    private readonly double _minSimilarityScore = Math.Clamp(configuration.GetValue<double?>("Retrieval:MinSimilarityScore") ?? 0.3, 0.0, 1.0);
+    private const string NoRelevantContextMessage =
+        "I could not find enough relevant information in the SOP to answer that question.";
+
     public async Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         var latestUserMessage = request.Messages.LastOrDefault(m =>
             m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
 
         var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, cancellationToken);
-        var matches = await vectorStoreService.SearchAsync(queryEmbedding, topK: 3, cancellationToken);
+        var rawMatches = await vectorStoreService.SearchAsync(queryEmbedding, topK: _retrievalTopK, cancellationToken);
+        var matches = rawMatches.Where(m => m.Score >= _minSimilarityScore).ToList();
         var answer = BuildContextualAnswer(matches);
 
         return new ChatResponse
@@ -38,7 +45,7 @@ public sealed class FallbackRetrievalChatService(
     {
         if (matches.Count == 0)
         {
-            return "I could not find relevant SOP context yet. Run ingest first and try again.";
+            return NoRelevantContextMessage;
         }
 
         var best = matches[0].Record.ChunkText;

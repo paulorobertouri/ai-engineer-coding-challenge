@@ -17,6 +17,8 @@ public sealed class OpenAIRetrievalChatService(
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
     private readonly string _chatModel = configuration["OpenAI:ChatModel"] ?? "gpt-4o-mini";
+    private readonly int _retrievalTopK = Math.Max(1, configuration.GetValue<int?>("Retrieval:TopK") ?? 3);
+    private readonly double _minSimilarityScore = Math.Clamp(configuration.GetValue<double?>("Retrieval:MinSimilarityScore") ?? 0.3, 0.0, 1.0);
     private readonly ResiliencePipeline _resiliencePipeline = new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions
         {
@@ -34,6 +36,8 @@ public sealed class OpenAIRetrievalChatService(
         .AddTimeout(TimeSpan.FromSeconds(30))
         .Build();
     private static readonly string[] jsonSerializable = new[] { "query" };
+    private const string NoRelevantContextMessage =
+        "I could not find enough relevant information in the SOP to answer that question.";
 
     public async Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
@@ -44,7 +48,25 @@ public sealed class OpenAIRetrievalChatService(
 
             // 1. Initial Retrieval (Standard RAG)
             var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, ct);
-            var matches = await vectorStoreService.SearchAsync(queryEmbedding, topK: 3, ct);
+            var rawMatches = await vectorStoreService.SearchAsync(queryEmbedding, topK: _retrievalTopK, ct);
+            var matches = FilterMatches(rawMatches);
+
+            logger.LogInformation(
+                "RAG retrieval completed. TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
+                _retrievalTopK,
+                _minSimilarityScore,
+                rawMatches.Count,
+                matches.Count,
+                string.Join(",", rawMatches.Select(m => m.Score.ToString("F3"))));
+
+            if (matches.Count == 0)
+            {
+                logger.LogWarning(
+                    "No relevant SOP context found above threshold {Threshold} for conversation {ConversationId}.",
+                    _minSimilarityScore,
+                    request.ConversationId);
+                return BuildNotFoundResponse(request);
+            }
 
             // 2. Prepare Chat Messages
             var messages = BuildChatMessages(request, matches);
@@ -71,6 +93,9 @@ public sealed class OpenAIRetrievalChatService(
             return BuildChatResponse(request, chatCompletion, matches);
         }, cancellationToken);
     }
+
+    private IReadOnlyList<VectorSearchMatch> FilterMatches(IReadOnlyList<VectorSearchMatch> matches) =>
+        matches.Where(m => m.Score >= _minSimilarityScore).ToList();
 
     private static List<ChatMessage> BuildChatMessages(ChatRequest request, IEnumerable<VectorSearchMatch> matches)
     {
@@ -160,12 +185,40 @@ public sealed class OpenAIRetrievalChatService(
         }
 
         var toolQueryEmbedding = await embeddingService.EmbedAsync(query, ct);
-        var toolMatches = await vectorStoreService.SearchAsync(toolQueryEmbedding, topK: 3, ct);
+        var rawToolMatches = await vectorStoreService.SearchAsync(toolQueryEmbedding, topK: _retrievalTopK, ct);
+        var toolMatches = FilterMatches(rawToolMatches);
+
+        logger.LogInformation(
+            "Tool retrieval completed. TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
+            _retrievalTopK,
+            _minSimilarityScore,
+            rawToolMatches.Count,
+            toolMatches.Count,
+            string.Join(",", rawToolMatches.Select(m => m.Score.ToString("F3"))));
+
+        if (toolMatches.Count == 0)
+        {
+            logger.LogWarning("Tool retrieval returned no relevant matches above threshold {Threshold}.", _minSimilarityScore);
+            messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, string.Empty));
+            return;
+        }
+
         var toolContext = string.Join("\n\n", toolMatches.Select(m => m.Record.ChunkText));
         messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, toolContext));
 
         allMatches.AddRange(toolMatches.Where(m => allMatches.All(existing => existing.Record.Id != m.Record.Id)));
     }
+
+    private static ChatResponse BuildNotFoundResponse(ChatRequest request) =>
+        new()
+        {
+            ConversationId = request.ConversationId,
+            Status = "success",
+            IsPlaceholder = false,
+            AssistantMessage = NoRelevantContextMessage,
+            ToolCalls = [],
+            Citations = []
+        };
 
     private static ChatResponse BuildChatResponse(ChatRequest request, ChatCompletion chatCompletion, IEnumerable<VectorSearchMatch> matches) =>
         new()
