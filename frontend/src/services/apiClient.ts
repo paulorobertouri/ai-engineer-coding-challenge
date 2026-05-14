@@ -24,6 +24,12 @@ interface ProblemDetailsBody {
   }
 }
 
+interface ChatStreamDeltaEvent {
+  delta?: string
+}
+
+const STREAM_READ_TIMEOUT_MS = 15_000
+
 type ApiErrorCode =
   | 'validation_error'
   | 'conflict'
@@ -57,19 +63,28 @@ async function loadRuntimeConfig(): Promise<RuntimeConfig> {
     return {}
   }
 
-  if (!runtimeConfigPromise) {
-    runtimeConfigPromise = fetch('/config.json', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) {
-          return {}
-        }
+  runtimeConfigPromise ??= fetch('/config.json', { cache: 'no-store' })
+    .then(async (response) => {
+      if (!response.ok) {
+        return {}
+      }
 
-        return (await response.json()) as RuntimeConfig
-      })
-      .catch(() => ({}))
-  }
+      return (await response.json()) as RuntimeConfig
+    })
+    .catch(() => ({}))
 
   return runtimeConfigPromise
+}
+
+function buildJsonHeaders(init?: RequestInit, extraHeaders?: HeadersInit): Headers {
+  const headers = new Headers(init?.headers)
+  headers.set('Content-Type', 'application/json')
+
+  if (extraHeaders) {
+    new Headers(extraHeaders).forEach((value, key) => headers.set(key, value))
+  }
+
+  return headers
 }
 
 async function resolveApiBaseUrl(): Promise<string> {
@@ -149,10 +164,7 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
   let response: Response
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
+      headers: buildJsonHeaders(init),
       ...init,
     })
   } catch (error) {
@@ -168,6 +180,141 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
   }
 
   return (await response.json()) as TResponse
+}
+
+function parseSseEvent(rawEvent: string): { eventName: string; payloadJson: string } | null {
+  if (!rawEvent.trim()) {
+    return null
+  }
+
+  let eventName = 'message'
+  const dataLines: string[] = []
+
+  for (const line of rawEvent.split('\n')) {
+    if (line.startsWith('event:')) {
+      eventName = line.slice('event:'.length).trim()
+    }
+
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).trim())
+    }
+  }
+
+  if (dataLines.length === 0) {
+    return null
+  }
+
+  return {
+    eventName,
+    payloadJson: dataLines.join('\n'),
+  }
+}
+
+function handleSseEvent<TResponse>(
+  rawEvent: string,
+  handlers: { onDelta?: (delta: string) => void },
+): TResponse | null {
+  const parsedEvent = parseSseEvent(rawEvent)
+  if (!parsedEvent) {
+    return null
+  }
+
+  const payload = JSON.parse(parsedEvent.payloadJson) as TResponse | ChatStreamDeltaEvent
+
+  if (
+    parsedEvent.eventName === 'delta' &&
+    typeof (payload as ChatStreamDeltaEvent).delta === 'string'
+  ) {
+    handlers.onDelta?.((payload as ChatStreamDeltaEvent).delta ?? '')
+    return null
+  }
+
+  if (parsedEvent.eventName === 'complete') {
+    return payload as TResponse
+  }
+
+  return null
+}
+
+async function consumeSseResponse<TResponse>(
+  response: Response,
+  handlers: { onDelta?: (delta: string) => void },
+): Promise<TResponse> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new ApiClientError('Chat stream is unavailable.', 0, 'request_failed')
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalResponse: TResponse | null = null
+
+  while (true) {
+    const { done, value } = await Promise.race([
+      reader.read(),
+      new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+        setTimeout(
+          () => reject(new ApiClientError('Chat stream timed out.', 408, 'request_timeout')),
+          STREAM_READ_TIMEOUT_MS,
+        )
+      }),
+    ])
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done })
+
+    const events = buffer.split('\n\n')
+    buffer = events.pop() ?? ''
+
+    for (const event of events) {
+      finalResponse ??= handleSseEvent<TResponse>(event, handlers)
+    }
+
+    if (finalResponse) {
+      await reader.cancel()
+      return finalResponse
+    }
+
+    if (done) {
+      break
+    }
+  }
+
+  if (finalResponse) {
+    return finalResponse
+  }
+
+  throw new ApiClientError('Chat stream ended without a completion payload.', 0, 'request_failed')
+}
+
+async function requestStream<TResponse>(
+  path: string,
+  init: RequestInit,
+  handlers: { onDelta?: (delta: string) => void },
+): Promise<TResponse> {
+  const apiBaseUrl = await resolveApiBaseUrl()
+  let response: Response
+
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: buildJsonHeaders(init, { Accept: 'text/event-stream' }),
+      ...init,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiClientError('Request cancelled.', 0, 'request_cancelled')
+    }
+
+    throw new ApiClientError('Failed to fetch', 0, 'offline')
+  }
+
+  if (!response.ok) {
+    throw await parseError(response)
+  }
+
+  if (!response.body || !response.headers.get('Content-Type')?.includes('text/event-stream')) {
+    return (await response.json()) as TResponse
+  }
+
+  return consumeSseResponse<TResponse>(response, handlers)
 }
 
 // Separate helper for multipart/form-data — lets the browser set Content-Type with boundary.
@@ -221,5 +368,20 @@ export const apiClient = {
       body: JSON.stringify(payload),
       signal,
     })
+  },
+  chatStream(
+    payload: ChatRequest,
+    handlers: { onDelta?: (delta: string) => void },
+    signal?: AbortSignal,
+  ): Promise<ChatResponse> {
+    return requestStream<ChatResponse>(
+      '/api/v1/chat/stream',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        signal,
+      },
+      handlers,
+    )
   },
 }

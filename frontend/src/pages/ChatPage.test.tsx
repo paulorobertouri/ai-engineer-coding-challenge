@@ -7,6 +7,7 @@ vi.mock('../services/apiClient', () => ({
   apiClient: {
     getHealth: vi.fn(),
     chat: vi.fn(),
+    chatStream: vi.fn(),
     ingest: vi.fn(),
     ingestFile: vi.fn(),
   },
@@ -42,6 +43,7 @@ describe('ChatPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
     vi.mocked(apiClient.getHealth).mockResolvedValue(healthIngested)
+    vi.mocked(apiClient.chatStream).mockResolvedValue(chatOk)
   })
 
   afterEach(() => {
@@ -104,7 +106,7 @@ describe('ChatPage', () => {
   })
 
   it('appends the user message to the transcript after sending', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -120,7 +122,7 @@ describe('ChatPage', () => {
   })
 
   it('appends the assistant response to the transcript after sending', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -136,7 +138,7 @@ describe('ChatPage', () => {
   })
 
   it('clears the draft after sending', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -152,7 +154,7 @@ describe('ChatPage', () => {
 
   it('shows "Sending chat request…" status while the request is in flight', async () => {
     let resolveChatResponse!: (value: typeof chatOk) => void
-    vi.mocked(apiClient.chat).mockReturnValueOnce(
+    vi.mocked(apiClient.chatStream).mockReturnValueOnce(
       new Promise((resolve) => {
         resolveChatResponse = resolve
       }),
@@ -175,7 +177,7 @@ describe('ChatPage', () => {
   })
 
   it('shows a chat error status when the chat request fails', async () => {
-    vi.mocked(apiClient.chat).mockRejectedValueOnce(new Error('Network error'))
+    vi.mocked(apiClient.chatStream).mockRejectedValueOnce(new Error('Network error'))
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -192,7 +194,7 @@ describe('ChatPage', () => {
   })
 
   it('adds a fallback assistant message in the transcript when the chat request fails', async () => {
-    vi.mocked(apiClient.chat).mockRejectedValueOnce(new Error('Network error'))
+    vi.mocked(apiClient.chatStream).mockRejectedValueOnce(new Error('Network error'))
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -208,7 +210,7 @@ describe('ChatPage', () => {
   })
 
   it('shows citations in the panel after a chat response with citations', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce({
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
       ...chatOk,
       citations: [
         {
@@ -419,7 +421,7 @@ describe('ChatPage', () => {
   })
 
   it('shows warning tone when chat response is a placeholder', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce({
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
       ...chatOk,
       isPlaceholder: true,
     })
@@ -437,7 +439,7 @@ describe('ChatPage', () => {
   })
 
   it('shows error message string from non-Error chat failure', async () => {
-    vi.mocked(apiClient.chat).mockRejectedValueOnce('plain string error')
+    vi.mocked(apiClient.chatStream).mockRejectedValueOnce('plain string error')
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -465,7 +467,7 @@ describe('ChatPage', () => {
   })
 
   it('retries the last failed chat without retyping', async () => {
-    vi.mocked(apiClient.chat)
+    vi.mocked(apiClient.chatStream)
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce(chatOk)
 
@@ -484,13 +486,13 @@ describe('ChatPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /retry last failed message/i }))
 
     await waitFor(() => {
-      expect(vi.mocked(apiClient.chat).mock.calls.length).toBeGreaterThanOrEqual(2)
+      expect(vi.mocked(apiClient.chatStream).mock.calls.length).toBeGreaterThanOrEqual(2)
       expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
     })
   })
 
   it('starts a fresh conversation when New chat is clicked', async () => {
-    vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
     render(<ChatPage />)
 
     await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
@@ -513,7 +515,7 @@ describe('ChatPage', () => {
 
   it('cancels an in-flight chat request when a new send starts', async () => {
     let resolveFirst!: (value: typeof chatOk) => void
-    vi.mocked(apiClient.chat)
+    vi.mocked(apiClient.chatStream)
       .mockReturnValueOnce(
         new Promise((resolve) => {
           resolveFirst = resolve
@@ -538,7 +540,7 @@ describe('ChatPage', () => {
     resolveFirst(chatOk)
 
     await waitFor(() => {
-      expect(vi.mocked(apiClient.chat).mock.calls.length).toBeGreaterThanOrEqual(2)
+      expect(vi.mocked(apiClient.chatStream).mock.calls.length).toBeGreaterThanOrEqual(2)
     })
   })
 })

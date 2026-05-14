@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Moq;
+using System.Text;
 using Xunit;
 
 namespace Api.Tests;
@@ -199,5 +200,40 @@ public class ChatControllerTests
         cts.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _controller.Post(request, cts.Token));
+    }
+
+    [Fact]
+    public async Task Stream_ValidRequest_WritesDeltaAndCompleteEvents()
+    {
+        _mockService
+            .Setup(s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatResponse
+            {
+                ConversationId = "conv-1",
+                AssistantMessage = "Hello from stream",
+                Status = "success",
+                ToolCalls = [],
+                Citations = []
+            });
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Response.Body = new MemoryStream();
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var request = new ChatRequest
+        {
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hi" }]
+        };
+
+        var result = await _controller.Stream(request, CancellationToken.None);
+
+        Assert.IsType<EmptyResult>(result);
+        httpContext.Response.Body.Position = 0;
+        using var reader = new StreamReader(httpContext.Response.Body, Encoding.UTF8);
+        var body = await reader.ReadToEndAsync();
+
+        Assert.Contains("event: delta", body, StringComparison.Ordinal);
+        Assert.Contains("event: complete", body, StringComparison.Ordinal);
+        Assert.Contains("Hello from stream", body, StringComparison.Ordinal);
     }
 }

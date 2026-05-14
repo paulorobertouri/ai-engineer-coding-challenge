@@ -58,6 +58,36 @@ function isRequestCancelledError(error: unknown): boolean {
   )
 }
 
+function appendStreamingDelta(
+  currentMessages: ChatMessage[],
+  assistantMessageId: string,
+  delta: string,
+): ChatMessage[] {
+  return currentMessages.map((message) =>
+    message.id === assistantMessageId ? { ...message, content: message.content + delta } : message,
+  )
+}
+
+function replaceStreamingMessage(
+  currentMessages: ChatMessage[],
+  assistantMessageId: string,
+  content: string,
+): ChatMessage[] {
+  return currentMessages.map((message) =>
+    message.id === assistantMessageId ? { ...message, content } : message,
+  )
+}
+
+function replaceStreamingFailure(
+  currentMessages: ChatMessage[],
+  assistantMessageId: string,
+): ChatMessage[] {
+  return [
+    ...currentMessages.filter((message) => message.id !== assistantMessageId),
+    createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
+  ]
+}
+
 export function ChatPage() {
   const [initialSession] = useState<StoredChatSession | null>(() => loadStoredChatSession())
   const [conversationId, setConversationId] = useState<string>(
@@ -222,7 +252,9 @@ export function ChatPage() {
       chatAbortRef.current = abortController
 
       const userMessage = createMessage('user', messageText)
-      const nextMessages = [...messages, userMessage]
+      const requestMessages = [...messages, userMessage]
+      const streamingAssistantMessage = createMessage('assistant', '')
+      const nextMessages = [...requestMessages, streamingAssistantMessage]
 
       setMessages(nextMessages)
       if (clearDraft) {
@@ -233,7 +265,7 @@ export function ChatPage() {
 
       try {
         // Limit history sent to the API to avoid unbounded token growth
-        const historyWindow = nextMessages.slice(-CHAT_MAX_MESSAGES)
+        const historyWindow = requestMessages.slice(-CHAT_MAX_MESSAGES)
 
         const payload = ChatRequestSchema.parse({
           conversationId,
@@ -244,12 +276,28 @@ export function ChatPage() {
           })),
         })
 
-        const response = await apiClient.chat(payload, abortController.signal)
+        const response =
+          typeof apiClient.chatStream === 'function'
+            ? await apiClient.chatStream(
+                payload,
+                {
+                  onDelta: (delta) => {
+                    setMessages((currentMessages) =>
+                      appendStreamingDelta(currentMessages, streamingAssistantMessage.id, delta),
+                    )
+                  },
+                },
+                abortController.signal,
+              )
+            : await apiClient.chat(payload, abortController.signal)
 
-        setMessages((currentMessages) => [
-          ...currentMessages,
-          createMessage('assistant', response.assistantMessage),
-        ])
+        setMessages((currentMessages) =>
+          replaceStreamingMessage(
+            currentMessages,
+            streamingAssistantMessage.id,
+            response.assistantMessage,
+          ),
+        )
         setLastFailedDraft(null)
         setCitations(response.citations)
         setStatus({
@@ -262,10 +310,9 @@ export function ChatPage() {
           return
         }
 
-        setMessages((currentMessages) => [
-          ...currentMessages,
-          createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
-        ])
+        setMessages((currentMessages) =>
+          replaceStreamingFailure(currentMessages, streamingAssistantMessage.id),
+        )
         setLastFailedDraft(messageText)
         setStatus({
           tone: 'error',

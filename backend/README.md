@@ -12,6 +12,7 @@
 | `POST` | `/api/v1/ingest?knowledgeBaseId=<id>` | Ingest into a specific knowledge-base scope (defaults to `default`) |
 | `DELETE` | `/api/v1/ingest/reset?confirm=RESET` | Development-only explicit reset of the vector store to allow reingestion |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
+| `POST` | `/api/v1/chat/stream` | SSE streaming variant that emits progressive `delta` events and a final `complete` payload |
 
 ## Services
 
@@ -101,6 +102,12 @@ Retrieval is threshold-aware in both OpenAI and fallback chat services:
 - Candidate chunks are limited by `Retrieval:TopK`
 - Chunks below `Retrieval:MinSimilarityScore` are filtered out
 - If no chunk passes the threshold, the assistant returns a grounded "not enough information in the SOP" response with no citations
+
+Streaming behavior:
+- `POST /api/v1/chat` remains the stable non-streaming JSON endpoint
+- `POST /api/v1/chat/stream` uses `text/event-stream`
+- Server emits `event: delta` chunks followed by one `event: complete` JSON payload
+- Fallback/no-key mode also supports streaming because the stream endpoint wraps the same retrieval service contract
 
 Citations returned by `/api/v1/chat` now include richer metadata for traceability:
 - `chunkId` (stable ID for the cited chunk in the vector store)

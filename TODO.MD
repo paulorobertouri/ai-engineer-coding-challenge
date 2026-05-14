@@ -700,7 +700,7 @@ Once documents are versioned and chunk IDs are stable, reingesting everything be
 
 ### 32. Add Streaming Chat Responses
 
-- [ ] Stream assistant responses to the frontend instead of waiting for the full response.
+- [x] Stream assistant responses to the frontend instead of waiting for the full response.
 
 **Why**
 

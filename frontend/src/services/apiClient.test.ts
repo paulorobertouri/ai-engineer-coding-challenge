@@ -23,12 +23,9 @@ describe('apiClient', () => {
     mockFetch(health)
     const result = await apiClient.getHealth()
     expect(result.status).toBe('ok')
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/health'),
-      expect.objectContaining({
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-      }),
-    )
+    const [url, init] = vi.mocked(fetch).mock.calls[0]
+    expect(String(url)).toContain('/api/v1/health')
+    expect(new Headers((init as RequestInit).headers).get('Content-Type')).toBe('application/json')
   })
 
   it('ingest sends POST to /api/ingest and returns response', async () => {
@@ -67,6 +64,35 @@ describe('apiClient', () => {
       expect.stringContaining('/api/v1/chat'),
       expect.objectContaining({ method: 'POST' }),
     )
+  })
+
+  it('chatStream emits deltas and returns the final response', async () => {
+    const streamBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'event: delta\ndata: {"delta":"Hello "}\n\nevent: delta\ndata: {"delta":"there"}\n\nevent: complete\ndata: {"conversationId":"c1","assistantMessage":"Hello there","status":"success","isPlaceholder":false,"toolCalls":[],"citations":[]}\n\n',
+          ),
+        )
+        controller.close()
+      },
+    })
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'text/event-stream' }),
+      body: streamBody,
+    } as Response)
+
+    const deltas: string[] = []
+    const result = await apiClient.chatStream(
+      { conversationId: 'c1', messages: [] },
+      { onDelta: (delta) => deltas.push(delta) },
+    )
+
+    expect(deltas).toEqual(['Hello ', 'there'])
+    expect(result.assistantMessage).toBe('Hello there')
   })
 
   it('throws the error field from a non-ok response', async () => {
