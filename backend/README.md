@@ -102,6 +102,7 @@ Retrieval is threshold-aware in both OpenAI and fallback chat services:
 - Candidate chunks are limited by `Retrieval:TopK`
 - Chunks below `Retrieval:MinSimilarityScore` are filtered out
 - If no chunk passes the threshold, the assistant returns a grounded "not enough information in the SOP" response with no citations
+- Follow-up retrieval query rewriting is enabled by `Retrieval:EnableQueryRewriting` and logs only rewrite metadata/lengths by default
 
 Streaming behavior:
 - `POST /api/v1/chat` remains the stable non-streaming JSON endpoint
@@ -152,6 +153,7 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
 | `Retrieval:TopK` | `3` | Maximum number of retrieved chunks considered for response context |
 | `Retrieval:MinSimilarityScore` | `0.3` | Minimum cosine similarity score for a chunk to be considered relevant |
+| `Retrieval:EnableQueryRewriting` | `true` | Rewrites follow-up user messages into standalone retrieval queries |
 | `Challenge:SourceDocumentPath` | `../../../../knowledge-base/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
 | `VectorStore:Provider` | `json` | Vector store provider key, validated at startup |

@@ -11,4 +11,6 @@ public sealed class RetrievalOptions
 
     [Range(0.0, 1.0)]
     public double MinSimilarityScore { get; init; } = 0.3;
+
+    public bool EnableQueryRewriting { get; init; } = true;
 }

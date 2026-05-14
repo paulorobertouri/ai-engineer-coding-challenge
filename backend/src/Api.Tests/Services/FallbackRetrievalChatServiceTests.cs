@@ -22,7 +22,8 @@ public class FallbackRetrievalChatServiceTests
         _retrievalOptions = Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
         {
             TopK = 3,
-            MinSimilarityScore = 0.30
+            MinSimilarityScore = 0.30,
+            EnableQueryRewriting = true
         });
 
         _service = new FallbackRetrievalChatService(
@@ -297,5 +298,67 @@ public class FallbackRetrievalChatServiceTests
 
         Assert.Contains("could not find enough relevant information", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(response.Citations);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_FollowUpQuestion_RewritesRetrievalQuery()
+    {
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-follow-up",
+            Messages =
+            [
+                new ChatMessageDto { Role = "user", Content = "What are opening hours?" },
+                new ChatMessageDto { Role = "assistant", Content = "Store opens at 9am." },
+                new ChatMessageDto { Role = "user", Content = "What about Sundays?" }
+            ]
+        };
+
+        await _service.GenerateResponseAsync(request, CancellationToken.None);
+
+        _mockEmbedding.Verify(
+            e => e.EmbedAsync("What are opening hours? Follow-up: What about Sundays?", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_QueryRewritingDisabled_UsesLatestMessage()
+    {
+        var noRewriteOptions = Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
+        {
+            TopK = 3,
+            MinSimilarityScore = 0.30,
+            EnableQueryRewriting = false
+        });
+        var service = new FallbackRetrievalChatService(
+            _mockEmbedding.Object,
+            _mockVectorStore.Object,
+            noRewriteOptions,
+            _mockLogger.Object);
+
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-no-rewrite",
+            Messages =
+            [
+                new ChatMessageDto { Role = "user", Content = "What are opening hours?" },
+                new ChatMessageDto { Role = "assistant", Content = "Store opens at 9am." },
+                new ChatMessageDto { Role = "user", Content = "What about Sundays?" }
+            ]
+        };
+
+        await service.GenerateResponseAsync(request, CancellationToken.None);
+
+        _mockEmbedding.Verify(
+            e => e.EmbedAsync("What about Sundays?", It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

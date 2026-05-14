@@ -762,7 +762,7 @@ Users should know when an answer is strongly supported by the SOP versus when th
 
 ### 35. Add Query Rewriting For Follow-Up Questions
 
-- [ ] Turn conversational follow-ups into standalone retrieval queries.
+- [x] Turn conversational follow-ups into standalone retrieval queries.
 
 **Why**
 

@@ -22,6 +22,7 @@ public sealed class OpenAIRetrievalChatService(
     private readonly string _chatModel = openAiOptions.Value.ChatModel;
     private readonly int _retrievalTopK = Math.Max(1, retrievalOptions.Value.TopK);
     private readonly double _minSimilarityScore = Math.Clamp(retrievalOptions.Value.MinSimilarityScore, 0.0, 1.0);
+    private readonly bool _enableQueryRewriting = retrievalOptions.Value.EnableQueryRewriting;
     private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(openAiOptions.Value);
     private readonly ResiliencePipeline _resiliencePipeline = new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions
@@ -49,11 +50,19 @@ public sealed class OpenAIRetrievalChatService(
         {
             var totalStopwatch = Stopwatch.StartNew();
             var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
-            var latestUserMessage = request.Messages
-                .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? "";
+            var (retrievalQuery, wasRewritten) = QueryRewriteHeuristics.Rewrite(request.Messages, _enableQueryRewriting);
+
+            logger.LogInformation(
+                "OpenAI retrieval query prepared. ConversationId={ConversationId}, KnowledgeBaseId={KnowledgeBaseId}, QueryRewritingEnabled={QueryRewritingEnabled}, QueryWasRewritten={QueryWasRewritten}, OriginalUserMessageLength={OriginalUserMessageLength}, RetrievalQueryLength={RetrievalQueryLength}",
+                request.ConversationId,
+                knowledgeBaseId,
+                _enableQueryRewriting,
+                wasRewritten,
+                request.Messages.LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content?.Length ?? 0,
+                retrievalQuery.Length);
 
             // 1. Initial Retrieval (Standard RAG)
-            var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, ct);
+            var queryEmbedding = await embeddingService.EmbedAsync(retrievalQuery, ct);
             var rawMatches = await vectorStoreService.SearchAsync(
                 queryEmbedding,
                 topK: _retrievalTopK,

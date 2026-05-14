@@ -14,6 +14,7 @@ public sealed class FallbackRetrievalChatService(
 {
     private readonly int _retrievalTopK = Math.Max(1, options.Value.TopK);
     private readonly double _minSimilarityScore = Math.Clamp(options.Value.MinSimilarityScore, 0.0, 1.0);
+    private readonly bool _enableQueryRewriting = options.Value.EnableQueryRewriting;
     private const string NoRelevantContextMessage =
         "I could not find enough relevant information in the SOP to answer that question.";
 
@@ -21,10 +22,18 @@ public sealed class FallbackRetrievalChatService(
     {
         var stopwatch = Stopwatch.StartNew();
         var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
-        var latestUserMessage = request.Messages.LastOrDefault(m =>
-            m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
+        var (queryText, wasRewritten) = QueryRewriteHeuristics.Rewrite(request.Messages, _enableQueryRewriting);
 
-        var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, cancellationToken);
+        logger.LogInformation(
+            "Fallback retrieval query prepared. ConversationId={ConversationId}, KnowledgeBaseId={KnowledgeBaseId}, QueryRewritingEnabled={QueryRewritingEnabled}, QueryWasRewritten={QueryWasRewritten}, OriginalUserMessageLength={OriginalUserMessageLength}, RetrievalQueryLength={RetrievalQueryLength}",
+            request.ConversationId,
+            knowledgeBaseId,
+            _enableQueryRewriting,
+            wasRewritten,
+            request.Messages.LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content?.Length ?? 0,
+            queryText.Length);
+
+        var queryEmbedding = await embeddingService.EmbedAsync(queryText, cancellationToken);
         var rawMatches = await vectorStoreService.SearchAsync(
             queryEmbedding,
             topK: _retrievalTopK,
