@@ -129,6 +129,12 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var problem = ApiErrorFactory.RateLimit(context.HttpContext.Request.Path);
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+    };
 });
 
 if (string.IsNullOrWhiteSpace(openAiOptions.ApiKey))

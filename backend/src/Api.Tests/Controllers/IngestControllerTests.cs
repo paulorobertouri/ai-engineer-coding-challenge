@@ -240,7 +240,9 @@ public class IngestControllerTests
         try
         {
             var result = await controller.Post(null, CancellationToken.None);
-            Assert.IsType<ConflictObjectResult>(result.Result);
+            var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(conflict.Value);
+            Assert.Equal(ApiErrorFactory.ConflictErrorCode, details.Extensions["code"]);
 
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
@@ -354,7 +356,9 @@ public class IngestControllerTests
         try
         {
             var result = await controller.Upload(null, CancellationToken.None);
-            Assert.IsType<BadRequestObjectResult>(result.Result);
+            var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(bad.Value);
+            Assert.Equal(ApiErrorFactory.BadRequestErrorCode, details.Extensions["code"]);
         }
         finally { Cleanup(); }
     }

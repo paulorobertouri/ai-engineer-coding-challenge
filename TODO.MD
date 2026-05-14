@@ -455,7 +455,7 @@ If the project later supports reingestion, recomputing every embedding increases
 
 ### 21. Standardize API Error Responses
 
-- [ ] Return consistent `ProblemDetails` responses for validation, conflict, rate-limit, and server errors.
+- [x] Return consistent `ProblemDetails` responses for validation, conflict, rate-limit, and server errors.
 
 **Why**
 

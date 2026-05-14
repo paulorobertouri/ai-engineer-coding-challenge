@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { apiClient } from './apiClient'
+import { apiClient, ApiClientError } from './apiClient'
 
 describe('apiClient', () => {
   beforeEach(() => {
@@ -96,6 +96,62 @@ describe('apiClient', () => {
       },
     } as unknown as Response)
     await expect(apiClient.getHealth()).rejects.toThrow(/500/)
+  })
+
+  it('parses ProblemDetails detail field from non-ok response', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        title: 'Knowledge base already ingested.',
+        detail: 'The knowledge base has already been ingested. Re-ingestion is not permitted.',
+        extensions: { code: 'conflict' },
+      }),
+    } as Response)
+
+    await expect(apiClient.ingest({ forceReingest: false })).rejects.toThrow(
+      /already been ingested/i,
+    )
+  })
+
+  it('parses ValidationProblemDetails errors payload', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        title: 'One or more validation errors occurred.',
+        errors: {
+          Messages: ['At least one chat message is required.'],
+        },
+        extensions: { code: 'validation_error' },
+      }),
+    } as Response)
+
+    await expect(apiClient.chat({ conversationId: 'c1', messages: [] })).rejects.toThrow(
+      /At least one chat message is required/i,
+    )
+  })
+
+  it('returns typed ApiClientError for rate-limit problem details', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({
+        title: 'Rate limit exceeded.',
+        detail: 'Too many requests were sent in a short period. Please retry later.',
+        extensions: { code: 'rate_limit_exceeded' },
+      }),
+    } as Response)
+
+    try {
+      await apiClient.chat({ conversationId: 'c1', messages: [] })
+      throw new Error('Expected rate-limit error')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError)
+      const apiError = error as ApiClientError
+      expect(apiError.code).toBe('rate_limit_exceeded')
+      expect(apiError.status).toBe(429)
+    }
   })
 
   it('ingestFile sends a multipart POST to /api/v1/ingest/upload', async () => {

@@ -98,6 +98,19 @@ Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in 
 
 Exceeding the limit returns `429 Too Many Requests`. Client IP is resolved through forwarded headers (`X-Forwarded-For`) to work correctly behind reverse proxies and Docker.
 
+## Error Responses
+
+API error payloads are standardized on `ProblemDetails` / `ValidationProblemDetails` with typed `extensions.code` values:
+
+- `validation_error` (400)
+- `bad_request` (400)
+- `conflict` (409)
+- `not_found` (404)
+- `rate_limit_exceeded` (429)
+- `internal_server_error` (500)
+
+This applies to controller validation/ingest errors, rate-limit rejections, and global exception handling.
+
 ## Configuration
 
 | Key | Default | Description |

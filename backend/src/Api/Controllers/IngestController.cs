@@ -40,7 +40,9 @@ public sealed class IngestController(
             if (existingRecords.Count > 0 && !forceReingest)
             {
                 logger.LogWarning("[INGEST] Rejected: vector store already contains {Count} records.", existingRecords.Count);
-                return Conflict(new { error = "The knowledge base has already been ingested. Re-ingestion is not permitted." });
+                return Conflict(ApiErrorFactory.Conflict(
+                    "Knowledge base already ingested.",
+                    "The knowledge base has already been ingested. Re-ingestion is not permitted."));
             }
 
             if (existingRecords.Count > 0 && forceReingest)
@@ -66,7 +68,7 @@ public sealed class IngestController(
                 if (System.IO.File.Exists(localFallback))
                     sourcePath = localFallback;
                 else
-                    return NotFound(new { error = "Source document not found." });
+                    return NotFound(ApiErrorFactory.NotFound("Source document not found.", "Source document not found."));
             }
 
             var sourceText = await System.IO.File.ReadAllTextAsync(sourcePath, cancellationToken);
@@ -88,18 +90,22 @@ public sealed class IngestController(
             if (existingRecords.Count > 0)
             {
                 logger.LogWarning("[INGEST] Upload rejected: store already has {Count} records.", existingRecords.Count);
-                return Conflict(new { error = "The knowledge base has already been ingested. Re-ingestion is not permitted." });
+                return Conflict(ApiErrorFactory.Conflict(
+                    "Knowledge base already ingested.",
+                    "The knowledge base has already been ingested. Re-ingestion is not permitted."));
             }
 
             if (file is null || file.Length == 0)
-                return BadRequest(new { error = "No file provided." });
+                return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", "No file provided."));
 
             if (file.Length > uploadOptions.Value.MaxUploadBytes)
-                return BadRequest(new { error = $"File exceeds the {uploadOptions.Value.MaxUploadBytes / (1024 * 1024)} MB limit." });
+                return BadRequest(ApiErrorFactory.BadRequest(
+                    "Invalid upload.",
+                    $"File exceeds the {uploadOptions.Value.MaxUploadBytes / (1024 * 1024)} MB limit."));
 
             var ext = Path.GetExtension(file.FileName);
             if (!AllowedExtensions.Contains(ext))
-                return BadRequest(new { error = "Only .md and .txt files are accepted." });
+                return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", "Only .md and .txt files are accepted."));
 
             // Use only the filename (never the path) to prevent path-traversal (OWASP A01).
             var sourceName = Path.GetFileName(file.FileName);
@@ -118,13 +124,14 @@ public sealed class IngestController(
     public async Task<ActionResult<object>> Reset([FromQuery] string? confirm, CancellationToken cancellationToken)
     {
         if (!env.IsDevelopment())
-            return NotFound(new { error = "Reset endpoint is only available in Development." });
+            return NotFound(ApiErrorFactory.NotFound(
+                "Reset endpoint unavailable.",
+                "Reset endpoint is only available in Development."));
 
         if (!string.Equals(confirm, ResetConfirmationValue, StringComparison.Ordinal))
-            return BadRequest(new
-            {
-                error = $"Reset requires explicit confirmation. Call with '?confirm={ResetConfirmationValue}'."
-            });
+            return BadRequest(ApiErrorFactory.BadRequest(
+                "Reset confirmation required.",
+                $"Reset requires explicit confirmation. Call with '?confirm={ResetConfirmationValue}'."));
 
         return await ExecuteExclusiveIngestAsync(async () =>
         {

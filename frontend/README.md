@@ -21,7 +21,7 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 
 | File                    | Description                                                                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback |
+| `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback and `ApiClientError` parsing for ProblemDetails/error codes |
 | `services/utils.ts`     | Shared utility helpers                                                                                                                                      |
 | `types/chat.ts`         | `ChatMessage`, `Citation`, `ChatRequest`, `ChatResponse`, `IngestRequest`, `IngestResponse`, `HealthResponse`, `StatusMessage`                              |
 | `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                       |

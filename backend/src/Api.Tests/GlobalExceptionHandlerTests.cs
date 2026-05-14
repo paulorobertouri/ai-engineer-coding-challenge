@@ -109,6 +109,18 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
+    public async Task TryHandleAsync_IncludesInternalServerErrorCode()
+    {
+        var handler = BuildHandler(isDevelopment: true);
+        var ctx = BuildHttpContext();
+
+        await handler.TryHandleAsync(ctx, new Exception("err"), CancellationToken.None);
+
+        var body = await ReadBodyAsync(ctx);
+        Assert.Contains(ApiErrorFactory.InternalServerErrorCode, body);
+    }
+
+    [Fact]
     public async Task TryHandleAsync_CancelledRequest_StillHandles()
     {
         var handler = BuildHandler(isDevelopment: false);

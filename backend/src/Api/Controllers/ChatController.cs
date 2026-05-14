@@ -38,14 +38,7 @@ public sealed class ChatController(IRetrievalChatService retrievalChatService) :
 
     private ActionResult<ChatResponse> ValidationError(string field, string message)
     {
-        var details = new ValidationProblemDetails(new Dictionary<string, string[]>
-        {
-            [field] = [message]
-        })
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = ValidationErrorTitle
-        };
+        var details = ApiErrorFactory.Validation(field, message, ValidationErrorTitle);
 
         return ValidationProblem(details);
     }

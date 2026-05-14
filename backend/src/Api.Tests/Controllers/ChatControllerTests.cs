@@ -22,7 +22,9 @@ public class ChatControllerTests
     {
         var request = new ChatRequest { Messages = [] };
         var result = await _controller.Post(request, CancellationToken.None);
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+        var details = Assert.IsType<ValidationProblemDetails>(bad.Value);
+        Assert.Equal(ApiErrorFactory.ValidationErrorCode, details.Extensions["code"]);
         _mockService.Verify(
             s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);

@@ -18,13 +18,9 @@ public sealed class GlobalExceptionHandler(
             ? exception.Message
             : "An unexpected error occurred. Please try again later.";
 
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "An error occurred while processing your request.",
-            Detail = detail,
-            Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}"
-        };
+        var problemDetails = ApiErrorFactory.InternalServerError(
+            detail,
+            $"{httpContext.Request.Method} {httpContext.Request.Path}");
 
         httpContext.Response.StatusCode = problemDetails.Status.Value;
 
