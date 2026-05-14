@@ -9,6 +9,7 @@
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
 | `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document (`forceReingest=true` enables reingest with embedding reuse by `ContentHash`) |
+| `POST` | `/api/v1/ingest?knowledgeBaseId=<id>` | Ingest into a specific knowledge-base scope (defaults to `default`) |
 | `DELETE` | `/api/v1/ingest/reset?confirm=RESET` | Development-only explicit reset of the vector store to allow reingestion |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 
@@ -48,8 +49,15 @@ Tool-call observability:
 - Format: JSON array of `VectorRecord` objects (`id`, `source`, `chunkText`, `embedding`, `metadata`)
 - Chunk IDs are deterministic (`<source>-<section>-<index>-<hash>`) to keep citations/logs stable across unchanged reingests
 - Metadata includes stable `ContentHash` per chunk for change detection
+- Metadata includes `KnowledgeBaseId` (default scope: `default`) so multiple SOP sets can coexist in one store
 - During forced reingest, unchanged `ContentHash` values reuse existing embeddings to avoid recomputation
 - Search: cosine similarity computed in-process over all records (suitable for POC scale)
+
+Knowledge-base scoping:
+- Ingest and chat requests accept optional `knowledgeBaseId`
+- If omitted, the backend uses `default`
+- Legacy records without explicit `KnowledgeBaseId` metadata are treated as `default`
+- Reingesting one knowledge base replaces only that knowledge base records, preserving other scopes
 
 To reset persisted Docker ingestion data intentionally:
 
@@ -84,6 +92,7 @@ Retrieval is threshold-aware in both OpenAI and fallback chat services:
 
 Citations returned by `/api/v1/chat` now include richer metadata for traceability:
 - `chunkId` (stable ID for the cited chunk in the vector store)
+- `knowledgeBaseId` (scope the cited chunk belongs to)
 - `score` (retrieval similarity score)
 - `sectionTitle` (derived from chunk heading when available)
 - `startLine` / `endLine` (line range when available from ingestion metadata)
@@ -125,6 +134,8 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Challenge:SourceDocumentPath` | `../../../../knowledge-base/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
 | `VectorStore:Provider` | `json` | Vector store provider key, validated at startup |
+| `IngestRequest.knowledgeBaseId` | `default` | Optional scope for ingestion; isolates records by SOP set |
+| `ChatRequest.knowledgeBaseId` | `default` | Optional scope for retrieval and citations |
 | `RateLimiting:Chat:PermitLimit` | `30` | Chat requests allowed per window |
 | `RateLimiting:Chat:WindowSeconds` | `60` | Chat rate-limit window size in seconds |
 | `RateLimiting:Chat:QueueLimit` | `0` | Queue size for excess chat requests |

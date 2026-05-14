@@ -100,6 +100,35 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAsync_DefaultKnowledgeBaseFilter_MatchesLegacyRecordWithoutMetadata()
+    {
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
+
+        var emb = new float[4]; emb[0] = 1f;
+        await service.SaveAsync(
+        [
+            new() { Id = "legacy", Source = "s", ChunkText = "Legacy", Embedding = emb },
+            new()
+            {
+                Id = "hr",
+                Source = "s",
+                ChunkText = "HR",
+                Embedding = emb,
+                Metadata = new Dictionary<string, string> { ["KnowledgeBaseId"] = "hr" }
+            }
+        ]);
+
+        var query = new float[4]; query[0] = 1f;
+        var results = await service.SearchAsync(
+            query,
+            topK: 10,
+            new Dictionary<string, string> { ["KnowledgeBaseId"] = "default" });
+
+        Assert.Single(results);
+        Assert.Equal("legacy", results[0].Record.Id);
+    }
+
+    [Fact]
     public async Task DeleteByIdsAsync_RemovesOnlySpecifiedRecords()
     {
         var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);

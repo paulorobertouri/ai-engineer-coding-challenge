@@ -256,6 +256,37 @@ public class IngestControllerTests
     }
 
     [Fact]
+    public async Task Post_WhenDifferentKnowledgeBaseHasRecords_AllowsIngest()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "existing-hr",
+                    Source = "HR.md",
+                    ChunkText = "hr",
+                    Embedding = [],
+                    Metadata = new Dictionary<string, string> { ["KnowledgeBaseId"] = "hr" }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = false, KnowledgeBaseId = "store" }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockVectorStore.Verify(v => v.SaveAsync(
+                It.Is<IEnumerable<VectorRecord>>(records =>
+                    records.Any(r => r.Id == "existing-hr") &&
+                    records.Any(r => r.Metadata.ContainsKey("KnowledgeBaseId") && r.Metadata["KnowledgeBaseId"] == "store")),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
     public async Task Post_ConcurrentRequests_OnlyOneSucceeds()
     {
         var controller = BuildController();
@@ -496,6 +527,53 @@ public class IngestControllerTests
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_ForceReingest_ReplacesOnlyTargetKnowledgeBase()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "default-old",
+                    Source = "SOP.md",
+                    ChunkText = "old",
+                    Embedding = [0.25f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["KnowledgeBaseId"] = "default",
+                        ["ContentHash"] = "hash-old"
+                    }
+                },
+                new VectorRecord
+                {
+                    Id = "hr-1",
+                    Source = "HR.md",
+                    ChunkText = "hr",
+                    Embedding = [0.5f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["KnowledgeBaseId"] = "hr"
+                    }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true, KnowledgeBaseId = "default" }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockVectorStore.Verify(v => v.SaveAsync(
+                It.Is<IEnumerable<VectorRecord>>(records =>
+                    records.Any(r => r.Id == "hr-1") &&
+                    records.Any(r => r.Id == "c1" && r.Metadata.ContainsKey("KnowledgeBaseId") && r.Metadata["KnowledgeBaseId"] == "default") &&
+                    records.All(r => r.Id != "default-old")),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
         finally { Cleanup(); }
     }

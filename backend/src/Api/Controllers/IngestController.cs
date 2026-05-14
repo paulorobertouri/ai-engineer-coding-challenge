@@ -34,22 +34,33 @@ public sealed class IngestController(
     [HttpPost]
     public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken)
     {
+        var knowledgeBaseId = KnowledgeBaseScope.Normalize(request?.KnowledgeBaseId);
+
         return await ExecuteWithIngestTimeoutAsync(async operationToken =>
             await ExecuteExclusiveIngestAsync(async () =>
         {
             var existingRecords = await vectorStoreService.LoadAsync(operationToken);
+            var existingRecordsForKnowledgeBase = existingRecords
+                .Where(record => KnowledgeBaseScope.BelongsToKnowledgeBase(record, knowledgeBaseId))
+                .ToList();
             var forceReingest = request?.ForceReingest ?? false;
-            if (existingRecords.Count > 0 && !forceReingest)
+            if (existingRecordsForKnowledgeBase.Count > 0 && !forceReingest)
             {
-                logger.LogWarning("[INGEST] Rejected: vector store already contains {Count} records.", existingRecords.Count);
+                logger.LogWarning(
+                    "[INGEST] Rejected: knowledge base '{KnowledgeBaseId}' already contains {Count} records.",
+                    knowledgeBaseId,
+                    existingRecordsForKnowledgeBase.Count);
                 return Conflict(ApiErrorFactory.Conflict(
                     "Knowledge base already ingested.",
                     "The knowledge base has already been ingested. Re-ingestion is not permitted."));
             }
 
-            if (existingRecords.Count > 0 && forceReingest)
+            if (existingRecordsForKnowledgeBase.Count > 0 && forceReingest)
             {
-                logger.LogInformation("[INGEST] Force reingest requested. Existing records: {Count}", existingRecords.Count);
+                logger.LogInformation(
+                    "[INGEST] Force reingest requested for knowledge base '{KnowledgeBaseId}'. Existing records: {Count}",
+                    knowledgeBaseId,
+                    existingRecordsForKnowledgeBase.Count);
             }
 
             var configuredSourcePath = challengeOptions.Value.SourceDocumentPath;
@@ -76,7 +87,14 @@ public sealed class IngestController(
             var sourceText = await System.IO.File.ReadAllTextAsync(sourcePath, operationToken);
             var sourceName = System.IO.Path.GetFileName(sourcePath);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourcePath, existingRecords, operationToken);
+            return await ProcessIngestAsync(
+                sourceText,
+                sourceName,
+                sourcePath,
+                knowledgeBaseId,
+                existingRecords,
+                existingRecordsForKnowledgeBase,
+                operationToken);
         }, operationToken), cancellationToken);
     }
 
@@ -84,15 +102,24 @@ public sealed class IngestController(
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<IngestResponse>> Upload(IFormFile? file, CancellationToken cancellationToken)
+    public async Task<ActionResult<IngestResponse>> Upload(IFormFile? file, CancellationToken cancellationToken, [FromQuery] string? knowledgeBaseId = null)
     {
+        var scopedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
+
         return await ExecuteWithIngestTimeoutAsync(async operationToken =>
             await ExecuteExclusiveIngestAsync(async () =>
         {
             var existingRecords = await vectorStoreService.LoadAsync(operationToken);
-            if (existingRecords.Count > 0)
+            var existingRecordsForKnowledgeBase = existingRecords
+                .Where(record => KnowledgeBaseScope.BelongsToKnowledgeBase(record, scopedKnowledgeBaseId))
+                .ToList();
+
+            if (existingRecordsForKnowledgeBase.Count > 0)
             {
-                logger.LogWarning("[INGEST] Upload rejected: store already has {Count} records.", existingRecords.Count);
+                logger.LogWarning(
+                    "[INGEST] Upload rejected: knowledge base '{KnowledgeBaseId}' already has {Count} records.",
+                    scopedKnowledgeBaseId,
+                    existingRecordsForKnowledgeBase.Count);
                 return Conflict(ApiErrorFactory.Conflict(
                     "Knowledge base already ingested.",
                     "The knowledge base has already been ingested. Re-ingestion is not permitted."));
@@ -119,7 +146,14 @@ public sealed class IngestController(
 
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourceName, [], operationToken);
+            return await ProcessIngestAsync(
+                sourceText,
+                sourceName,
+                sourceName,
+                scopedKnowledgeBaseId,
+                existingRecords,
+                existingRecordsForKnowledgeBase,
+                operationToken);
         }, operationToken), cancellationToken);
     }
 
@@ -195,6 +229,8 @@ public sealed class IngestController(
         string sourceText,
         string sourceName,
         string displayPath,
+        string knowledgeBaseId,
+        IReadOnlyList<VectorRecord> allExistingRecords,
         IReadOnlyList<VectorRecord> existingRecords,
         CancellationToken cancellationToken)
     {
@@ -239,6 +275,8 @@ public sealed class IngestController(
             if (!string.IsNullOrWhiteSpace(chunk.ContentHash))
                 metadata["ContentHash"] = chunk.ContentHash;
 
+            metadata[KnowledgeBaseScope.MetadataKey] = knowledgeBaseId;
+
             records.Add(new VectorRecord
             {
                 Id = chunk.Id,
@@ -249,9 +287,16 @@ public sealed class IngestController(
             });
         }
 
-        await vectorStoreService.SaveAsync(records, cancellationToken);
+        var recordsOutsideKnowledgeBase = allExistingRecords
+            .Where(record => !KnowledgeBaseScope.BelongsToKnowledgeBase(record, knowledgeBaseId));
+        var mergedRecords = recordsOutsideKnowledgeBase
+            .Concat(records)
+            .ToList();
+
+        await vectorStoreService.SaveAsync(mergedRecords, cancellationToken);
         logger.LogInformation(
-            "[INGEST] Embedding reuse completed. Reused={Reused}, Recomputed={Recomputed}, Total={Total}",
+            "[INGEST] Embedding reuse completed for knowledge base '{KnowledgeBaseId}'. Reused={Reused}, Recomputed={Recomputed}, Total={Total}",
+            knowledgeBaseId,
             reusedEmbeddings,
             records.Count - reusedEmbeddings,
             records.Count);
@@ -266,6 +311,7 @@ public sealed class IngestController(
             ChunksCreated = chunks.Count,
             RecordsPersisted = records.Count,
             VectorStorePath = vectorStorePath,
+            KnowledgeBaseId = knowledgeBaseId,
             IsPlaceholder = false
         });
     }

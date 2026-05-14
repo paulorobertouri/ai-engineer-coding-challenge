@@ -14,5 +14,7 @@ public sealed class IngestResponse
 
     public string VectorStorePath { get; init; } = string.Empty;
 
+    public string KnowledgeBaseId { get; init; } = string.Empty;
+
     public bool IsPlaceholder { get; init; }
 }

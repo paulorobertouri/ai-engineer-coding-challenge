@@ -11,6 +11,7 @@ export interface ChatMessage {
 
 export interface Citation {
   chunkId?: string
+  knowledgeBaseId?: string
   source: string
   sectionTitle?: string
   snippet: string
@@ -27,6 +28,7 @@ export interface ChatApiMessage {
 
 export interface ChatRequest {
   conversationId: string
+  knowledgeBaseId?: string
   messages: ChatApiMessage[]
 }
 
@@ -41,6 +43,7 @@ export interface ChatResponse {
 
 export interface IngestRequest {
   forceReingest: boolean
+  knowledgeBaseId?: string
 }
 
 export interface IngestResponse {
@@ -50,6 +53,7 @@ export interface IngestResponse {
   chunksCreated: number
   recordsPersisted: number
   vectorStorePath: string
+  knowledgeBaseId: string
   isPlaceholder: boolean
 }
 
@@ -60,6 +64,7 @@ export interface HealthResponse {
   notes: string[]
   isIngested: boolean
   recordCount: number
+  activeKnowledgeBaseIds: string[]
 }
 
 export interface StatusMessage {

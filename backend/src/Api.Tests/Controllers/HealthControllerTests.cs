@@ -139,6 +139,56 @@ public class HealthControllerTests
     }
 
     [Fact]
+    public async Task Get_ReportsActiveKnowledgeBases()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-kb-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var sourcePath = Path.Combine(tempDir, "SOP.md");
+        File.WriteAllText(sourcePath, "# SOP\ncontent");
+
+        var openAiOptions = Microsoft.Extensions.Options.Options.Create(new OpenAIOptions { ApiKey = "test-key" });
+        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
+        {
+            SourceDocumentPath = sourcePath,
+            VectorStorePath = "Data/vector-store.json"
+        });
+
+        var mockEnv = new Mock<IWebHostEnvironment>();
+        mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
+
+        var mockVectorStore = new Mock<IVectorStoreService>();
+        mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "legacy",
+                    Source = "SOP.md",
+                    ChunkText = "x",
+                    Embedding = []
+                },
+                new VectorRecord
+                {
+                    Id = "hr-1",
+                    Source = "HR.md",
+                    ChunkText = "x",
+                    Embedding = [],
+                    Metadata = new Dictionary<string, string> { ["KnowledgeBaseId"] = "hr" }
+                }
+            ]);
+
+        var controller = new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
+
+        var result = await controller.Get(CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<HealthResponse>(ok.Value);
+
+        Assert.Equal(["default", "hr"], response.ActiveKnowledgeBaseIds);
+        Assert.Contains(response.Notes, note => note.Contains("Active knowledge bases", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Ready_WhenDependenciesAvailable_ReturnsOkReady()
     {
         var result = CreateController().Ready();
@@ -146,6 +196,7 @@ public class HealthControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<HealthResponse>(ok.Value);
         Assert.Equal("ready", response.Status);
+        Assert.Contains("default", response.ActiveKnowledgeBaseIds, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]

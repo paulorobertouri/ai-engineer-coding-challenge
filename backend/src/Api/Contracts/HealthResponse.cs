@@ -13,4 +13,6 @@ public sealed class HealthResponse
     public bool IsIngested { get; init; }
 
     public int RecordCount { get; init; }
+
+    public List<string> ActiveKnowledgeBaseIds { get; init; } = [];
 }

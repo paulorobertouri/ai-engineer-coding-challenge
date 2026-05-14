@@ -35,9 +35,10 @@ public class FallbackRetrievalChatServiceTests
             .ReturnsAsync(new float[1536]);
     }
 
-    private static ChatRequest BuildRequest(string userMessage) => new()
+    private static ChatRequest BuildRequest(string userMessage, string? knowledgeBaseId = null) => new()
     {
         ConversationId = "conv-1",
+        KnowledgeBaseId = knowledgeBaseId,
         Messages = [new ChatMessageDto { Role = "user", Content = userMessage }]
     };
 
@@ -45,7 +46,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_WithNoMatches_ReturnsFallbackMessage()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("tell me something"), CancellationToken.None);
@@ -67,7 +68,7 @@ public class FallbackRetrievalChatServiceTests
         };
 
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new VectorSearchMatch { Record = lowConfidenceRecord, Score = 0.12 }]);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("what is the policy?"), CancellationToken.None);
@@ -80,7 +81,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_UsesConfiguredTopK()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), 3, It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), 3, It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([])
             .Verifiable();
 
@@ -107,7 +108,7 @@ public class FallbackRetrievalChatServiceTests
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
 
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(matches);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("what is the SOP?"), CancellationToken.None);
@@ -120,6 +121,29 @@ public class FallbackRetrievalChatServiceTests
         Assert.Equal(0.9, response.Citations[0].Score);
         Assert.Equal(12, response.Citations[0].StartLine);
         Assert.Equal(18, response.Citations[0].EndLine);
+        Assert.Equal("default", response.Citations[0].KnowledgeBaseId);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_PassesKnowledgeBaseFilterToVectorStore()
+    {
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<int>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([])
+            .Verifiable();
+
+        await _service.GenerateResponseAsync(BuildRequest("scope check", "hr"), CancellationToken.None);
+
+        _mockVectorStore.Verify(v => v.SearchAsync(
+            It.IsAny<float[]>(),
+            3,
+            It.Is<IReadOnlyDictionary<string, string>>(filter =>
+                filter.ContainsKey("KnowledgeBaseId") && filter["KnowledgeBaseId"] == "hr"),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -130,7 +154,7 @@ public class FallbackRetrievalChatServiceTests
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
 
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(matches);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("tell me"), CancellationToken.None);
@@ -147,7 +171,7 @@ public class FallbackRetrievalChatServiceTests
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
 
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(matches);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("tell me"), CancellationToken.None);
@@ -159,7 +183,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_SetsConversationId()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var request = BuildRequest("hello");
@@ -172,7 +196,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_IsPlaceholderIsTrue()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("hi"), CancellationToken.None);
@@ -184,7 +208,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_NoUserMessage_UsesEmptyString()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var request = new ChatRequest
@@ -207,7 +231,7 @@ public class FallbackRetrievalChatServiceTests
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
 
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(matches);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("what is the policy?"), CancellationToken.None);
@@ -222,7 +246,7 @@ public class FallbackRetrievalChatServiceTests
     {
         var record = new VectorRecord { Id = "1", Source = "SOP.md", ChunkText = "Opening steps", Embedding = new float[1536] };
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new VectorSearchMatch { Record = record, Score = 0.9 }]);
 
         var response = await _service.GenerateResponseAsync(BuildRequest("tell me about the safety policy"), CancellationToken.None);
@@ -234,7 +258,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_PromptInjectionAttempt_WithoutRelevantContext_ReturnsNotFound()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var response = await _service.GenerateResponseAsync(
@@ -249,7 +273,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_OutOfScopeQuestion_ReturnsNotFoundAndNoCitations()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var response = await _service.GenerateResponseAsync(

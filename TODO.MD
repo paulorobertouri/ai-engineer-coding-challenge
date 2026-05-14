@@ -638,7 +638,7 @@ The JSON vector store is excellent for local development and the coding challeng
 
 ### 29. Support Multiple Knowledge Bases
 
-- [ ] Allow more than one SOP or knowledge base to exist at the same time.
+- [x] Allow more than one SOP or knowledge base to exist at the same time.
 
 **Why**
 

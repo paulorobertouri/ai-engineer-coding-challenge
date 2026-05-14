@@ -20,11 +20,16 @@ public sealed class FallbackRetrievalChatService(
     public async Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
+        var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
         var latestUserMessage = request.Messages.LastOrDefault(m =>
             m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
 
         var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, cancellationToken);
-        var rawMatches = await vectorStoreService.SearchAsync(queryEmbedding, topK: _retrievalTopK, cancellationToken);
+        var rawMatches = await vectorStoreService.SearchAsync(
+            queryEmbedding,
+            topK: _retrievalTopK,
+            KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
+            cancellationToken);
         var matches = rawMatches.Where(m => m.Score >= _minSimilarityScore).ToList();
 
         if (rawMatches.Count == 0)
@@ -38,9 +43,10 @@ public sealed class FallbackRetrievalChatService(
         stopwatch.Stop();
 
         logger.LogInformation(
-            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, TopK={TopK}, Threshold={Threshold}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
+            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
             request.ConversationId,
             "fallback",
+            knowledgeBaseId,
             _retrievalTopK,
             _minSimilarityScore,
             string.Join(",", matches.Select(m => m.Record.Id)),

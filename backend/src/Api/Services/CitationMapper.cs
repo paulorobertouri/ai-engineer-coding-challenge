@@ -10,6 +10,7 @@ internal static class CitationMapper
         return new CitationDto
         {
             ChunkId = match.Record.Id,
+            KnowledgeBaseId = KnowledgeBaseScope.GetRecordKnowledgeBaseId(match.Record),
             Source = match.Record.Source,
             SectionTitle = TryGetMetadata(match.Record, "SectionTitle") ?? ExtractSectionTitle(match.Record.ChunkText),
             Snippet = BuildSnippet(match.Record.ChunkText),

@@ -1,4 +1,5 @@
 using Api.Contracts;
+using Api.Models;
 using Api.Options;
 using Api.Services;
 using Asp.Versioning;
@@ -36,6 +37,15 @@ public sealed class HealthController(
             };
 
         var records = await vectorStoreService.LoadAsync(cancellationToken);
+        var activeKnowledgeBases = records
+            .Select(KnowledgeBaseScope.GetRecordKnowledgeBaseId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        notes.Add(activeKnowledgeBases.Count == 0
+            ? $"Active knowledge bases: none (default: {KnowledgeBaseScope.DefaultKnowledgeBaseId})."
+            : $"Active knowledge bases: {string.Join(", ", activeKnowledgeBases)}.");
 
         return Ok(new HealthResponse
         {
@@ -44,7 +54,8 @@ public sealed class HealthController(
             UtcTime = DateTimeOffset.UtcNow,
             Notes = notes,
             IsIngested = records.Count > 0,
-            RecordCount = records.Count
+            RecordCount = records.Count,
+            ActiveKnowledgeBaseIds = activeKnowledgeBases
         });
     }
 
@@ -68,7 +79,8 @@ public sealed class HealthController(
                 : "Vector store path is not readable/writable.",
             hasApiKey
                 ? "AI mode: OpenAI"
-                : "AI mode: Fallback (no OpenAI API key)"
+                : "AI mode: Fallback (no OpenAI API key)",
+            $"Default knowledge base: {KnowledgeBaseScope.DefaultKnowledgeBaseId}"
         };
 
         var isReady = sourceDocumentReady && vectorStoreReady;
@@ -80,7 +92,8 @@ public sealed class HealthController(
             UtcTime = DateTimeOffset.UtcNow,
             Notes = checks,
             IsIngested = false,
-            RecordCount = 0
+            RecordCount = 0,
+            ActiveKnowledgeBaseIds = [KnowledgeBaseScope.DefaultKnowledgeBaseId]
         };
 
         return isReady ? Ok(response) : StatusCode(StatusCodes.Status503ServiceUnavailable, response);

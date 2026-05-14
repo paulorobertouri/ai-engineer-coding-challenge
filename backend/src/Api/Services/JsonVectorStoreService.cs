@@ -156,6 +156,17 @@ public sealed class JsonVectorStoreService : IVectorStoreService
 
         foreach (var filter in metadataFilter)
         {
+            if (string.Equals(filter.Key, KnowledgeBaseScope.MetadataKey, StringComparison.Ordinal))
+            {
+                var recordKnowledgeBaseId = KnowledgeBaseScope.GetRecordKnowledgeBaseId(record);
+                if (!string.Equals(recordKnowledgeBaseId, KnowledgeBaseScope.Normalize(filter.Value), StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if (!record.Metadata.TryGetValue(filter.Key, out var value) ||
                 !string.Equals(value, filter.Value, StringComparison.Ordinal))
             {

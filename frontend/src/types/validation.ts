@@ -3,6 +3,13 @@ import { z } from 'zod'
 export const CHAT_MAX_MESSAGES = 20
 export const CHAT_MAX_MESSAGE_CONTENT_LENGTH = 4000
 export const CHAT_MAX_CONVERSATION_ID_LENGTH = 128
+export const CHAT_MAX_KNOWLEDGE_BASE_ID_LENGTH = 64
+
+const KnowledgeBaseIdSchema = z
+  .string()
+  .min(1)
+  .max(CHAT_MAX_KNOWLEDGE_BASE_ID_LENGTH)
+  .regex(/^[a-zA-Z0-9._-]+$/)
 
 export const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
@@ -13,6 +20,7 @@ export const ChatMessageSchema = z.object({
 export const ChatRequestSchema = z
   .object({
     conversationId: z.string().min(1).max(CHAT_MAX_CONVERSATION_ID_LENGTH),
+    knowledgeBaseId: KnowledgeBaseIdSchema.optional(),
     messages: z.array(ChatMessageSchema).min(1).max(CHAT_MAX_MESSAGES),
   })
   .refine((request) => request.messages.some((message) => message.role === 'user'), {
@@ -22,4 +30,5 @@ export const ChatRequestSchema = z
 
 export const IngestRequestSchema = z.object({
   forceReingest: z.boolean().default(false),
+  knowledgeBaseId: KnowledgeBaseIdSchema.optional(),
 })

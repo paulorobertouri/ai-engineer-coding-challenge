@@ -4,6 +4,8 @@ public sealed class CitationDto
 {
     public string ChunkId { get; init; } = string.Empty;
 
+    public string KnowledgeBaseId { get; init; } = string.Empty;
+
     public string Source { get; init; } = string.Empty;
 
     public string SectionTitle { get; init; } = string.Empty;

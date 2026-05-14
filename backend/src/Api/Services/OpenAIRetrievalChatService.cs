@@ -48,16 +48,22 @@ public sealed class OpenAIRetrievalChatService(
         return await _resiliencePipeline.ExecuteAsync(async ct =>
         {
             var totalStopwatch = Stopwatch.StartNew();
+            var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
             var latestUserMessage = request.Messages
                 .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? "";
 
             // 1. Initial Retrieval (Standard RAG)
             var queryEmbedding = await embeddingService.EmbedAsync(latestUserMessage, ct);
-            var rawMatches = await vectorStoreService.SearchAsync(queryEmbedding, topK: _retrievalTopK, ct);
+            var rawMatches = await vectorStoreService.SearchAsync(
+                queryEmbedding,
+                topK: _retrievalTopK,
+                KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
+                ct);
             var matches = FilterMatches(rawMatches);
 
             logger.LogInformation(
-                "RAG retrieval completed. TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
+                "RAG retrieval completed. KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
+                knowledgeBaseId,
                 _retrievalTopK,
                 _minSimilarityScore,
                 rawMatches.Count,
@@ -106,7 +112,13 @@ public sealed class OpenAIRetrievalChatService(
             // 4. Handle Tool Calls (Single Turn)
             if (_enableTools && chatCompletion.FinishReason == ChatFinishReason.ToolCalls)
             {
-                matches = await HandleToolCallsAsync(chatCompletion, messages, matches, request.ConversationId, ct);
+                matches = await HandleToolCallsAsync(
+                    chatCompletion,
+                    messages,
+                    matches,
+                    request.ConversationId,
+                    knowledgeBaseId,
+                    ct);
                 completionStopwatch.Restart();
                 response = await client.CompleteChatAsync(messages, options, ct);
                 completionStopwatch.Stop();
@@ -115,10 +127,11 @@ public sealed class OpenAIRetrievalChatService(
 
             totalStopwatch.Stop();
             logger.LogInformation(
-                "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, ToolingEnabled={ToolingEnabled}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
+                "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, ToolingEnabled={ToolingEnabled}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
                 request.ConversationId,
                 _chatModel,
                 "openai",
+                knowledgeBaseId,
                 _enableTools,
                 string.Join(",", matches.Select(m => m.Record.Id)),
                 string.Join(",", matches.Select(m => m.Score.ToString("F3"))),
@@ -181,6 +194,7 @@ public sealed class OpenAIRetrievalChatService(
         List<ChatMessage> messages,
         IReadOnlyList<VectorSearchMatch> matches,
         string conversationId,
+        string knowledgeBaseId,
         CancellationToken ct)
     {
         messages.Add(ChatMessage.CreateAssistantMessage(chatCompletion));
@@ -188,7 +202,13 @@ public sealed class OpenAIRetrievalChatService(
 
         foreach (var toolCall in chatCompletion.ToolCalls)
         {
-            await HandleSearchSopToolCallAsync(toolCall, messages, allMatches, conversationId, ct);
+            await HandleSearchSopToolCallAsync(
+                toolCall,
+                messages,
+                allMatches,
+                conversationId,
+                knowledgeBaseId,
+                ct);
         }
 
         return allMatches;
@@ -199,6 +219,7 @@ public sealed class OpenAIRetrievalChatService(
         List<ChatMessage> messages,
         List<VectorSearchMatch> allMatches,
         string conversationId,
+        string knowledgeBaseId,
         CancellationToken ct)
     {
         var queryParseResult = ToolCallingPolicy.TryExtractSearchQuery(toolCall.FunctionArguments.ToString(), out var query);
@@ -225,7 +246,11 @@ public sealed class OpenAIRetrievalChatService(
         }
 
         var toolQueryEmbedding = await embeddingService.EmbedAsync(query, ct);
-        var rawToolMatches = await vectorStoreService.SearchAsync(toolQueryEmbedding, topK: _retrievalTopK, ct);
+        var rawToolMatches = await vectorStoreService.SearchAsync(
+            toolQueryEmbedding,
+            topK: _retrievalTopK,
+            KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
+            ct);
         var toolMatches = FilterMatches(rawToolMatches);
 
         logger.LogInformation(
