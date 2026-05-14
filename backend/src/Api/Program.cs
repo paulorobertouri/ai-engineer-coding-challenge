@@ -59,6 +59,12 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<TimeoutOptions>()
+    .Bind(builder.Configuration.GetSection(TimeoutOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
 

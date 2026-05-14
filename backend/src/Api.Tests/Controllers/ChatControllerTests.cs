@@ -1,7 +1,10 @@
 using Api.Contracts;
+using Api.Options;
 using Api.Controllers;
 using Api.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -14,7 +17,9 @@ public class ChatControllerTests
 
     public ChatControllerTests()
     {
-        _controller = new ChatController(_mockService.Object);
+        _controller = new ChatController(
+            _mockService.Object,
+            Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { ChatSeconds = 30 }));
     }
 
     [Fact]
@@ -152,5 +157,47 @@ public class ChatControllerTests
 
         Assert.NotNull(capturedRequest);
         Assert.Equal("test-id", capturedRequest!.ConversationId);
+    }
+
+    [Fact]
+    public async Task Post_WhenServiceCancels_ReturnsRequestTimeoutProblemDetails()
+    {
+        _mockService
+            .Setup(s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var request = new ChatRequest
+        {
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hi" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        var timeout = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status408RequestTimeout, timeout.StatusCode);
+        var details = Assert.IsType<ProblemDetails>(timeout.Value);
+        Assert.Equal(ApiErrorFactory.RequestTimeoutErrorCode, details.Extensions["code"]);
+    }
+
+    [Fact]
+    public async Task Post_WhenRequestIsCancelled_ThrowsOperationCanceledException()
+    {
+        _mockService
+            .Setup(s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(async (ChatRequest _, CancellationToken token) =>
+            {
+                await Task.Delay(10, token);
+                return new ChatResponse();
+            });
+
+        var request = new ChatRequest
+        {
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hi" }]
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _controller.Post(request, cts.Token));
     }
 }

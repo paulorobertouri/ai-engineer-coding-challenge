@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiClient } from '../services/apiClient'
 import type { ChatMessage, Citation, IngestResponse, StatusMessage } from '../types/chat'
 import { AppHeader } from '../components/AppHeader'
@@ -27,6 +27,15 @@ function createMessage(role: ChatMessage['role'], content: string): ChatMessage 
   }
 }
 
+function isRequestCancelledError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'request_cancelled'
+  )
+}
+
 export function ChatPage() {
   const [conversationId, setConversationId] = useState<string>(() => globalThis.crypto.randomUUID())
   const [draft, setDraft] = useState('')
@@ -42,6 +51,9 @@ export function ChatPage() {
     message: 'Checking backend health…',
   })
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const chatAbortRef = useRef<AbortController | null>(null)
+  const ingestAbortRef = useRef<AbortController | null>(null)
+  const statusBannerRef = useRef<HTMLElement | null>(null)
   // null = health check in progress; false = not yet ingested; true = ingested
   const [isIngested, setIsIngested] = useState<boolean | null>(null)
 
@@ -75,6 +87,13 @@ export function ChatPage() {
     }
     sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(snapshot))
   }, [conversationId, messages, citations])
+
+  useEffect(() => {
+    return () => {
+      chatAbortRef.current?.abort()
+      ingestAbortRef.current?.abort()
+    }
+  }, [])
 
   // Auto-dismiss success/info banners after 4 s
   useEffect(() => {
@@ -134,6 +153,10 @@ export function ChatPage() {
   }, [])
 
   const handleIngest = useCallback(async (file?: File) => {
+    ingestAbortRef.current?.abort()
+    const abortController = new AbortController()
+    ingestAbortRef.current = abortController
+
     setIsIngesting(true)
     setHasIngestToRetry(true)
     setLastIngestFile(file)
@@ -145,10 +168,10 @@ export function ChatPage() {
     try {
       let response: IngestResponse
       if (file) {
-        response = await apiClient.ingestFile(file)
+        response = await apiClient.ingestFile(file, abortController.signal)
       } else {
         const payload = IngestRequestSchema.parse({ forceReingest: false })
-        response = await apiClient.ingest(payload)
+        response = await apiClient.ingest(payload, abortController.signal)
       }
 
       setIsIngested(true)
@@ -159,6 +182,11 @@ export function ChatPage() {
         message: `${response.message} Vector store: ${response.vectorStorePath}`,
       })
     } catch (error) {
+      if (isRequestCancelledError(error)) {
+        setStatus({ tone: 'info', message: 'Ingest request cancelled.' })
+        return
+      }
+
       if (error instanceof Error && error.message.includes('already been ingested')) {
         setIsIngested(true)
         setStatus({ tone: 'success', message: 'Knowledge base is already ingested.' })
@@ -170,11 +198,18 @@ export function ChatPage() {
       }
     } finally {
       setIsIngesting(false)
+      if (ingestAbortRef.current === abortController) {
+        ingestAbortRef.current = null
+      }
     }
   }, [])
 
   const submitChat = useCallback(
     async (messageText: string, clearDraft: boolean) => {
+      chatAbortRef.current?.abort()
+      const abortController = new AbortController()
+      chatAbortRef.current = abortController
+
       const userMessage = createMessage('user', messageText)
       const nextMessages = [...messages, userMessage]
 
@@ -198,7 +233,7 @@ export function ChatPage() {
           })),
         })
 
-        const response = await apiClient.chat(payload)
+        const response = await apiClient.chat(payload, abortController.signal)
 
         setMessages((currentMessages) => [
           ...currentMessages,
@@ -211,6 +246,11 @@ export function ChatPage() {
           message: `Chat response received with status '${response.status}'.`,
         })
       } catch (error) {
+        if (isRequestCancelledError(error)) {
+          setStatus({ tone: 'info', message: 'Chat request cancelled.' })
+          return
+        }
+
         setMessages((currentMessages) => [
           ...currentMessages,
           createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
@@ -222,6 +262,9 @@ export function ChatPage() {
         })
       } finally {
         setIsSending(false)
+        if (chatAbortRef.current === abortController) {
+          chatAbortRef.current = null
+        }
       }
     },
     [conversationId, messages],

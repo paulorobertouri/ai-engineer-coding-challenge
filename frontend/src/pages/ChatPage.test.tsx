@@ -319,7 +319,7 @@ describe('ChatPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/File ingested/i)).toBeInTheDocument()
     })
-    expect(apiClient.ingestFile).toHaveBeenCalledWith(file)
+    expect(apiClient.ingestFile).toHaveBeenCalledWith(file, expect.any(AbortSignal))
   })
 
   it('shows uploading status message while uploading a file', async () => {

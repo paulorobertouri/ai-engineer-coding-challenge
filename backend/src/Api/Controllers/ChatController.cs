@@ -1,15 +1,19 @@
 using Api.Contracts;
+using Api.Options;
 using Api.Services;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace Api.Controllers;
 
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public sealed class ChatController(IRetrievalChatService retrievalChatService) : ControllerBase
+public sealed class ChatController(
+    IRetrievalChatService retrievalChatService,
+    IOptions<TimeoutOptions> timeoutOptions) : ControllerBase
 {
     private const string ValidationErrorTitle = "One or more validation errors occurred.";
 
@@ -32,8 +36,22 @@ public sealed class ChatController(IRetrievalChatService retrievalChatService) :
         if (!request.Messages.Any(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase)))
             return ValidationError(nameof(ChatRequest.Messages), "At least one user message is required.");
 
-        var response = await retrievalChatService.GenerateResponseAsync(request, cancellationToken);
-        return Ok(response);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutOptions.Value.ChatSeconds));
+
+        try
+        {
+            var response = await retrievalChatService.GenerateResponseAsync(request, timeoutCts.Token);
+            return Ok(response);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            var details = ApiErrorFactory.RequestTimeout(
+                "Chat request timed out.",
+                "The chat request took too long to complete. Please retry.",
+                HttpContext?.Request.Path.Value);
+            return StatusCode(StatusCodes.Status408RequestTimeout, details);
+        }
     }
 
     private ActionResult<ChatResponse> ValidationError(string field, string message)

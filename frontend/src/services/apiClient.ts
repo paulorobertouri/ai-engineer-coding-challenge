@@ -27,18 +27,25 @@ interface ProblemDetailsBody {
 type ApiErrorCode =
   | 'validation_error'
   | 'conflict'
+  | 'request_timeout'
   | 'rate_limit_exceeded'
   | 'internal_server_error'
+  | 'request_cancelled'
   | 'offline'
   | 'request_failed'
 
 export class ApiClientError extends Error {
+  public readonly status: number
+  public readonly code: ApiErrorCode
+
   constructor(
     message: string,
-    public readonly status: number,
-    public readonly code: ApiErrorCode,
+    status: number,
+    code: ApiErrorCode,
   ) {
     super(message)
+    this.status = status
+    this.code = code
     this.name = 'ApiClientError'
   }
 }
@@ -114,6 +121,7 @@ function resolveErrorCode(
 
   if (status === 400) return 'validation_error'
   if (status === 409) return 'conflict'
+  if (status === 408) return 'request_timeout'
   if (status === 429) return 'rate_limit_exceeded'
   if (status >= 500) return 'internal_server_error'
   return 'request_failed'
@@ -138,13 +146,22 @@ async function parseError(response: Response): Promise<ApiClientError> {
 
 async function request<TResponse>(path: string, init?: RequestInit): Promise<TResponse> {
   const apiBaseUrl = await resolveApiBaseUrl()
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      ...init,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiClientError('Request cancelled.', 0, 'request_cancelled')
+    }
+
+    throw new ApiClientError('Failed to fetch', 0, 'offline')
+  }
 
   if (!response.ok) {
     throw await parseError(response)
@@ -154,12 +171,26 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
 }
 
 // Separate helper for multipart/form-data — lets the browser set Content-Type with boundary.
-async function requestFormData<TResponse>(path: string, body: FormData): Promise<TResponse> {
+async function requestFormData<TResponse>(
+  path: string,
+  body: FormData,
+  signal?: AbortSignal,
+): Promise<TResponse> {
   const apiBaseUrl = await resolveApiBaseUrl()
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: 'POST',
-    body,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: 'POST',
+      body,
+      signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiClientError('Request cancelled.', 0, 'request_cancelled')
+    }
+
+    throw new ApiClientError('Failed to fetch', 0, 'offline')
+  }
 
   if (!response.ok) {
     throw await parseError(response)
@@ -169,24 +200,26 @@ async function requestFormData<TResponse>(path: string, body: FormData): Promise
 }
 
 export const apiClient = {
-  getHealth(): Promise<HealthResponse> {
-    return request<HealthResponse>('/api/v1/health')
+  getHealth(signal?: AbortSignal): Promise<HealthResponse> {
+    return request<HealthResponse>('/api/v1/health', { signal })
   },
-  ingest(payload: IngestRequest): Promise<IngestResponse> {
+  ingest(payload: IngestRequest, signal?: AbortSignal): Promise<IngestResponse> {
     return request<IngestResponse>('/api/v1/ingest', {
       method: 'POST',
       body: JSON.stringify(payload),
+      signal,
     })
   },
-  ingestFile(file: File): Promise<IngestResponse> {
+  ingestFile(file: File, signal?: AbortSignal): Promise<IngestResponse> {
     const formData = new FormData()
     formData.append('file', file)
-    return requestFormData<IngestResponse>('/api/v1/ingest/upload', formData)
+    return requestFormData<IngestResponse>('/api/v1/ingest/upload', formData, signal)
   },
-  chat(payload: ChatRequest): Promise<ChatResponse> {
+  chat(payload: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
     return request<ChatResponse>('/api/v1/chat', {
       method: 'POST',
       body: JSON.stringify(payload),
+      signal,
     })
   },
 }

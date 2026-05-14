@@ -9,6 +9,7 @@ public static class ApiErrorFactory
     public const string BadRequestErrorCode = "bad_request";
     public const string NotFoundErrorCode = "not_found";
     public const string RateLimitErrorCode = "rate_limit_exceeded";
+    public const string RequestTimeoutErrorCode = "request_timeout";
     public const string InternalServerErrorCode = "internal_server_error";
 
     public static ValidationProblemDetails Validation(string field, string message, string title)
@@ -76,6 +77,20 @@ public static class ApiErrorFactory
         };
 
         details.Extensions["code"] = RateLimitErrorCode;
+        return details;
+    }
+
+    public static ProblemDetails RequestTimeout(string title, string detail, string? instance = null)
+    {
+        var details = new ProblemDetails
+        {
+            Status = StatusCodes.Status408RequestTimeout,
+            Title = title,
+            Detail = detail,
+            Instance = instance
+        };
+
+        details.Extensions["code"] = RequestTimeoutErrorCode;
         return details;
     }
 

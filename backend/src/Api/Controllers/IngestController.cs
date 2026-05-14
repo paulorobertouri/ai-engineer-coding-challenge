@@ -16,6 +16,7 @@ namespace Api.Controllers;
 public sealed class IngestController(
     IOptions<ChallengeOptions> challengeOptions,
     IOptions<UploadOptions> uploadOptions,
+    IOptions<TimeoutOptions> timeoutOptions,
     IChunkingService chunkingService,
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
@@ -33,9 +34,10 @@ public sealed class IngestController(
     [HttpPost]
     public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken)
     {
-        return await ExecuteExclusiveIngestAsync(async () =>
+        return await ExecuteWithIngestTimeoutAsync(async operationToken =>
+            await ExecuteExclusiveIngestAsync(async () =>
         {
-            var existingRecords = await vectorStoreService.LoadAsync(cancellationToken);
+            var existingRecords = await vectorStoreService.LoadAsync(operationToken);
             var forceReingest = request?.ForceReingest ?? false;
             if (existingRecords.Count > 0 && !forceReingest)
             {
@@ -71,11 +73,11 @@ public sealed class IngestController(
                     return NotFound(ApiErrorFactory.NotFound("Source document not found.", "Source document not found."));
             }
 
-            var sourceText = await System.IO.File.ReadAllTextAsync(sourcePath, cancellationToken);
+            var sourceText = await System.IO.File.ReadAllTextAsync(sourcePath, operationToken);
             var sourceName = System.IO.Path.GetFileName(sourcePath);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourcePath, existingRecords, cancellationToken);
-        }, cancellationToken);
+            return await ProcessIngestAsync(sourceText, sourceName, sourcePath, existingRecords, operationToken);
+        }, operationToken), cancellationToken);
     }
 
     // ── POST /api/v1/ingest/upload  (user-supplied file) ─────────────────────
@@ -84,9 +86,10 @@ public sealed class IngestController(
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<IngestResponse>> Upload(IFormFile? file, CancellationToken cancellationToken)
     {
-        return await ExecuteExclusiveIngestAsync(async () =>
+        return await ExecuteWithIngestTimeoutAsync(async operationToken =>
+            await ExecuteExclusiveIngestAsync(async () =>
         {
-            var existingRecords = await vectorStoreService.LoadAsync(cancellationToken);
+            var existingRecords = await vectorStoreService.LoadAsync(operationToken);
             if (existingRecords.Count > 0)
             {
                 logger.LogWarning("[INGEST] Upload rejected: store already has {Count} records.", existingRecords.Count);
@@ -112,12 +115,12 @@ public sealed class IngestController(
 
             string sourceText;
             using (var reader = new System.IO.StreamReader(file.OpenReadStream(), System.Text.Encoding.UTF8))
-                sourceText = await reader.ReadToEndAsync(cancellationToken);
+                sourceText = await reader.ReadToEndAsync(operationToken);
 
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourceName, [], cancellationToken);
-        }, cancellationToken);
+            return await ProcessIngestAsync(sourceText, sourceName, sourceName, [], operationToken);
+        }, operationToken), cancellationToken);
     }
 
     [HttpDelete("reset")]
@@ -164,6 +167,27 @@ public sealed class IngestController(
         finally
         {
             IngestLock.Release();
+        }
+    }
+
+    private async Task<ActionResult<IngestResponse>> ExecuteWithIngestTimeoutAsync(
+        Func<CancellationToken, Task<ActionResult<IngestResponse>>> operation,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutOptions.Value.IngestSeconds));
+
+        try
+        {
+            return await operation(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            var details = ApiErrorFactory.RequestTimeout(
+                "Ingest request timed out.",
+                "The ingest request took too long to complete. Please retry.",
+                HttpContext?.Request.Path.Value);
+            return StatusCode(StatusCodes.Status408RequestTimeout, details);
         }
     }
 

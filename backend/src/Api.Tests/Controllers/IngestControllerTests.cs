@@ -37,6 +37,7 @@ public class IngestControllerTests
             VectorStorePath = Path.Combine(_tempDir, "store.json")
         });
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
+        var timeoutOptions = Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { IngestSeconds = 120 });
 
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
         _mockEnv.Setup(e => e.EnvironmentName).Returns(isDevelopment ? "Development" : "Production");
@@ -62,6 +63,7 @@ public class IngestControllerTests
         return new IngestController(
             challengeOptions,
             uploadOptions,
+            timeoutOptions,
             _mockChunking.Object,
             _mockEmbedding.Object,
             _mockVectorStore.Object,
@@ -146,6 +148,7 @@ public class IngestControllerTests
             VectorStorePath = "store.json"
         });
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
+        var timeoutOptions = Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { IngestSeconds = 120 });
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
 
         _mockChunking
@@ -163,7 +166,7 @@ public class IngestControllerTests
             .Returns(Task.CompletedTask);
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, _mockChunking.Object, _mockEmbedding.Object,
+            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockEmbedding.Object,
             _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
@@ -195,6 +198,7 @@ public class IngestControllerTests
             VectorStorePath = "store.json"
         });
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
+        var timeoutOptions = Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { IngestSeconds = 120 });
         _mockEnv.Setup(e => e.ContentRootPath).Returns(deepRoot);
 
         _mockChunking
@@ -212,7 +216,7 @@ public class IngestControllerTests
             .Returns(Task.CompletedTask);
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, _mockChunking.Object, _mockEmbedding.Object,
+            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockEmbedding.Object,
             _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
@@ -526,5 +530,42 @@ public class IngestControllerTests
                 Times.Once);
         }
         finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_WhenChunkingCancels_ReturnsRequestTimeoutProblemDetails()
+    {
+        var controller = BuildController();
+        _mockChunking
+            .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        try
+        {
+            var result = await controller.Post(null, CancellationToken.None);
+            var timeout = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(StatusCodes.Status408RequestTimeout, timeout.StatusCode);
+            var details = Assert.IsType<ProblemDetails>(timeout.Value);
+            Assert.Equal(ApiErrorFactory.RequestTimeoutErrorCode, details.Extensions["code"]);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_WhenRequestIsCancelled_ThrowsOperationCanceledException()
+    {
+        var controller = BuildController();
+        _mockChunking
+            .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string _, string _, CancellationToken token) =>
+            {
+                await Task.Delay(10, token);
+                return [new TextChunk { Id = "c1", Source = "SOP.md", Index = 0, Content = "## Section\nContent", ContentHash = "hash-1" }];
+            });
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => controller.Post(null, cts.Token));
     }
 }
