@@ -19,6 +19,7 @@ public sealed class OpenAIRetrievalChatService(
     IVectorStoreService vectorStoreService,
     IRetrievalReranker reranker,
     IUserQueryGuardrailService guardrailService,
+    OpenAIUsageTracker usageTracker,
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
     private readonly string _chatModel = openAiOptions.Value.ChatModel;
@@ -66,7 +67,7 @@ public sealed class OpenAIRetrievalChatService(
                     "openai",
                     guardrailDecision.Category);
 
-                return BuildGuardrailResponse(request, guardrailDecision);
+                return BuildGuardrailResponse(request, guardrailDecision, usageTracker);
             }
 
             var (retrievalQuery, wasRewritten) = QueryRewriteHeuristics.Rewrite(request.Messages, _enableQueryRewriting);
@@ -116,7 +117,7 @@ public sealed class OpenAIRetrievalChatService(
                     "No relevant SOP context found above threshold {Threshold} for conversation {ConversationId}.",
                     _minSimilarityScore,
                     request.ConversationId);
-                return BuildNotFoundResponse(request);
+                return BuildNotFoundResponse(request, usageTracker, retrievalQuery);
             }
 
             // 2. Prepare Chat Messages
@@ -172,7 +173,7 @@ public sealed class OpenAIRetrievalChatService(
                 completionStopwatch.ElapsedMilliseconds,
                 totalStopwatch.ElapsedMilliseconds);
 
-            return BuildChatResponse(request, chatCompletion, matches);
+            return BuildChatResponse(request, chatCompletion, matches, usageTracker, retrievalQuery, _chatModel);
         }, cancellationToken);
     }
 
@@ -317,7 +318,7 @@ public sealed class OpenAIRetrievalChatService(
         allMatches.AddRange(toolMatches.Where(m => allMatches.All(existing => existing.Record.Id != m.Record.Id)));
     }
 
-    private static ChatResponse BuildNotFoundResponse(ChatRequest request) =>
+    private ChatResponse BuildNotFoundResponse(ChatRequest request, OpenAIUsageTracker usageTracker, string retrievalQuery) =>
         new()
         {
             ConversationId = request.ConversationId,
@@ -334,10 +335,17 @@ public sealed class OpenAIRetrievalChatService(
             {
                 Level = ConfidenceIndicatorDto.NotFound,
                 EvidenceCoverage = 0
-            }
+            },
+            Usage = usageTracker.BuildEstimated(
+                model: _chatModel,
+                promptText: string.Empty,
+                completionText: string.Empty,
+                embeddingText: retrievalQuery,
+                source: "openai",
+                isExternalCost: true)
         };
 
-    private static ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
+    private ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision, OpenAIUsageTracker usageTracker)
     {
         var refusalReason = $"guardrail_{decision.Category}";
 
@@ -357,19 +365,29 @@ public sealed class OpenAIRetrievalChatService(
             {
                 Level = ConfidenceIndicatorDto.NotFound,
                 EvidenceCoverage = 0
-            }
+            },
+            Usage = usageTracker.BuildEstimated(
+                model: _chatModel,
+                promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
+                completionText: decision.EscalationMessage,
+                source: "guardrail",
+                isExternalCost: false)
         };
     }
 
     private static ChatResponse BuildChatResponse(
         ChatRequest request,
         ChatCompletion chatCompletion,
-        IEnumerable<VectorSearchMatch> matches)
+        IEnumerable<VectorSearchMatch> matches,
+        OpenAIUsageTracker usageTracker,
+        string retrievalQuery,
+        string model)
     {
         var matchList = matches.ToList();
         var assistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty;
         var citedChunkIds = matchList.Select(m => m.Record.Id).ToList();
         var confidence = ConfidenceIndicatorFactory.Create(matchList, citedChunkIds);
+        var promptText = BuildTelemetryPromptText(request, matchList);
 
         return new ChatResponse
         {
@@ -379,7 +397,15 @@ public sealed class OpenAIRetrievalChatService(
             AssistantMessage = assistantMessage,
             Citations = matchList.Select(CitationMapper.FromMatch).ToList(),
             StructuredOutput = StructuredAnswerFactory.Create(assistantMessage, citedChunkIds),
-            Confidence = confidence
+            Confidence = confidence,
+            Usage = usageTracker.BuildFromSdkOrEstimate(chatCompletion, model, promptText, assistantMessage, retrievalQuery)
         };
+    }
+
+    private static string BuildTelemetryPromptText(ChatRequest request, IReadOnlyList<VectorSearchMatch> matches)
+    {
+        var requestText = string.Join("\n", request.Messages.Select(message => $"{message.Role}: {message.Content}"));
+        var contextText = string.Join("\n\n", matches.Select(match => match.Record.ChunkText));
+        return string.Join("\n\n", [requestText, contextText]);
     }
 }

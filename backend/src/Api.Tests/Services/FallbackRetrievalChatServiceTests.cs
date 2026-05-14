@@ -16,6 +16,7 @@ public class FallbackRetrievalChatServiceTests
     private readonly Mock<IRetrievalReranker> _mockReranker = new();
     private readonly Mock<IUserQueryGuardrailService> _mockGuardrailService = new();
     private readonly Mock<ILogger<FallbackRetrievalChatService>> _mockLogger = new();
+    private readonly OpenAIUsageTracker _usageTracker = new(Microsoft.Extensions.Options.Options.Create(new OpenAIOptions()));
     private readonly IOptions<RetrievalOptions> _retrievalOptions;
     private readonly FallbackRetrievalChatService _service;
 
@@ -35,6 +36,7 @@ public class FallbackRetrievalChatServiceTests
             _mockVectorStore.Object,
             _mockReranker.Object,
             _mockGuardrailService.Object,
+            _usageTracker,
             _retrievalOptions,
             _mockLogger.Object);
         _mockEmbedding
@@ -72,6 +74,8 @@ public class FallbackRetrievalChatServiceTests
         Assert.Equal(response.AssistantMessage, response.StructuredOutput.AnswerText);
         Assert.Equal(ConfidenceIndicatorDto.NotFound, response.Confidence.Level);
         Assert.Equal(0, response.Confidence.EvidenceCoverage);
+        Assert.Equal("fallback", response.Usage.Source);
+        Assert.Equal(0m, response.Usage.EstimatedCostUsd);
     }
 
     [Fact]
@@ -148,6 +152,8 @@ public class FallbackRetrievalChatServiceTests
         Assert.Contains("1", response.StructuredOutput.CitedChunkIds);
         Assert.Equal(ConfidenceIndicatorDto.High, response.Confidence.Level);
         Assert.Equal(1, response.Confidence.EvidenceCoverage);
+        Assert.Equal("fallback", response.Usage.Source);
+        Assert.Equal(0m, response.Usage.EstimatedCostUsd);
         Assert.Equal("sha256:123456789abc", response.Citations[0].DocumentVersion);
         Assert.Equal("123456789abcdef0", response.Citations[0].SourceChecksum);
         Assert.Equal(DateTimeOffset.Parse("2026-05-14T10:00:00.0000000+00:00"), response.Citations[0].IngestedAtUtc);
@@ -352,6 +358,7 @@ public class FallbackRetrievalChatServiceTests
             _mockVectorStore.Object,
             _mockReranker.Object,
             _mockGuardrailService.Object,
+            _usageTracker,
             noRewriteOptions,
             _mockLogger.Object);
 

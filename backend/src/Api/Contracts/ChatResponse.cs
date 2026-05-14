@@ -17,4 +17,6 @@ public sealed class ChatResponse
     public StructuredAnswerDto StructuredOutput { get; init; } = new();
 
     public ConfidenceIndicatorDto Confidence { get; init; } = new();
+
+    public ChatUsageDto Usage { get; init; } = new();
 }

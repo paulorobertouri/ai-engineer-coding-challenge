@@ -11,6 +11,7 @@ public sealed class FallbackRetrievalChatService(
     IVectorStoreService vectorStoreService,
     IRetrievalReranker reranker,
     IUserQueryGuardrailService guardrailService,
+    OpenAIUsageTracker usageTracker,
     IOptions<RetrievalOptions> options,
     ILogger<FallbackRetrievalChatService> logger) : IRetrievalChatService
 {
@@ -101,11 +102,18 @@ public sealed class FallbackRetrievalChatService(
                 answer,
                 citedChunkIds,
                 matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null),
-            Confidence = confidence
+            Confidence = confidence,
+            Usage = usageTracker.BuildEstimated(
+                model: "fallback",
+                promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
+                completionText: answer,
+                embeddingText: queryText,
+                source: "fallback",
+                isExternalCost: false)
         };
     }
 
-    private static ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
+    private ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
     {
         var refusalReason = $"guardrail_{decision.Category}";
 
@@ -125,7 +133,13 @@ public sealed class FallbackRetrievalChatService(
             {
                 Level = ConfidenceIndicatorDto.NotFound,
                 EvidenceCoverage = 0
-            }
+            },
+            Usage = usageTracker.BuildEstimated(
+                model: "fallback",
+                promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
+                completionText: decision.EscalationMessage,
+                source: "guardrail",
+                isExternalCost: false)
         };
     }
 

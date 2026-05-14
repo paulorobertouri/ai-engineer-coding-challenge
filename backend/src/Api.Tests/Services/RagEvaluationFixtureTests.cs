@@ -52,6 +52,7 @@ public sealed class RagEvaluationFixtureTests : IDisposable
             {
                 EnableRuleBasedGuardrails = false
             })),
+            new OpenAIUsageTracker(Microsoft.Extensions.Options.Options.Create(new OpenAIOptions())),
             Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
             {
                 TopK = 3,

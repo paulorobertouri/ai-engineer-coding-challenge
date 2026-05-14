@@ -17,4 +17,6 @@ public sealed class OpenAIOptions
     public string EmbeddingModel { get; init; } = "text-embedding-3-small";
 
     public bool EnableTools { get; init; } = true;
+
+    public List<OpenAIModelPricingOptions> Pricing { get; init; } = [];
 }

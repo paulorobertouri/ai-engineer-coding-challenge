@@ -126,6 +126,11 @@ Structured chat output:
 - `ChatResponse.structuredOutput.followUpSuggestions` is reserved for optional follow-up prompts
 - `ChatResponse.confidence.level` surfaces `high`, `medium`, `low`, or `not_found`
 - `ChatResponse.confidence.evidenceCoverage` reports the cited-chunk coverage ratio from `0` to `1`
+
+Usage telemetry:
+- `ChatResponse.usage.source` is `sdk`, `estimated`, `fallback`, or `guardrail`
+- `ChatResponse.usage.promptTokens`, `completionTokens`, and `embeddingTokens` expose the token counts used for estimation
+- `ChatResponse.usage.estimatedCostUsd` uses configured per-model pricing when available and stays `0` in fallback/guardrail mode
 ## Rate Limiting
 
 Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in rate limiter:

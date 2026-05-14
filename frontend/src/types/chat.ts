@@ -43,6 +43,16 @@ export interface ChatResponse {
   toolCalls: string[]
   citations: Citation[]
   confidence?: ConfidenceIndicator
+  usage?: {
+    model: string
+    source: string
+    isEstimated: boolean
+    promptTokens: number
+    completionTokens: number
+    embeddingTokens: number
+    totalTokens: number
+    estimatedCostUsd: number
+  }
   structuredOutput?: {
     answerText: string
     citedChunkIds: string[]

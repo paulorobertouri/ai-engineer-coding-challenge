@@ -825,7 +825,7 @@ An internal SOP assistant may receive HR, medical, legal, emergency, or safety-c
 
 ### 38. Add Token And Cost Tracking
 
-- [ ] Track token usage and estimated cost for OpenAI-backed requests.
+- [x] Track token usage and estimated cost for OpenAI-backed requests.
 
 **Why**
 
