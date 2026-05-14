@@ -18,7 +18,7 @@
 |---|---|---|---|
 | `IChunkingService` | `MarkdownChunkingService` | _(same)_ | Splits markdown on `#` level-1 and `##` level-2 headers into semantic chunks using a source-generated regex |
 | `IEmbeddingService` | `OpenAIEmbeddingService` | `DeterministicEmbeddingService` | Generates embeddings via `text-embedding-3-small`; fallback uses FNV1a hashing |
-| `IVectorStoreService` | `JsonVectorStoreService` | _(same)_ | Thread-safe in-memory cosine similarity search backed by `Data/vector-store.json` (double-checked locking on load) |
+| `IVectorStoreService` | `JsonVectorStoreService` | _(same)_ | Provider contract for load/save/search/delete/filter with startup-validated selection (`VectorStore:Provider`, default `json`) |
 | `IRetrievalChatService` | `OpenAIRetrievalChatService` | `FallbackRetrievalChatService` | RAG pipeline with Polly resilience; fallback uses keyword matching |
 
 Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is present the real OpenAI services (including `OpenAIClient`) are wired; otherwise the deterministic fallbacks are used. The health endpoint dynamically reflects the active mode in its `notes` response field.
@@ -43,6 +43,7 @@ Tool-call observability:
 ## Vector Store
 
 - File: `Data/vector-store.json` (configurable via `Challenge__VectorStorePath`)
+- Provider: `VectorStore__Provider=json` by default (startup validation currently allows `json` only; future providers are opt-in)
 - Inside Docker the file lives at `/app/Data/vector-store.json` (persisted in the `backend_data` named volume)
 - Format: JSON array of `VectorRecord` objects (`id`, `source`, `chunkText`, `embedding`, `metadata`)
 - Chunk IDs are deterministic (`<source>-<section>-<index>-<hash>`) to keep citations/logs stable across unchanged reingests
@@ -123,6 +124,7 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Retrieval:MinSimilarityScore` | `0.3` | Minimum cosine similarity score for a chunk to be considered relevant |
 | `Challenge:SourceDocumentPath` | `../../../../knowledge-base/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
+| `VectorStore:Provider` | `json` | Vector store provider key, validated at startup |
 | `RateLimiting:Chat:PermitLimit` | `30` | Chat requests allowed per window |
 | `RateLimiting:Chat:WindowSeconds` | `60` | Chat rate-limit window size in seconds |
 | `RateLimiting:Chat:QueueLimit` | `0` | Queue size for excess chat requests |
@@ -160,7 +162,8 @@ PowerShell on Windows:
 Test coverage:
 - `MarkdownChunkingServiceTests` — verifies chunking by `#`/`##` headers and empty-input handling
 - `JsonVectorStoreServiceTests` — verifies cosine similarity ordering, missing-file graceful load, and save/load round-trip
-- `JsonVectorStoreServiceAdditionalTests` — verifies thread-safe double-checked locking and edge cases
+- `JsonVectorStoreServiceAdditionalTests` — verifies thread-safe double-checked locking, metadata filtering, delete-by-id, and edge cases
+- `VectorStoreOptionsValidatorTests` — verifies provider selection startup validation rules
 - `DeterministicEmbeddingServiceTests` — verifies FNV1a determinism and dimensionality
 - `FallbackRetrievalChatServiceTests` — verifies keyword-based response generation plus prompt-injection and out-of-scope grounding behavior
 - `RagEvaluationFixtureTests` — runs fixture-driven retrieval/grounding checks without paid OpenAI calls

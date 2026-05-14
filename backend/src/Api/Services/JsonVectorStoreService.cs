@@ -82,6 +82,60 @@ public sealed class JsonVectorStoreService : IVectorStoreService
     {
         var records = await LoadAsync(cancellationToken);
 
+        return Rank(queryEmbedding, records, topK);
+    }
+
+    public async Task<IReadOnlyList<VectorSearchMatch>> SearchAsync(
+        float[] queryEmbedding,
+        int topK,
+        IReadOnlyDictionary<string, string> metadataFilter,
+        CancellationToken cancellationToken = default)
+    {
+        var records = await LoadAsync(cancellationToken);
+        var filteredRecords = records.Where(record => MatchesMetadataFilter(record, metadataFilter));
+
+        return Rank(queryEmbedding, filteredRecords, topK);
+    }
+
+    public async Task DeleteByIdsAsync(IEnumerable<string> ids, CancellationToken cancellationToken = default)
+    {
+        var idsToDelete = ids.Where(id => !string.IsNullOrWhiteSpace(id)).ToHashSet(StringComparer.Ordinal);
+        if (idsToDelete.Count == 0)
+        {
+            return;
+        }
+
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            List<VectorRecord> records;
+            if (!File.Exists(_storePath))
+            {
+                return;
+            }
+
+            await using (var readStream = File.OpenRead(_storePath))
+            {
+                records = await JsonSerializer.DeserializeAsync<List<VectorRecord>>(readStream, _jsonOptions, cancellationToken) ?? [];
+            }
+
+            var nextRecords = records.Where(record => !idsToDelete.Contains(record.Id)).ToList();
+
+            await using var stream = File.Open(_storePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await JsonSerializer.SerializeAsync(stream, nextRecords, _jsonOptions, cancellationToken);
+            _cachedRecords = null;
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+
+    private static IReadOnlyList<VectorSearchMatch> Rank(
+        float[] queryEmbedding,
+        IEnumerable<VectorRecord> records,
+        int topK)
+    {
         return records
             .Select(r => new VectorSearchMatch
             {
@@ -91,6 +145,25 @@ public sealed class JsonVectorStoreService : IVectorStoreService
             .OrderByDescending(m => m.Score)
             .Take(topK)
             .ToList();
+    }
+
+    private static bool MatchesMetadataFilter(VectorRecord record, IReadOnlyDictionary<string, string> metadataFilter)
+    {
+        if (metadataFilter.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var filter in metadataFilter)
+        {
+            if (!record.Metadata.TryGetValue(filter.Key, out var value) ||
+                !string.Equals(value, filter.Value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static double CosineSimilarity(float[] a, float[] b)

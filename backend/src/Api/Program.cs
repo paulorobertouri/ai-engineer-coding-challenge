@@ -50,6 +50,13 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services
+    .AddOptions<VectorStoreOptions>()
+    .Bind(builder.Configuration.GetSection(VectorStoreOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<VectorStoreOptions>, VectorStoreOptionsValidator>();
+
+builder.Services
     .AddOptions<RetrievalOptions>()
     .Bind(builder.Configuration.GetSection(RetrievalOptions.SectionName))
     .ValidateDataAnnotations()
@@ -79,6 +86,7 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 var uploadOptions = builder.Configuration.GetSection(UploadOptions.SectionName).Get<UploadOptions>() ?? new UploadOptions();
 var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>() ?? new RateLimitingOptions();
 var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
+var vectorStoreOptions = builder.Configuration.GetSection(VectorStoreOptions.SectionName).Get<VectorStoreOptions>() ?? new VectorStoreOptions();
 
 builder.Services.AddControllers();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = uploadOptions.MaxUploadBytes);
@@ -115,7 +123,16 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
-builder.Services.AddSingleton<IVectorStoreService, JsonVectorStoreService>();
+builder.Services.AddSingleton<IVectorStoreService>(sp =>
+{
+    var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();
+
+    return provider switch
+    {
+        "json" => ActivatorUtilities.CreateInstance<JsonVectorStoreService>(sp),
+        _ => throw new InvalidOperationException($"Unsupported VectorStore provider '{vectorStoreOptions.Provider}'.")
+    };
+});
 
 // Rate limiting defaults: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
 builder.Services.AddRateLimiter(options =>

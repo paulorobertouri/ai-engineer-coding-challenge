@@ -81,6 +81,44 @@ public class JsonVectorStoreServiceAdditionalTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAsync_WithMetadataFilter_ReturnsOnlyMatchingRecords()
+    {
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
+
+        var emb = new float[4]; emb[0] = 1f;
+        await service.SaveAsync(
+        [
+            new() { Id = "a", Source = "s", ChunkText = "A", Embedding = emb, Metadata = new Dictionary<string, string> { ["kb"] = "store" } },
+            new() { Id = "b", Source = "s", ChunkText = "B", Embedding = emb, Metadata = new Dictionary<string, string> { ["kb"] = "hr" } }
+        ]);
+
+        var query = new float[4]; query[0] = 1f;
+        var results = await service.SearchAsync(query, topK: 10, new Dictionary<string, string> { ["kb"] = "store" });
+
+        Assert.Single(results);
+        Assert.Equal("a", results[0].Record.Id);
+    }
+
+    [Fact]
+    public async Task DeleteByIdsAsync_RemovesOnlySpecifiedRecords()
+    {
+        var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);
+
+        var emb = new float[4]; emb[0] = 1f;
+        await service.SaveAsync(
+        [
+            new() { Id = "keep", Source = "s", ChunkText = "keep", Embedding = emb },
+            new() { Id = "remove", Source = "s", ChunkText = "remove", Embedding = emb }
+        ]);
+
+        await service.DeleteByIdsAsync(["remove"]);
+        var loaded = await service.LoadAsync();
+
+        Assert.Single(loaded);
+        Assert.Equal("keep", loaded[0].Id);
+    }
+
+    [Fact]
     public async Task SearchAsync_CosineSimilarity_MismatchedLengthReturnsZero()
     {
         var service = new JsonVectorStoreService(_challengeOptions, _mockEnv.Object);

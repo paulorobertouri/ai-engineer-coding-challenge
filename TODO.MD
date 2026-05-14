@@ -616,7 +616,7 @@ Any production-oriented feature must preserve the current local developer experi
 
 ### 28. Add Pluggable Vector Store Providers
 
-- [ ] Introduce a storage abstraction that can support production vector databases without removing the JSON vector store.
+- [x] Introduce a storage abstraction that can support production vector databases without removing the JSON vector store.
 
 **Why**
 
