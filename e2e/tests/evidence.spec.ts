@@ -22,9 +22,12 @@ test("generate evidences", async ({ page }) => {
     await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
       timeout: 90000,
     });
-    await expect(statusBanner).toContainText(/ingested successfully|already ingested/i, {
-      timeout: 90000,
-    });
+    await expect(statusBanner).toContainText(
+      /ingested successfully|already ingested/i,
+      {
+        timeout: 90000,
+      },
+    );
   }
   await page.screenshot({ path: "../evidences/02-after-ingest.png" });
 

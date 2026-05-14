@@ -19,9 +19,12 @@ test("ingest and chat", async ({ page }) => {
     await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
       timeout: 90000,
     });
-    await expect(statusBanner).toContainText(/ingested successfully|already ingested/i, {
-      timeout: 90000,
-    });
+    await expect(statusBanner).toContainText(
+      /ingested successfully|already ingested/i,
+      {
+        timeout: 90000,
+      },
+    );
   }
 
   // 2. Chat — wait for the chat layout (input is always present once ingested)

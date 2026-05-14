@@ -155,7 +155,9 @@ describe('apiClient', () => {
   })
 
   it('returns request_cancelled for aborted fetches', async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'))
+    vi.mocked(fetch).mockRejectedValueOnce(
+      new DOMException('The operation was aborted.', 'AbortError'),
+    )
     const controller = new AbortController()
     controller.abort()
 

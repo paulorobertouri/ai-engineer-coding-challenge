@@ -84,9 +84,9 @@ describe('ChatTranscript', () => {
       dispatchEvent: vi.fn(),
     }))
 
-    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-      () => {},
-    )
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => {})
 
     render(<ChatTranscript messages={mockMessages} />)
 

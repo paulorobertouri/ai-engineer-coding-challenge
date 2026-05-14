@@ -6,27 +6,28 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 
 ## Components
 
-| Component          | Description                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `ChatPage`         | Root page — owns conversation state, health check on mount, ingest and send handlers (`useCallback`)  |
-| `ChatTranscript`   | Animated message history (Framer Motion fade + slide); auto-scrolls to latest turn and supports copy-answer action |
-| `ChatComposer`     | Auto-expanding textarea; Enter to send, Shift+Enter for newline; disabled while sending               |
+| Component          | Description                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `ChatPage`         | Root page — owns conversation state, health check on mount, ingest and send handlers (`useCallback`)                            |
+| `ChatTranscript`   | Animated message history (Framer Motion fade + slide); auto-scrolls to latest turn and supports copy-answer action              |
+| `ChatComposer`     | Auto-expanding textarea; Enter to send, Shift+Enter for newline; disabled while sending                                         |
 | `CitationsPanel`   | Sidebar card listing source chunks returned by the API (`source`, `snippet`, optional line range) with selectable evidence rows |
-| `IngestPanel`      | Sidebar card with a single "Run Ingest" button; source path is server-side only                       |
-| `StatusBanner`     | Colour-coded banner (`info` / `success` / `warning` / `error`) for health, ingest, and error feedback |
-| `MarkdownContent`  | Renders assistant messages as Markdown with safe-link protocol allowlist and external-link indicator |
-| `AppErrorBoundary` | React error boundary catching unhandled render errors                                                 |
+| `IngestPanel`      | Sidebar card with a single "Run Ingest" button; source path is server-side only                                                 |
+| `StatusBanner`     | Colour-coded banner (`info` / `success` / `warning` / `error`) for health, ingest, and error feedback                           |
+| `MarkdownContent`  | Renders assistant messages as Markdown with safe-link protocol allowlist and external-link indicator                            |
+| `AppErrorBoundary` | React error boundary catching unhandled render errors                                                                           |
 
 ## Services & Types
 
-| File                    | Description                                                                                                                                                 |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File                    | Description                                                                                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback and `ApiClientError` parsing for ProblemDetails/error codes |
-| `services/utils.ts`     | Shared utility helpers                                                                                                                                      |
-| `types/chat.ts`         | `ChatMessage`, `Citation`, `ChatRequest`, `ChatResponse`, `IngestRequest`, `IngestResponse`, `HealthResponse`, `StatusMessage`                              |
-| `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                       |
+| `services/utils.ts`     | Shared utility helpers                                                                                                                                                                                                     |
+| `types/chat.ts`         | `ChatMessage`, `Citation`, `ChatRequest`, `ChatResponse`, `IngestRequest`, `IngestResponse`, `HealthResponse`, `StatusMessage`                                                                                             |
+| `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                                                                                      |
 
 UX quality-of-life features:
+
 - Retry last failed chat request and retry failed ingest attempts
 - Start a fresh conversation with `New chat`
 - Visible offline/fallback mode badge when backend reports fallback mode
@@ -77,6 +78,6 @@ PowerShell on Windows:
 | `ChatTranscript.test.tsx`   | Renders empty state, displays messages, shows correct role labels               |
 | `CitationsPanel.test.tsx`   | Renders empty state and a list of citations with source and snippet             |
 | `IngestPanel.test.tsx`      | Renders button, triggers `onIngest`, disables while busy                        |
-| `MarkdownContent.test.tsx`  | Renders Markdown and validates link/HTML safety behavior                         |
+| `MarkdownContent.test.tsx`  | Renders Markdown and validates link/HTML safety behavior                        |
 | `StatusBanner.test.tsx`     | Renders all tone variants with correct accessible roles                         |
 | `validation.test.ts`        | Validates `ChatRequestSchema` and `IngestRequestSchema` with valid/invalid data |

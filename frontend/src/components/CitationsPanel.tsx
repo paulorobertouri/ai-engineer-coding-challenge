@@ -81,7 +81,9 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
                       {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
                     </p>
                   )}
-                  <p className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}>
+                  <p
+                    className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}
+                  >
                     {citation.snippet}
                   </p>
                 </button>

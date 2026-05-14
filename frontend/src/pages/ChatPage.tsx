@@ -18,6 +18,28 @@ interface StoredChatSession {
   citations: Citation[]
 }
 
+function loadStoredChatSession(): StoredChatSession | null {
+  try {
+    const raw = sessionStorage.getItem(CHAT_SESSION_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const stored = JSON.parse(raw) as Partial<StoredChatSession>
+    return {
+      conversationId:
+        typeof stored.conversationId === 'string' && stored.conversationId.length > 0
+          ? stored.conversationId
+          : globalThis.crypto.randomUUID(),
+      messages: Array.isArray(stored.messages) ? stored.messages : [],
+      citations: Array.isArray(stored.citations) ? stored.citations : [],
+    }
+  } catch {
+    sessionStorage.removeItem(CHAT_SESSION_KEY)
+    return null
+  }
+}
+
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {
     id: globalThis.crypto.randomUUID(),
@@ -37,7 +59,10 @@ function isRequestCancelledError(error: unknown): boolean {
 }
 
 export function ChatPage() {
-  const [conversationId, setConversationId] = useState<string>(() => globalThis.crypto.randomUUID())
+  const [initialSession] = useState<StoredChatSession | null>(() => loadStoredChatSession())
+  const [conversationId, setConversationId] = useState<string>(
+    () => initialSession?.conversationId ?? globalThis.crypto.randomUUID(),
+  )
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isIngesting, setIsIngesting] = useState(false)
@@ -45,39 +70,17 @@ export function ChatPage() {
   const [lastFailedDraft, setLastFailedDraft] = useState<string | null>(null)
   const [hasIngestToRetry, setHasIngestToRetry] = useState(false)
   const [lastIngestFile, setLastIngestFile] = useState<File | undefined>(undefined)
-  const [citations, setCitations] = useState<Citation[]>([])
+  const [citations, setCitations] = useState<Citation[]>(() => initialSession?.citations ?? [])
   const [status, setStatus] = useState<StatusMessage>({
     tone: 'info',
     message: 'Checking backend health…',
   })
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => initialSession?.messages ?? [])
   const chatAbortRef = useRef<AbortController | null>(null)
   const ingestAbortRef = useRef<AbortController | null>(null)
   const statusBannerRef = useRef<HTMLElement | null>(null)
   // null = health check in progress; false = not yet ingested; true = ingested
   const [isIngested, setIsIngested] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(CHAT_SESSION_KEY)
-      if (!raw) {
-        return
-      }
-
-      const stored = JSON.parse(raw) as StoredChatSession
-      if (stored.conversationId) {
-        setConversationId(stored.conversationId)
-      }
-      if (Array.isArray(stored.messages)) {
-        setMessages(stored.messages)
-      }
-      if (Array.isArray(stored.citations)) {
-        setCitations(stored.citations)
-      }
-    } catch {
-      sessionStorage.removeItem(CHAT_SESSION_KEY)
-    }
-  }, [])
 
   useEffect(() => {
     const snapshot: StoredChatSession = {
@@ -120,7 +123,9 @@ export function ChatPage() {
         const health = await apiClient.getHealth()
 
         if (!isCancelled) {
-          const isFallbackMode = health.notes.some((note) => /fallback|no openai api key/i.test(note))
+          const isFallbackMode = health.notes.some((note) =>
+            /fallback|no openai api key/i.test(note),
+          )
           setIsOfflineMode(isFallbackMode)
           setIsIngested(health.isIngested)
           setStatus({

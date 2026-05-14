@@ -38,11 +38,7 @@ export class ApiClientError extends Error {
   public readonly status: number
   public readonly code: ApiErrorCode
 
-  constructor(
-    message: string,
-    status: number,
-    code: ApiErrorCode,
-  ) {
+  constructor(message: string, status: number, code: ApiErrorCode) {
     super(message)
     this.status = status
     this.code = code
@@ -51,7 +47,8 @@ export class ApiClientError extends Error {
 }
 
 const fallbackApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5181').replace(
-  /\/$/, '',
+  /\/$/,
+  '',
 )
 let runtimeConfigPromise: Promise<RuntimeConfig> | null = null
 
@@ -80,7 +77,10 @@ async function resolveApiBaseUrl(): Promise<string> {
   return (config.apiBaseUrl ?? fallbackApiBaseUrl).replace(/\/$/, '')
 }
 
-function buildErrorMessage(status: number, body: LegacyErrorBody | ProblemDetailsBody | null): string {
+function buildErrorMessage(
+  status: number,
+  body: LegacyErrorBody | ProblemDetailsBody | null,
+): string {
   if (!body) {
     return `Request failed with status ${status}`
   }
