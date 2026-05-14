@@ -393,7 +393,7 @@ Random chunk IDs make citations, tests, logs, and vector-store diffs harder to c
 
 ### 18. Add Prompt-Injection And Grounding Tests
 
-- [ ] Test that the assistant remains grounded in the SOP under adversarial prompts.
+- [x] Test that the assistant remains grounded in the SOP under adversarial prompts.
 
 **Why**
 
