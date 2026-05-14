@@ -41,6 +41,7 @@ public sealed class FallbackRetrievalChatService(
 
         var answer = BuildContextualAnswer(matches);
         var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
+        var confidence = ConfidenceIndicatorFactory.Create(matches, citedChunkIds);
         stopwatch.Stop();
 
         logger.LogInformation(
@@ -65,7 +66,8 @@ public sealed class FallbackRetrievalChatService(
             StructuredOutput = StructuredAnswerFactory.Create(
                 answer,
                 citedChunkIds,
-                matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null)
+                matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null),
+            Confidence = confidence
         };
     }
 

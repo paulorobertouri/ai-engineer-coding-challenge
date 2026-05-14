@@ -292,7 +292,12 @@ public sealed class OpenAIRetrievalChatService(
             StructuredOutput = StructuredAnswerFactory.Create(
                 NoRelevantContextMessage,
                 [],
-                StructuredAnswerDto.NotFoundReason)
+                StructuredAnswerDto.NotFoundReason),
+            Confidence = new ConfidenceIndicatorDto
+            {
+                Level = ConfidenceIndicatorDto.NotFound,
+                EvidenceCoverage = 0
+            }
         };
 
     private static ChatResponse BuildChatResponse(
@@ -300,8 +305,10 @@ public sealed class OpenAIRetrievalChatService(
         ChatCompletion chatCompletion,
         IEnumerable<VectorSearchMatch> matches)
     {
+        var matchList = matches.ToList();
         var assistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty;
-        var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
+        var citedChunkIds = matchList.Select(m => m.Record.Id).ToList();
+        var confidence = ConfidenceIndicatorFactory.Create(matchList, citedChunkIds);
 
         return new ChatResponse
         {
@@ -309,8 +316,9 @@ public sealed class OpenAIRetrievalChatService(
             Status = "success",
             IsPlaceholder = false,
             AssistantMessage = assistantMessage,
-            Citations = matches.Select(CitationMapper.FromMatch).ToList(),
-            StructuredOutput = StructuredAnswerFactory.Create(assistantMessage, citedChunkIds)
+            Citations = matchList.Select(CitationMapper.FromMatch).ToList(),
+            StructuredOutput = StructuredAnswerFactory.Create(assistantMessage, citedChunkIds),
+            Confidence = confidence
         };
     }
 }

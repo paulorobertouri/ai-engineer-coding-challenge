@@ -42,12 +42,20 @@ export interface ChatResponse {
   isPlaceholder: boolean
   toolCalls: string[]
   citations: Citation[]
+  confidence?: ConfidenceIndicator
   structuredOutput?: {
     answerText: string
     citedChunkIds: string[]
     refusalReason?: string
     followUpSuggestions: string[]
   }
+}
+
+export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'not_found'
+
+export interface ConfidenceIndicator {
+  level: ConfidenceLevel
+  evidenceCoverage: number
 }
 
 export interface IngestRequest {

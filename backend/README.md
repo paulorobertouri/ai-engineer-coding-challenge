@@ -116,6 +116,8 @@ Structured chat output:
 - `ChatResponse.structuredOutput.citedChunkIds` explicitly lists cited chunk IDs
 - `ChatResponse.structuredOutput.refusalReason` is set to `not_found` when no relevant SOP context exists
 - `ChatResponse.structuredOutput.followUpSuggestions` is reserved for optional follow-up prompts
+- `ChatResponse.confidence.level` surfaces `high`, `medium`, `low`, or `not_found`
+- `ChatResponse.confidence.evidenceCoverage` reports the cited-chunk coverage ratio from `0` to `1`
 ## Rate Limiting
 
 Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in rate limiter:

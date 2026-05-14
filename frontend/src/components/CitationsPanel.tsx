@@ -1,13 +1,25 @@
 import { useState } from 'react'
 import { BookOpen, FileText, ChevronDown, ChevronUp } from 'lucide-react'
-import type { Citation } from '../types/chat'
+import type { Citation, ConfidenceIndicator } from '../types/chat'
 
 interface CitationsPanelProps {
   citations: Citation[]
+  confidence?: ConfidenceIndicator | null
   hasMessages?: boolean
 }
 
-export function CitationsPanel({ citations, hasMessages = false }: CitationsPanelProps) {
+const confidenceLabels: Record<NonNullable<ConfidenceIndicator>['level'], string> = {
+  high: 'High confidence',
+  medium: 'Medium confidence',
+  low: 'Low confidence',
+  not_found: 'No evidence found',
+}
+
+export function CitationsPanel({
+  citations,
+  confidence,
+  hasMessages = false,
+}: CitationsPanelProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
@@ -39,12 +51,22 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
           <BookOpen size={15} color="#1d4ed8" />
         </div>
         <h2 id="citations-heading">Sources</h2>
+        {confidence && (
+          <span className={`confidence-badge confidence-badge--${confidence.level}`}>
+            {confidenceLabels[confidence.level]}
+          </span>
+        )}
         {citations.length > 0 && (
           <span className="citation-badge" aria-label={`${citations.length} citations`}>
             {citations.length}
           </span>
         )}
       </div>
+      {confidence && (
+        <p className="confidence-coverage">
+          Evidence coverage: {Math.round(confidence.evidenceCoverage * 100)}%
+        </p>
+      )}
       {citations.length === 0 ? (
         <p className="empty-state">{emptyMessage}</p>
       ) : (

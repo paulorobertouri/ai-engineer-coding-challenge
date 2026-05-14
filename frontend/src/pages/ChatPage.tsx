@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiClient } from '../services/apiClient'
-import type { ChatMessage, Citation, IngestResponse, StatusMessage } from '../types/chat'
+import type {
+  ChatMessage,
+  Citation,
+  ConfidenceIndicator,
+  IngestResponse,
+  StatusMessage,
+} from '../types/chat'
 import { AppHeader } from '../components/AppHeader'
 import { ChatComposer } from '../components/ChatComposer'
 import { ChatTranscript } from '../components/ChatTranscript'
@@ -16,6 +22,7 @@ interface StoredChatSession {
   conversationId: string
   messages: ChatMessage[]
   citations: Citation[]
+  confidence: ConfidenceIndicator | null
 }
 
 function loadStoredChatSession(): StoredChatSession | null {
@@ -33,6 +40,10 @@ function loadStoredChatSession(): StoredChatSession | null {
           : globalThis.crypto.randomUUID(),
       messages: Array.isArray(stored.messages) ? stored.messages : [],
       citations: Array.isArray(stored.citations) ? stored.citations : [],
+      confidence:
+        typeof stored.confidence === 'object' && stored.confidence !== null
+          ? (stored.confidence as ConfidenceIndicator)
+          : null,
     }
   } catch {
     sessionStorage.removeItem(CHAT_SESSION_KEY)
@@ -101,6 +112,9 @@ export function ChatPage() {
   const [hasIngestToRetry, setHasIngestToRetry] = useState(false)
   const [lastIngestFile, setLastIngestFile] = useState<File | undefined>(undefined)
   const [citations, setCitations] = useState<Citation[]>(() => initialSession?.citations ?? [])
+  const [confidence, setConfidence] = useState<ConfidenceIndicator | null>(
+    () => initialSession?.confidence ?? null,
+  )
   const [status, setStatus] = useState<StatusMessage>({
     tone: 'info',
     message: 'Checking backend health…',
@@ -117,9 +131,10 @@ export function ChatPage() {
       conversationId,
       messages,
       citations,
+      confidence,
     }
     sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(snapshot))
-  }, [conversationId, messages, citations])
+  }, [conversationId, messages, citations, confidence])
 
   useEffect(() => {
     return () => {
@@ -300,6 +315,7 @@ export function ChatPage() {
         )
         setLastFailedDraft(null)
         setCitations(response.citations)
+        setConfidence(response.confidence ?? null)
         setStatus({
           tone: response.isPlaceholder ? 'warning' : 'success',
           message: `Chat response received with status '${response.status}'.`,
@@ -362,6 +378,7 @@ export function ChatPage() {
     setConversationId(globalThis.crypto.randomUUID())
     setMessages([])
     setCitations([])
+    setConfidence(null)
     setDraft('')
     setLastFailedDraft(null)
     setStatus({ tone: 'success', message: 'Started a new conversation.' })
@@ -412,7 +429,11 @@ export function ChatPage() {
       </section>
 
       <aside className="sidebar">
-        <CitationsPanel citations={citations} hasMessages={messages.length > 0} />
+        <CitationsPanel
+          citations={citations}
+          confidence={confidence}
+          hasMessages={messages.length > 0}
+        />
       </aside>
     </main>
   )

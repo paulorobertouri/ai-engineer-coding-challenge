@@ -15,4 +15,6 @@ public sealed class ChatResponse
     public List<CitationDto> Citations { get; init; } = [];
 
     public StructuredAnswerDto StructuredOutput { get; init; } = new();
+
+    public ConfidenceIndicatorDto Confidence { get; init; } = new();
 }

@@ -742,7 +742,7 @@ Structured responses make it easier to connect answers to citations, confidence 
 
 ### 34. Add Confidence And Evidence Coverage Indicators
 
-- [ ] Surface confidence based on retrieval quality and cited evidence coverage.
+- [x] Surface confidence based on retrieval quality and cited evidence coverage.
 
 **Why**
 

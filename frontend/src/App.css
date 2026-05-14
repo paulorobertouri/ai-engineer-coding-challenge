@@ -707,6 +707,44 @@
 .citations-panel {
 }
 
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-left: auto;
+}
+
+.confidence-badge--high {
+  color: #166534;
+  background: rgba(187, 247, 208, 0.72);
+}
+
+.confidence-badge--medium {
+  color: #92400e;
+  background: rgba(254, 240, 138, 0.7);
+}
+
+.confidence-badge--low {
+  color: #991b1b;
+  background: rgba(254, 202, 202, 0.72);
+}
+
+.confidence-badge--not_found {
+  color: #334155;
+  background: rgba(226, 232, 240, 0.85);
+}
+
+.confidence-coverage {
+  margin: 0 0 0.75rem;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
 .citations-list {
   list-style: none;
   margin: 0;

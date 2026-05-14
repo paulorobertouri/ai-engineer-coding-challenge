@@ -131,4 +131,29 @@ describe('CitationsPanel', () => {
     render(<CitationsPanel citations={[]} hasMessages={false} />)
     expect(screen.getByText(/citations will appear/i)).toBeInTheDocument()
   })
+
+  it('renders confidence badge and evidence coverage when provided', () => {
+    render(
+      <CitationsPanel
+        citations={[]}
+        confidence={{ level: 'medium', evidenceCoverage: 0.5 }}
+        hasMessages={true}
+      />,
+    )
+
+    expect(screen.getByText('Medium confidence')).toBeInTheDocument()
+    expect(screen.getByText(/Evidence coverage: 50%/)).toBeInTheDocument()
+  })
+
+  it('renders not found confidence label', () => {
+    render(
+      <CitationsPanel
+        citations={[]}
+        confidence={{ level: 'not_found', evidenceCoverage: 0 }}
+        hasMessages={true}
+      />,
+    )
+
+    expect(screen.getByText('No evidence found')).toBeInTheDocument()
+  })
 })
