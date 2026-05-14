@@ -36,10 +36,16 @@ public sealed class IngestController(
         return await ExecuteExclusiveIngestAsync(async () =>
         {
             var existingRecords = await vectorStoreService.LoadAsync(cancellationToken);
-            if (existingRecords.Count > 0)
+            var forceReingest = request?.ForceReingest ?? false;
+            if (existingRecords.Count > 0 && !forceReingest)
             {
                 logger.LogWarning("[INGEST] Rejected: vector store already contains {Count} records.", existingRecords.Count);
                 return Conflict(new { error = "The knowledge base has already been ingested. Re-ingestion is not permitted." });
+            }
+
+            if (existingRecords.Count > 0 && forceReingest)
+            {
+                logger.LogInformation("[INGEST] Force reingest requested. Existing records: {Count}", existingRecords.Count);
             }
 
             var configuredSourcePath = challengeOptions.Value.SourceDocumentPath;
@@ -66,7 +72,7 @@ public sealed class IngestController(
             var sourceText = await System.IO.File.ReadAllTextAsync(sourcePath, cancellationToken);
             var sourceName = System.IO.Path.GetFileName(sourcePath);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourcePath, cancellationToken);
+            return await ProcessIngestAsync(sourceText, sourceName, sourcePath, existingRecords, cancellationToken);
         }, cancellationToken);
     }
 
@@ -104,7 +110,7 @@ public sealed class IngestController(
 
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
-            return await ProcessIngestAsync(sourceText, sourceName, sourceName, cancellationToken);
+            return await ProcessIngestAsync(sourceText, sourceName, sourceName, [], cancellationToken);
         }, cancellationToken);
     }
 
@@ -155,14 +161,36 @@ public sealed class IngestController(
     }
 
     private async Task<ActionResult<IngestResponse>> ProcessIngestAsync(
-        string sourceText, string sourceName, string displayPath, CancellationToken cancellationToken)
+        string sourceText,
+        string sourceName,
+        string displayPath,
+        IReadOnlyList<VectorRecord> existingRecords,
+        CancellationToken cancellationToken)
     {
         var chunks = await chunkingService.ChunkAsync(sourceText, sourceName, cancellationToken);
         var records = new List<VectorRecord>();
+        var existingByHash = existingRecords
+            .Select(record => new { Record = record, Hash = TryGetContentHash(record) })
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Hash))
+            .GroupBy(entry => entry.Hash!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().Record, StringComparer.Ordinal);
+        var reusedEmbeddings = 0;
 
         foreach (var chunk in chunks)
         {
-            var embedding = await embeddingService.EmbedAsync(chunk.Content, cancellationToken);
+            float[] embedding;
+            if (!string.IsNullOrWhiteSpace(chunk.ContentHash)
+                && existingByHash.TryGetValue(chunk.ContentHash, out var cachedRecord)
+                && cachedRecord.Embedding.Length > 0)
+            {
+                embedding = cachedRecord.Embedding;
+                reusedEmbeddings++;
+            }
+            else
+            {
+                embedding = await embeddingService.EmbedAsync(chunk.Content, cancellationToken);
+            }
+
             var metadata = new Dictionary<string, string>
             {
                 ["Index"] = chunk.Index.ToString()
@@ -191,6 +219,11 @@ public sealed class IngestController(
         }
 
         await vectorStoreService.SaveAsync(records, cancellationToken);
+        logger.LogInformation(
+            "[INGEST] Embedding reuse completed. Reused={Reused}, Recomputed={Recomputed}, Total={Total}",
+            reusedEmbeddings,
+            records.Count - reusedEmbeddings,
+            records.Count);
 
         var vectorStorePath = challengeOptions.Value.VectorStorePath;
 
@@ -204,5 +237,15 @@ public sealed class IngestController(
             VectorStorePath = vectorStorePath,
             IsPlaceholder = false
         });
+    }
+
+    private static string? TryGetContentHash(VectorRecord record)
+    {
+        if (!record.Metadata.TryGetValue("ContentHash", out var contentHash))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(contentHash) ? null : contentHash;
     }
 }

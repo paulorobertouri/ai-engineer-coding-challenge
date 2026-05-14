@@ -435,7 +435,7 @@ Unit tests prove code behavior, but RAG quality needs scenario-level checks. A f
 
 ### 20. Add Embedding Cache For Ingestion
 
-- [ ] Avoid recomputing embeddings for unchanged chunks.
+- [x] Avoid recomputing embeddings for unchanged chunks.
 
 **Why**
 

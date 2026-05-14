@@ -8,7 +8,7 @@
 |---|---|---|
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
 | `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
-| `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
+| `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document (`forceReingest=true` enables reingest with embedding reuse by `ContentHash`) |
 | `DELETE` | `/api/v1/ingest/reset?confirm=RESET` | Development-only explicit reset of the vector store to allow reingestion |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 
@@ -47,6 +47,7 @@ Tool-call observability:
 - Format: JSON array of `VectorRecord` objects (`id`, `source`, `chunkText`, `embedding`, `metadata`)
 - Chunk IDs are deterministic (`<source>-<section>-<index>-<hash>`) to keep citations/logs stable across unchanged reingests
 - Metadata includes stable `ContentHash` per chunk for change detection
+- During forced reingest, unchanged `ContentHash` values reuse existing embeddings to avoid recomputation
 - Search: cosine similarity computed in-process over all records (suitable for POC scale)
 
 To reset persisted Docker ingestion data intentionally:

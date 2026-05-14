@@ -44,7 +44,7 @@ public class IngestControllerTests
         _mockChunking
             .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new TextChunk { Id = "c1", Source = "SOP.md", Index = 0, Content = "## Section\nContent" }
+                new TextChunk { Id = "c1", Source = "SOP.md", Index = 0, Content = "## Section\nContent", ContentHash = "hash-1" }
             ]);
 
         _mockEmbedding
@@ -452,6 +452,73 @@ public class IngestControllerTests
             Assert.True(result.Result is OkObjectResult || result.Value is not null);
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.Is<IEnumerable<VectorRecord>>(records => !records.Any()), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_ForceReingest_ReusesEmbeddingForUnchangedChunkHash()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "old-1",
+                    Source = "SOP.md",
+                    ChunkText = "## Section\nContent",
+                    Embedding = [0.25f, 0.5f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["ContentHash"] = "hash-1"
+                    }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockEmbedding.Verify(
+                e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_ForceReingest_ReembedsChangedChunkHash()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "old-1",
+                    Source = "SOP.md",
+                    ChunkText = "## Section\nOld Content",
+                    Embedding = [0.25f, 0.5f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["ContentHash"] = "hash-old"
+                    }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockEmbedding.Verify(
+                e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
         finally { Cleanup(); }
