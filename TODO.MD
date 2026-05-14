@@ -306,7 +306,7 @@ The one-time ingest rule is safe for a challenge, but real development and opera
 
 ### 14. Support Runtime Frontend API Configuration
 
-- [ ] Avoid baking the backend API URL into the frontend Docker image.
+- [x] Avoid baking the backend API URL into the frontend Docker image.
 
 **Why**
 

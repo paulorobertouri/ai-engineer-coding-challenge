@@ -21,7 +21,7 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 
 | File                    | Description                                                                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from `VITE_API_BASE_URL` (default `http://localhost:5181`) |
+| `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback |
 | `services/utils.ts`     | Shared utility helpers                                                                                                                                      |
 | `types/chat.ts`         | `ChatMessage`, `Citation`, `ChatRequest`, `ChatResponse`, `IngestRequest`, `IngestResponse`, `HealthResponse`, `StatusMessage`                              |
 | `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                       |
@@ -33,7 +33,9 @@ cd frontend
 npm run dev
 ```
 
-The app calls `http://localhost:5181` by default. Override via `VITE_API_BASE_URL` in `frontend/.env` (created automatically by `scripts/setup.sh`).
+The app calls `http://localhost:5181` by default. In local development, override via `VITE_API_BASE_URL` in `frontend/.env` (created automatically by `scripts/setup.sh`).
+
+In Docker/nginx deployments, the image now reads backend URL at container startup from `BACKEND_API_URL` and writes `/config.json`. This allows one built image to run against different backend environments.
 
 ## Available Scripts
 

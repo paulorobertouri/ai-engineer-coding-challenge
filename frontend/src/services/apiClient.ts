@@ -6,9 +6,42 @@ import type {
   IngestResponse,
 } from '../types/chat'
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5181').replace(/\/$/, '')
+interface RuntimeConfig {
+  apiBaseUrl?: string
+}
+
+const fallbackApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5181').replace(
+  /\/$/, '',
+)
+let runtimeConfigPromise: Promise<RuntimeConfig> | null = null
+
+async function loadRuntimeConfig(): Promise<RuntimeConfig> {
+  if (import.meta.env.MODE === 'test') {
+    return {}
+  }
+
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = fetch('/config.json', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) {
+          return {}
+        }
+
+        return (await response.json()) as RuntimeConfig
+      })
+      .catch(() => ({}))
+  }
+
+  return runtimeConfigPromise
+}
+
+async function resolveApiBaseUrl(): Promise<string> {
+  const config = await loadRuntimeConfig()
+  return (config.apiBaseUrl ?? fallbackApiBaseUrl).replace(/\/$/, '')
+}
 
 async function request<TResponse>(path: string, init?: RequestInit): Promise<TResponse> {
+  const apiBaseUrl = await resolveApiBaseUrl()
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -37,6 +70,7 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
 
 // Separate helper for multipart/form-data — lets the browser set Content-Type with boundary.
 async function requestFormData<TResponse>(path: string, body: FormData): Promise<TResponse> {
+  const apiBaseUrl = await resolveApiBaseUrl()
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     body,
