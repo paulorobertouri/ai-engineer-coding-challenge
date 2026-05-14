@@ -42,6 +42,12 @@ export interface ChatResponse {
   isPlaceholder: boolean
   toolCalls: string[]
   citations: Citation[]
+  structuredOutput?: {
+    answerText: string
+    citedChunkIds: string[]
+    refusalReason?: string
+    followUpSuggestions: string[]
+  }
 }
 
 export interface IngestRequest {

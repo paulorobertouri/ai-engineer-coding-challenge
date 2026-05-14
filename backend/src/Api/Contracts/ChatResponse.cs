@@ -13,4 +13,6 @@ public sealed class ChatResponse
     public List<string> ToolCalls { get; init; } = [];
 
     public List<CitationDto> Citations { get; init; } = [];
+
+    public StructuredAnswerDto StructuredOutput { get; init; } = new();
 }

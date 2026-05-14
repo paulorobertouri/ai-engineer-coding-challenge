@@ -110,13 +110,12 @@ Streaming behavior:
 - Fallback/no-key mode also supports streaming because the stream endpoint wraps the same retrieval service contract
 
 Citations returned by `/api/v1/chat` now include richer metadata for traceability:
-- `chunkId` (stable ID for the cited chunk in the vector store)
-- `knowledgeBaseId` (scope the cited chunk belongs to)
-- `documentVersion` / `sourceChecksum` / `ingestedAtUtc` (document version metadata)
-- `score` (retrieval similarity score)
-- `sectionTitle` (derived from chunk heading when available)
-- `startLine` / `endLine` (line range when available from ingestion metadata)
 
+Structured chat output:
+- `ChatResponse.structuredOutput.answerText` mirrors the returned answer text in validated form
+- `ChatResponse.structuredOutput.citedChunkIds` explicitly lists cited chunk IDs
+- `ChatResponse.structuredOutput.refusalReason` is set to `not_found` when no relevant SOP context exists
+- `ChatResponse.structuredOutput.followUpSuggestions` is reserved for optional follow-up prompts
 ## Rate Limiting
 
 Fixed-window rate limiting is applied per client IP via ASP.NET Core's built-in rate limiter:

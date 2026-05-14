@@ -288,16 +288,29 @@ public sealed class OpenAIRetrievalChatService(
             IsPlaceholder = false,
             AssistantMessage = NoRelevantContextMessage,
             ToolCalls = [],
-            Citations = []
+            Citations = [],
+            StructuredOutput = StructuredAnswerFactory.Create(
+                NoRelevantContextMessage,
+                [],
+                StructuredAnswerDto.NotFoundReason)
         };
 
-    private static ChatResponse BuildChatResponse(ChatRequest request, ChatCompletion chatCompletion, IEnumerable<VectorSearchMatch> matches) =>
-        new()
+    private static ChatResponse BuildChatResponse(
+        ChatRequest request,
+        ChatCompletion chatCompletion,
+        IEnumerable<VectorSearchMatch> matches)
+    {
+        var assistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty;
+        var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
+
+        return new ChatResponse
         {
             ConversationId = request.ConversationId,
             Status = "success",
             IsPlaceholder = false,
-            AssistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty,
-            Citations = matches.Select(CitationMapper.FromMatch).ToList()
+            AssistantMessage = assistantMessage,
+            Citations = matches.Select(CitationMapper.FromMatch).ToList(),
+            StructuredOutput = StructuredAnswerFactory.Create(assistantMessage, citedChunkIds)
         };
+    }
 }

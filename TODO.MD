@@ -721,7 +721,7 @@ Streaming makes chat feel faster and gives users feedback during slower model ca
 
 ### 33. Add Structured AI Output
 
-- [ ] Ask the model for structured answer data instead of relying only on free-form text.
+- [x] Ask the model for structured answer data instead of relying only on free-form text.
 
 **Why**
 

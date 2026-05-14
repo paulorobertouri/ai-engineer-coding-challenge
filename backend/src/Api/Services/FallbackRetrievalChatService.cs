@@ -40,6 +40,7 @@ public sealed class FallbackRetrievalChatService(
         }
 
         var answer = BuildContextualAnswer(matches);
+        var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
         stopwatch.Stop();
 
         logger.LogInformation(
@@ -60,7 +61,11 @@ public sealed class FallbackRetrievalChatService(
             IsPlaceholder = true,
             AssistantMessage = answer,
             ToolCalls = [],
-            Citations = matches.Select(CitationMapper.FromMatch).ToList()
+            Citations = matches.Select(CitationMapper.FromMatch).ToList(),
+            StructuredOutput = StructuredAnswerFactory.Create(
+                answer,
+                citedChunkIds,
+                matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null)
         };
     }
 

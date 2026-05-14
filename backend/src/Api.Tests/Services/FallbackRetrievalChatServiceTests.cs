@@ -54,6 +54,8 @@ public class FallbackRetrievalChatServiceTests
         Assert.Contains("could not find enough relevant information", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("success", response.Status);
         Assert.Empty(response.Citations);
+        Assert.Equal("not_found", response.StructuredOutput.RefusalReason);
+        Assert.Equal(response.AssistantMessage, response.StructuredOutput.AnswerText);
     }
 
     [Fact]
@@ -125,6 +127,8 @@ public class FallbackRetrievalChatServiceTests
         Assert.Equal(12, response.Citations[0].StartLine);
         Assert.Equal(18, response.Citations[0].EndLine);
         Assert.Equal("default", response.Citations[0].KnowledgeBaseId);
+        Assert.Equal(response.AssistantMessage, response.StructuredOutput.AnswerText);
+        Assert.Contains("1", response.StructuredOutput.CitedChunkIds);
         Assert.Equal("sha256:123456789abc", response.Citations[0].DocumentVersion);
         Assert.Equal("123456789abcdef0", response.Citations[0].SourceChecksum);
         Assert.Equal(DateTimeOffset.Parse("2026-05-14T10:00:00.0000000+00:00"), response.Citations[0].IngestedAtUtc);
