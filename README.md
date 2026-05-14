@@ -79,6 +79,14 @@ The GitHub Actions workflow includes these checks on `push` and `pull_request` t
 
 Automated dependency update PRs are configured via `.github/dependabot.yml` for GitHub Actions, NuGet, and npm workspaces.
 
+## Container Runtime Notes
+
+- `docker compose ps` reports service health via explicit backend/frontend health checks.
+- Both containers run as non-root users (`uid 10001`) and frontend nginx serves on port `8080` inside the container (`5173:8080` mapping externally).
+- Frontend nginx uses SPA fallback (`try_files ... /index.html`), gzip compression, static asset cache headers, and security headers.
+- Backend file logs in containers are written to `/app/Data/Logs` (backed by the `backend_data` volume) so logs are not lost with ephemeral container filesystems.
+- Frontend access/error logs are written to stdout/stderr for container-native log collection.
+
 ## Implemented Features
 
 ### 1. Document Ingestion

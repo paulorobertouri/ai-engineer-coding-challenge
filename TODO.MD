@@ -561,7 +561,7 @@ The current CI covers backend build/test and frontend lint/test. Additional gate
 
 ### 26. Add Container Health Checks And Hardening
 
-- [ ] Improve Docker runtime behavior and security defaults.
+- [x] Improve Docker runtime behavior and security defaults.
 
 **Why**
 

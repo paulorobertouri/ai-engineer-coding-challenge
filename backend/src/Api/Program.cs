@@ -19,7 +19,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((ctx, services, config) =>
 {
-    var logsPath = Path.Combine(ctx.HostingEnvironment.ContentRootPath, "Logs", "api-.log");
+    var isRunningInContainer = string.Equals(
+        Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
+
+    var logsPath = isRunningInContainer
+        ? "/app/Data/Logs/api-.log"
+        : Path.Combine(ctx.HostingEnvironment.ContentRootPath, "Logs", "api-.log");
+
     config
         .ReadFrom.Configuration(ctx.Configuration)
         .ReadFrom.Services(services)
