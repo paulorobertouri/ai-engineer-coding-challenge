@@ -1,15 +1,33 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ChatTranscript } from './ChatTranscript'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ChatMessage } from '../types/chat'
 
 describe('ChatTranscript', () => {
   beforeEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    })
+
     Object.assign(globalThis.navigator, {
       clipboard: {
         writeText: vi.fn().mockResolvedValue(undefined),
       },
     })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   const mockMessages: ChatMessage[] = [
@@ -52,5 +70,26 @@ describe('ChatTranscript', () => {
     return waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Hello user, how can I help?')
     })
+  })
+
+  it('uses non-animated scrolling when reduced motion is preferred', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+      () => {},
+    )
+
+    render(<ChatTranscript messages={mockMessages} />)
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'end' })
   })
 })

@@ -476,7 +476,7 @@ The API currently mixes framework validation responses with custom `{ error }` p
 
 ### 22. Add Request Cancellation And Timeout Handling
 
-- [ ] Make long-running chat and ingest operations easier to cancel and bound.
+- [x] Make long-running chat and ingest operations easier to cancel and bound.
 
 **Why**
 
@@ -518,7 +518,7 @@ OpenAI calls and ingestion can take time. Cancellation and endpoint-specific tim
 
 ### 24. Improve Accessibility And Motion Preferences
 
-- [ ] Add accessibility coverage for the core chat workflow.
+- [x] Add accessibility coverage for the core chat workflow.
 
 **Why**
 

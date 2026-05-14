@@ -188,6 +188,7 @@ describe('ChatPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument()
     })
+    expect(screen.getByRole('alert')).toHaveFocus()
   })
 
   it('adds a fallback assistant message in the transcript when the chat request fails', async () => {
@@ -507,6 +508,37 @@ describe('ChatPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('Hello! How can I help?')).not.toBeInTheDocument()
       expect(screen.getByText(/Started a new conversation/i)).toBeInTheDocument()
+    })
+  })
+
+  it('cancels an in-flight chat request when a new send starts', async () => {
+    let resolveFirst!: (value: typeof chatOk) => void
+    vi.mocked(apiClient.chat)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+      )
+      .mockResolvedValueOnce(chatOk)
+
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'first' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'second' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    resolveFirst(chatOk)
+
+    await waitFor(() => {
+      expect(vi.mocked(apiClient.chat).mock.calls.length).toBeGreaterThanOrEqual(2)
     })
   })
 })

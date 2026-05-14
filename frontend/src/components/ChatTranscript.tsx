@@ -21,6 +21,10 @@ export function ChatTranscript({
 }: ChatTranscriptProps) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const shouldReduceMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   async function copyAssistantMessage(messageId: string, content: string) {
     try {
@@ -35,8 +39,11 @@ export function ChatTranscript({
   }
 
   useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages, isSending])
+    endOfMessagesRef.current?.scrollIntoView({
+      behavior: shouldReduceMotion ? 'auto' : 'smooth',
+      block: 'end',
+    })
+  }, [messages, isSending, shouldReduceMotion])
 
   return (
     <section
@@ -57,7 +64,7 @@ export function ChatTranscript({
         {messages.map((message) => (
           <motion.article
             key={message.id}
-            initial={{ opacity: 0, y: 10 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             data-role={message.role}
             className={cn(
@@ -115,7 +122,7 @@ export function ChatTranscript({
 
       {isSending && (
         <motion.div
-          initial={{ opacity: 0, y: 6 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
           className="message-card message-card--assistant mr-auto"

@@ -1,4 +1,5 @@
 import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react'
+import { forwardRef } from 'react'
 import type { StatusMessage } from '../types/chat'
 
 const toneIcon: Record<StatusMessage['tone'], React.ReactNode> = {
@@ -13,9 +14,21 @@ interface StatusBannerProps {
   onDismiss?: () => void
 }
 
-export function StatusBanner({ status, onDismiss }: StatusBannerProps) {
+export const StatusBanner = forwardRef<HTMLElement, StatusBannerProps>(function StatusBanner(
+  { status, onDismiss },
+  ref,
+) {
+  const role = status.tone === 'error' ? 'alert' : 'status'
+
   return (
-    <section className="status-banner" data-tone={status.tone} aria-live="polite">
+    <section
+      ref={ref}
+      className="status-banner"
+      data-tone={status.tone}
+      aria-live={status.tone === 'error' ? 'assertive' : 'polite'}
+      role={role}
+      tabIndex={-1}
+    >
       {toneIcon[status.tone]}
       <span data-tone={status.tone}>{status.message}</span>
       {onDismiss && (
@@ -30,4 +43,4 @@ export function StatusBanner({ status, onDismiss }: StatusBannerProps) {
       )}
     </section>
   )
-}
+})

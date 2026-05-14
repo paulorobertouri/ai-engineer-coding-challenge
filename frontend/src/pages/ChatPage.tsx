@@ -97,6 +97,12 @@ export function ChatPage() {
 
   // Auto-dismiss success/info banners after 4 s
   useEffect(() => {
+    if (status.tone === 'error') {
+      statusBannerRef.current?.focus()
+    }
+  }, [status.tone, status.message])
+
+  useEffect(() => {
     if (status.tone === 'success' || status.tone === 'info') {
       const timer = setTimeout(
         () => setStatus((s) => (s === status ? { ...s, tone: 'info', message: '' } : s)),
@@ -300,6 +306,7 @@ export function ChatPage() {
   }, [handleIngest, lastIngestFile])
 
   const handleNewChat = useCallback(() => {
+    chatAbortRef.current?.abort()
     setConversationId(globalThis.crypto.randomUUID())
     setMessages([])
     setCitations([])
@@ -316,7 +323,9 @@ export function ChatPage() {
       <main className="app-shell app-shell--setup">
         <div className="setup-layout">
           <AppHeader badge={badge} badgeClassName={badgeClassName} />
-          {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
+          {status.message && (
+            <StatusBanner ref={statusBannerRef} status={status} onDismiss={handleDismissStatus} />
+          )}
           <IngestPanel onIngest={handleIngest} isBusy={isIngesting || isIngested === null} />
           {hasIngestToRetry && !isIngesting && (
             <button type="button" className="page-action-btn" onClick={handleRetryIngest}>
@@ -332,7 +341,9 @@ export function ChatPage() {
     <main className="app-shell">
       <section className="chat-layout">
         <AppHeader badge={badge} badgeClassName={badgeClassName} onNewChat={handleNewChat} />
-        {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
+        {status.message && (
+          <StatusBanner ref={statusBannerRef} status={status} onDismiss={handleDismissStatus} />
+        )}
         <ChatTranscript
           messages={messages}
           isSending={isSending}

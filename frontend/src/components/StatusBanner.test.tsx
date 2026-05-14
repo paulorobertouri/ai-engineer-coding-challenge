@@ -15,4 +15,10 @@ describe('StatusBanner', () => {
     const element = screen.getByText('Error message')
     expect(element).toHaveAttribute('data-tone', 'error')
   })
+
+  it('announces error statuses as alerts', () => {
+    const status = { tone: 'error' as const, message: 'Error message' }
+    render(<StatusBanner status={status} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Error message')
+  })
 })
