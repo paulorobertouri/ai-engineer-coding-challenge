@@ -584,7 +584,7 @@ The compose stack is convenient for local development, but containers should rep
 
 ### 27. Add Documentation For Contributors And Testing
 
-- [ ] Document common development workflows outside the README quick start.
+- [x] Document common development workflows outside the README quick start.
 
 **Why**
 

@@ -67,6 +67,13 @@ Frontend API base URL resolution order:
 | `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | `.\scripts\docker.ps1 <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
 | `./scripts/e2e.sh [test\|evidence]` | `.\scripts\e2e.ps1 [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
 
+## Documentation
+
+- Contributor guide: `CONTRIBUTING.md`
+- Testing guide: `docs/testing.md`
+- Request flow diagrams: `docs/architecture-flows.md`
+- Reviewer tradeoffs and future work: `docs/reviewer-notes.md`
+
 ## CI Quality Gates
 
 The GitHub Actions workflow includes these checks on `push` and `pull_request` to `main`:
