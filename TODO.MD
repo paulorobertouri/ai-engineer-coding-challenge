@@ -679,7 +679,7 @@ Operational procedures change. Users and auditors need to know which version of 
 
 ### 31. Support Incremental Updates And Deletes
 
-- [ ] Update or remove changed document chunks without rebuilding the entire store.
+- [x] Update or remove changed document chunks without rebuilding the entire store.
 
 **Why**
 

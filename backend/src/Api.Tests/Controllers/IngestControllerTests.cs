@@ -557,6 +557,43 @@ public class IngestControllerTests
     }
 
     [Fact]
+    public async Task Post_ForceReingest_PreservesUnchangedChunkRecord()
+    {
+        var controller = BuildController();
+        var unchangedRecord = new VectorRecord
+        {
+            Id = "c1",
+            Source = "SOP.md",
+            ChunkText = "## Section\nContent",
+            Embedding = [0.25f, 0.5f],
+            Metadata = new Dictionary<string, string>
+            {
+                ["ContentHash"] = "hash-1",
+                ["DocumentVersion"] = "sha256:oldversion",
+                ["SourceChecksum"] = "checksum-old"
+            }
+        };
+
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([unchangedRecord]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockEmbedding.Verify(
+                e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _mockVectorStore.Verify(v => v.SaveAsync(
+                It.Is<IEnumerable<VectorRecord>>(records => ReferenceEquals(records.Single(), unchangedRecord)),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
     public async Task Post_ForceReingest_ReplacesOnlyTargetKnowledgeBase()
     {
         var controller = BuildController();
@@ -631,6 +668,44 @@ public class IngestControllerTests
             _mockEmbedding.Verify(
                 e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_ForceReingest_RemovesDeletedChunksFromSavedRecords()
+    {
+        var controller = BuildController();
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "c1",
+                    Source = "SOP.md",
+                    ChunkText = "## Section\nContent",
+                    Embedding = [0.25f, 0.5f],
+                    Metadata = new Dictionary<string, string> { ["ContentHash"] = "hash-1" }
+                },
+                new VectorRecord
+                {
+                    Id = "deleted-chunk",
+                    Source = "SOP.md",
+                    ChunkText = "## Removed\nGone",
+                    Embedding = [0.75f, 0.5f],
+                    Metadata = new Dictionary<string, string> { ["ContentHash"] = "hash-deleted" }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true }, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+
+            _mockVectorStore.Verify(v => v.SaveAsync(
+                It.Is<IEnumerable<VectorRecord>>(records =>
+                    records.Any(r => r.Id == "c1") && records.All(r => r.Id != "deleted-chunk")),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
         finally { Cleanup(); }
     }

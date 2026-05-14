@@ -239,15 +239,31 @@ public sealed class IngestController(
         var ingestedAtUtc = DateTimeOffset.UtcNow;
         var chunks = await chunkingService.ChunkAsync(sourceText, sourceName, cancellationToken);
         var records = new List<VectorRecord>();
+        var existingById = existingRecords.ToDictionary(record => record.Id, StringComparer.Ordinal);
         var existingByHash = existingRecords
             .Select(record => new { Record = record, Hash = TryGetContentHash(record) })
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Hash))
             .GroupBy(entry => entry.Hash!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Record, StringComparer.Ordinal);
         var reusedEmbeddings = 0;
+        var unchangedRecords = 0;
+        var updatedRecords = 0;
+        var newRecords = 0;
+        var deletedRecords = existingRecords
+            .Select(record => record.Id)
+            .Except(chunks.Select(chunk => chunk.Id), StringComparer.Ordinal)
+            .Count();
 
         foreach (var chunk in chunks)
         {
+            if (existingById.TryGetValue(chunk.Id, out var existingRecord)
+                && ChunkMatches(existingRecord, chunk))
+            {
+                records.Add(existingRecord);
+                unchangedRecords++;
+                continue;
+            }
+
             float[] embedding;
             if (!string.IsNullOrWhiteSpace(chunk.ContentHash)
                 && existingByHash.TryGetValue(chunk.ContentHash, out var cachedRecord)
@@ -259,6 +275,15 @@ public sealed class IngestController(
             else
             {
                 embedding = await embeddingService.EmbedAsync(chunk.Content, cancellationToken);
+            }
+
+            if (existingById.ContainsKey(chunk.Id))
+            {
+                updatedRecords++;
+            }
+            else
+            {
+                newRecords++;
             }
 
             var metadata = new Dictionary<string, string>
@@ -301,10 +326,14 @@ public sealed class IngestController(
 
         await vectorStoreService.SaveAsync(mergedRecords, cancellationToken);
         logger.LogInformation(
-            "[INGEST] Embedding reuse completed for knowledge base '{KnowledgeBaseId}'. Reused={Reused}, Recomputed={Recomputed}, Total={Total}",
+            "[INGEST] Incremental ingest completed for knowledge base '{KnowledgeBaseId}'. Unchanged={Unchanged}, New={New}, Updated={Updated}, Deleted={Deleted}, ReusedEmbeddings={Reused}, Recomputed={Recomputed}, Total={Total}",
             knowledgeBaseId,
+            unchangedRecords,
+            newRecords,
+            updatedRecords,
+            deletedRecords,
             reusedEmbeddings,
-            records.Count - reusedEmbeddings,
+            newRecords + updatedRecords - reusedEmbeddings,
             records.Count);
 
         var vectorStorePath = challengeOptions.Value.VectorStorePath;
@@ -333,5 +362,22 @@ public sealed class IngestController(
         }
 
         return string.IsNullOrWhiteSpace(contentHash) ? null : contentHash;
+    }
+
+    private static bool ChunkMatches(VectorRecord existingRecord, TextChunk chunk)
+    {
+        if (!string.Equals(existingRecord.Source, chunk.Source, StringComparison.Ordinal) ||
+            !string.Equals(existingRecord.ChunkText, chunk.Content, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var existingHash = TryGetContentHash(existingRecord);
+        if (string.IsNullOrWhiteSpace(existingHash) || string.IsNullOrWhiteSpace(chunk.ContentHash))
+        {
+            return true;
+        }
+
+        return string.Equals(existingHash, chunk.ContentHash, StringComparison.Ordinal);
     }
 }

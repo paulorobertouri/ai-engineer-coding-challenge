@@ -65,6 +65,12 @@ Document versioning:
 - If no explicit version is supplied, the backend derives a local version label such as `sha256:abcd1234ef56`
 - Citations expose the `documentVersion` and checksum metadata for traceability
 
+Incremental updates and deletes:
+- Forced reingest performs a per-chunk diff inside the selected knowledge base
+- Unchanged chunks are preserved without recomputing embeddings
+- Changed or new chunks are rebuilt, while removed source sections are omitted from the saved store
+- Other knowledge-base scopes remain untouched during the update
+
 To reset persisted Docker ingestion data intentionally:
 
 ```bash
