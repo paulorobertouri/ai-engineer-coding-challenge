@@ -149,6 +149,7 @@ Test coverage:
 - `JsonVectorStoreServiceAdditionalTests` — verifies thread-safe double-checked locking and edge cases
 - `DeterministicEmbeddingServiceTests` — verifies FNV1a determinism and dimensionality
 - `FallbackRetrievalChatServiceTests` — verifies keyword-based response generation plus prompt-injection and out-of-scope grounding behavior
+- `RagEvaluationFixtureTests` — runs fixture-driven retrieval/grounding checks without paid OpenAI calls
 - `ChatControllerTests` — verifies chat endpoint request handling and validation
 - `HealthControllerTests` — verifies mode-aware notes in both API-key and fallback modes
 - `IngestControllerTests` — verifies path resolution, ingestion pipeline, and 404 on missing document

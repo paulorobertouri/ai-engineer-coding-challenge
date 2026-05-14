@@ -414,7 +414,7 @@ RAG systems are vulnerable to users asking the model to ignore instructions or i
 
 ### 19. Add RAG Evaluation Fixtures
 
-- [ ] Create a small repeatable evaluation set for answer quality and citation accuracy.
+- [x] Create a small repeatable evaluation set for answer quality and citation accuracy.
 
 **Why**
 

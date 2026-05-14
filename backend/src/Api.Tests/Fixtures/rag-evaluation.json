@@ -1,0 +1,17 @@
+[
+  {
+    "question": "What are the opening procedures?",
+    "expectedSectionTitle": "Store Opening Procedures",
+    "expectCitations": true
+  },
+  {
+    "question": "How should customer complaints be handled?",
+    "expectedSectionTitle": "Customer Complaints",
+    "expectCitations": true
+  },
+  {
+    "question": "What is the capital of France?",
+    "expectedSectionTitle": "",
+    "expectCitations": false
+  }
+]
