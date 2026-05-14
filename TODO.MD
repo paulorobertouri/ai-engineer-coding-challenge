@@ -783,7 +783,7 @@ Questions like "what about Sundays?" require conversation context. Embedding onl
 
 ### 36. Add Reranking
 
-- [ ] Add an optional reranking stage after initial vector retrieval.
+- [x] Add an optional reranking stage after initial vector retrieval.
 
 **Why**
 

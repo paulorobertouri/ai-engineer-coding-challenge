@@ -123,6 +123,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
+builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
 builder.Services.AddSingleton<IVectorStoreService>(sp =>
 {
     var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();

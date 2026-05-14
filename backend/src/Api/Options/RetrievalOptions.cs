@@ -13,4 +13,9 @@ public sealed class RetrievalOptions
     public double MinSimilarityScore { get; init; } = 0.3;
 
     public bool EnableQueryRewriting { get; init; } = true;
+
+    public bool EnableReranking { get; init; } = true;
+
+    [Range(1, 10)]
+    public int RerankCandidateMultiplier { get; init; } = 3;
 }

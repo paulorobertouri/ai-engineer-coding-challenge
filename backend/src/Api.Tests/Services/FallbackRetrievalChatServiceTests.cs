@@ -13,6 +13,7 @@ public class FallbackRetrievalChatServiceTests
 {
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
+    private readonly Mock<IRetrievalReranker> _mockReranker = new();
     private readonly Mock<ILogger<FallbackRetrievalChatService>> _mockLogger = new();
     private readonly IOptions<RetrievalOptions> _retrievalOptions;
     private readonly FallbackRetrievalChatService _service;
@@ -23,17 +24,24 @@ public class FallbackRetrievalChatServiceTests
         {
             TopK = 3,
             MinSimilarityScore = 0.30,
-            EnableQueryRewriting = true
+            EnableQueryRewriting = true,
+            EnableReranking = true,
+            RerankCandidateMultiplier = 3
         });
 
         _service = new FallbackRetrievalChatService(
             _mockEmbedding.Object,
             _mockVectorStore.Object,
+            _mockReranker.Object,
             _retrievalOptions,
             _mockLogger.Object);
         _mockEmbedding
             .Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[1536]);
+        _mockReranker
+            .Setup(r => r.Rerank(It.IsAny<string>(), It.IsAny<IReadOnlyList<VectorSearchMatch>>(), It.IsAny<int>()))
+            .Returns<string, IReadOnlyList<VectorSearchMatch>, int>((_, candidates, take) =>
+                candidates.Take(take).ToList());
     }
 
     private static ChatRequest BuildRequest(string userMessage, string? knowledgeBaseId = null) => new()
@@ -87,7 +95,7 @@ public class FallbackRetrievalChatServiceTests
     public async Task GenerateResponseAsync_UsesConfiguredTopK()
     {
         _mockVectorStore
-            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), 3, It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), 9, It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([])
             .Verifiable();
 
@@ -156,7 +164,7 @@ public class FallbackRetrievalChatServiceTests
 
         _mockVectorStore.Verify(v => v.SearchAsync(
             It.IsAny<float[]>(),
-            3,
+            9,
             It.Is<IReadOnlyDictionary<string, string>>(filter =>
                 filter.ContainsKey("KnowledgeBaseId") && filter["KnowledgeBaseId"] == "hr"),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -337,6 +345,7 @@ public class FallbackRetrievalChatServiceTests
         var service = new FallbackRetrievalChatService(
             _mockEmbedding.Object,
             _mockVectorStore.Object,
+            _mockReranker.Object,
             noRewriteOptions,
             _mockLogger.Object);
 

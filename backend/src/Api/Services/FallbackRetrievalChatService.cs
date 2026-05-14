@@ -9,10 +9,13 @@ namespace Api.Services;
 public sealed class FallbackRetrievalChatService(
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
+    IRetrievalReranker reranker,
     IOptions<RetrievalOptions> options,
     ILogger<FallbackRetrievalChatService> logger) : IRetrievalChatService
 {
     private readonly int _retrievalTopK = Math.Max(1, options.Value.TopK);
+    private readonly bool _enableReranking = options.Value.EnableReranking;
+    private readonly int _rerankCandidateMultiplier = Math.Max(1, options.Value.RerankCandidateMultiplier);
     private readonly double _minSimilarityScore = Math.Clamp(options.Value.MinSimilarityScore, 0.0, 1.0);
     private readonly bool _enableQueryRewriting = options.Value.EnableQueryRewriting;
     private const string NoRelevantContextMessage =
@@ -34,12 +37,16 @@ public sealed class FallbackRetrievalChatService(
             queryText.Length);
 
         var queryEmbedding = await embeddingService.EmbedAsync(queryText, cancellationToken);
+        var candidateTopK = _enableReranking ? _retrievalTopK * _rerankCandidateMultiplier : _retrievalTopK;
         var rawMatches = await vectorStoreService.SearchAsync(
             queryEmbedding,
-            topK: _retrievalTopK,
+            topK: candidateTopK,
             KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
             cancellationToken);
-        var matches = rawMatches.Where(m => m.Score >= _minSimilarityScore).ToList();
+        var scoredMatches = _enableReranking
+            ? reranker.Rerank(queryText, rawMatches, _retrievalTopK)
+            : rawMatches.Take(_retrievalTopK).ToList();
+        var matches = scoredMatches.Where(m => m.Score >= _minSimilarityScore).ToList();
 
         if (rawMatches.Count == 0)
         {
@@ -54,12 +61,14 @@ public sealed class FallbackRetrievalChatService(
         stopwatch.Stop();
 
         logger.LogInformation(
-            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
+            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
             request.ConversationId,
             "fallback",
             knowledgeBaseId,
             _retrievalTopK,
             _minSimilarityScore,
+            _enableReranking,
+            reranker.Name,
             string.Join(",", matches.Select(m => m.Record.Id)),
             string.Join(",", matches.Select(m => m.Score.ToString("F3"))),
             stopwatch.ElapsedMilliseconds);

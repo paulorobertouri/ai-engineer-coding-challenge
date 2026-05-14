@@ -47,6 +47,7 @@ public sealed class RagEvaluationFixtureTests : IDisposable
         var service = new FallbackRetrievalChatService(
             embedder,
             vectorStore,
+            new LexicalRetrievalReranker(),
             Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
             {
                 TopK = 3,

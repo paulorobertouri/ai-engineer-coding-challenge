@@ -17,10 +17,13 @@ public sealed class OpenAIRetrievalChatService(
     IOptions<RetrievalOptions> retrievalOptions,
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
+    IRetrievalReranker reranker,
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
     private readonly string _chatModel = openAiOptions.Value.ChatModel;
     private readonly int _retrievalTopK = Math.Max(1, retrievalOptions.Value.TopK);
+    private readonly bool _enableReranking = retrievalOptions.Value.EnableReranking;
+    private readonly int _rerankCandidateMultiplier = Math.Max(1, retrievalOptions.Value.RerankCandidateMultiplier);
     private readonly double _minSimilarityScore = Math.Clamp(retrievalOptions.Value.MinSimilarityScore, 0.0, 1.0);
     private readonly bool _enableQueryRewriting = retrievalOptions.Value.EnableQueryRewriting;
     private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(openAiOptions.Value);
@@ -63,12 +66,16 @@ public sealed class OpenAIRetrievalChatService(
 
             // 1. Initial Retrieval (Standard RAG)
             var queryEmbedding = await embeddingService.EmbedAsync(retrievalQuery, ct);
+            var candidateTopK = _enableReranking ? _retrievalTopK * _rerankCandidateMultiplier : _retrievalTopK;
             var rawMatches = await vectorStoreService.SearchAsync(
                 queryEmbedding,
-                topK: _retrievalTopK,
+                topK: candidateTopK,
                 KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
                 ct);
-            var matches = FilterMatches(rawMatches);
+            var scoredMatches = _enableReranking
+                ? reranker.Rerank(retrievalQuery, rawMatches, _retrievalTopK)
+                : rawMatches.Take(_retrievalTopK).ToList();
+            var matches = FilterMatches(scoredMatches);
 
             logger.LogInformation(
                 "RAG retrieval completed. KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
@@ -77,7 +84,7 @@ public sealed class OpenAIRetrievalChatService(
                 _minSimilarityScore,
                 rawMatches.Count,
                 matches.Count,
-                string.Join(",", rawMatches.Select(m => m.Score.ToString("F3"))));
+                string.Join(",", scoredMatches.Select(m => m.Score.ToString("F3"))));
 
             if (rawMatches.Count == 0)
             {
@@ -136,12 +143,14 @@ public sealed class OpenAIRetrievalChatService(
 
             totalStopwatch.Stop();
             logger.LogInformation(
-                "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, ToolingEnabled={ToolingEnabled}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
+                "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, ToolingEnabled={ToolingEnabled}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
                 request.ConversationId,
                 _chatModel,
                 "openai",
                 knowledgeBaseId,
                 _enableTools,
+                _enableReranking,
+                reranker.Name,
                 string.Join(",", matches.Select(m => m.Record.Id)),
                 string.Join(",", matches.Select(m => m.Score.ToString("F3"))),
                 completionStopwatch.ElapsedMilliseconds,
@@ -257,10 +266,13 @@ public sealed class OpenAIRetrievalChatService(
         var toolQueryEmbedding = await embeddingService.EmbedAsync(query, ct);
         var rawToolMatches = await vectorStoreService.SearchAsync(
             toolQueryEmbedding,
-            topK: _retrievalTopK,
+            topK: _enableReranking ? _retrievalTopK * _rerankCandidateMultiplier : _retrievalTopK,
             KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
             ct);
-        var toolMatches = FilterMatches(rawToolMatches);
+        var scoredToolMatches = _enableReranking
+            ? reranker.Rerank(query, rawToolMatches, _retrievalTopK)
+            : rawToolMatches.Take(_retrievalTopK).ToList();
+        var toolMatches = FilterMatches(scoredToolMatches);
 
         logger.LogInformation(
             "Tool retrieval completed. TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
@@ -268,7 +280,7 @@ public sealed class OpenAIRetrievalChatService(
             _minSimilarityScore,
             rawToolMatches.Count,
             toolMatches.Count,
-            string.Join(",", rawToolMatches.Select(m => m.Score.ToString("F3"))));
+            string.Join(",", scoredToolMatches.Select(m => m.Score.ToString("F3"))));
 
         if (toolMatches.Count == 0)
         {
