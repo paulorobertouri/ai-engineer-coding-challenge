@@ -26,9 +26,19 @@ jobs:
         
       - name: Build
         run: dotnet build backend/AIEngineerCodingChallenge.Backend.slnx --no-restore -c Release
-        
-      - name: Test
-        run: dotnet test backend/src/Api.Tests/Api.Tests.csproj --no-build -c Release
+
+      - name: Test With Coverage
+        run: |
+          dotnet test backend/src/Api.Tests/Api.Tests.csproj --no-build -c Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory backend/coverage
+
+      - name: Upload Backend Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          if-no-files-found: error
 
   frontend:
     name: Frontend (TS/React)
@@ -50,19 +60,84 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: npm run lint
-        
-      - name: Test
+
+      - name: Check Format
         working-directory: frontend
-        run: npm test
+        run: npx prettier --check .
+        
+      - name: Test With Coverage
+        working-directory: frontend
+        run: npm test -- --coverage
+
+      - name: Upload Frontend Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: error
 
       - name: Build
         working-directory: frontend
         run: npm run build
 
+  docker-build:
+    name: Docker Build Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Backend Image
+        run: docker compose --file docker-compose.yml build backend
+
+      - name: Build Frontend Image
+        run: docker compose --file docker-compose.yml build frontend
+
+  dependencies-security:
+    name: Dependency Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Restore Backend
+        run: dotnet restore backend/AIEngineerCodingChallenge.Backend.slnx
+
+      - name: Check .NET Vulnerabilities
+        run: dotnet list backend/AIEngineerCodingChallenge.Backend.slnx package --vulnerable --include-transitive
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Audit Frontend Dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Install E2E Dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Audit E2E Dependencies
+        working-directory: e2e
+        run: npm audit --audit-level=high
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, docker-build, dependencies-security]
     steps:
       - uses: actions/checkout@v4
 

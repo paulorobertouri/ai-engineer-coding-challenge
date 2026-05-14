@@ -539,7 +539,7 @@ The UI already has several accessibility hooks, but chat apps need careful focus
 
 ### 25. Expand CI Quality Gates
 
-- [ ] Add checks for coverage, Docker builds, formatting, and dependency vulnerabilities.
+- [x] Add checks for coverage, Docker builds, formatting, and dependency vulnerabilities.
 
 **Why**
 

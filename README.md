@@ -67,6 +67,18 @@ Frontend API base URL resolution order:
 | `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | `.\scripts\docker.ps1 <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
 | `./scripts/e2e.sh [test\|evidence]` | `.\scripts\e2e.ps1 [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
 
+## CI Quality Gates
+
+The GitHub Actions workflow includes these checks on `push` and `pull_request` to `main`:
+
+- Backend: format check, build, tests with coverage artifact upload.
+- Frontend: lint, Prettier check, tests with coverage thresholds and coverage artifact upload, production build.
+- Docker: backend and frontend image build validation using `docker compose build`.
+- Dependency security: `.NET` vulnerability scan (`dotnet list package --vulnerable --include-transitive`) and npm audits for both `frontend` and `e2e`.
+- E2E: Playwright run (fallback mode) with failure artifacts.
+
+Automated dependency update PRs are configured via `.github/dependabot.yml` for GitHub Actions, NuGet, and npm workspaces.
+
 ## Implemented Features
 
 ### 1. Document Ingestion
