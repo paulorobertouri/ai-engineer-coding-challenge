@@ -10,6 +10,7 @@ public sealed class FallbackRetrievalChatService(
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
     IRetrievalReranker reranker,
+    IUserQueryGuardrailService guardrailService,
     IOptions<RetrievalOptions> options,
     ILogger<FallbackRetrievalChatService> logger) : IRetrievalChatService
 {
@@ -25,6 +26,21 @@ public sealed class FallbackRetrievalChatService(
     {
         var stopwatch = Stopwatch.StartNew();
         var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+        var latestUserMessage = request.Messages.LastOrDefault(m =>
+            m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
+        var guardrailDecision = guardrailService.Evaluate(latestUserMessage);
+
+        if (guardrailDecision.IsEscalated)
+        {
+            logger.LogWarning(
+                "Guardrail escalation triggered. ConversationId={ConversationId}, Mode={Mode}, Category={Category}",
+                request.ConversationId,
+                "fallback",
+                guardrailDecision.Category);
+
+            return BuildGuardrailResponse(request, guardrailDecision);
+        }
+
         var (queryText, wasRewritten) = QueryRewriteHeuristics.Rewrite(request.Messages, _enableQueryRewriting);
 
         logger.LogInformation(
@@ -86,6 +102,30 @@ public sealed class FallbackRetrievalChatService(
                 citedChunkIds,
                 matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null),
             Confidence = confidence
+        };
+    }
+
+    private static ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
+    {
+        var refusalReason = $"guardrail_{decision.Category}";
+
+        return new ChatResponse
+        {
+            ConversationId = request.ConversationId,
+            Status = "success",
+            IsPlaceholder = false,
+            AssistantMessage = decision.EscalationMessage,
+            ToolCalls = [],
+            Citations = [],
+            StructuredOutput = StructuredAnswerFactory.Create(
+                decision.EscalationMessage,
+                [],
+                refusalReason),
+            Confidence = new ConfidenceIndicatorDto
+            {
+                Level = ConfidenceIndicatorDto.NotFound,
+                EvidenceCoverage = 0
+            }
         };
     }
 

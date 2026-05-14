@@ -63,6 +63,12 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services
+    .AddOptions<GuardrailOptions>()
+    .Bind(builder.Configuration.GetSection(GuardrailOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
     .AddOptions<RateLimitingOptions>()
     .Bind(builder.Configuration.GetSection(RateLimitingOptions.SectionName))
     .ValidateDataAnnotations()
@@ -124,6 +130,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
 builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
+builder.Services.AddSingleton<IUserQueryGuardrailService, RuleBasedUserQueryGuardrailService>();
 builder.Services.AddSingleton<IVectorStoreService>(sp =>
 {
     var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();

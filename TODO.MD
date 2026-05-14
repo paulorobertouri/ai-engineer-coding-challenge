@@ -804,7 +804,7 @@ Vector search can retrieve broadly relevant chunks but rank exact procedural evi
 
 ### 37. Add AI Safety And Escalation Guardrails
 
-- [ ] Define behavior for topics the assistant should not handle directly.
+- [x] Define behavior for topics the assistant should not handle directly.
 
 **Why**
 

@@ -97,6 +97,7 @@ Structured logs for retrieval/chat flows now include:
 - Retrieved chunk IDs and similarity scores
 - Completion latency and total request latency
 - Warnings when vector store candidate retrieval is empty or tool calls have invalid/empty arguments
+- Guardrail escalation category metadata when rule-based guardrails intercept a query
 
 Retrieval is threshold-aware in both OpenAI and fallback chat services:
 - Candidate chunks are limited by `Retrieval:TopK`
@@ -110,6 +111,11 @@ Streaming behavior:
 - `POST /api/v1/chat/stream` uses `text/event-stream`
 - Server emits `event: delta` chunks followed by one `event: complete` JSON payload
 - Fallback/no-key mode also supports streaming because the stream endpoint wraps the same retrieval service contract
+
+Guardrails behavior:
+- Rule-based categories can intercept high-risk topics (for example medical/legal/emergency/HR)
+- Intercepted requests return escalation language with no citations
+- Structured output `refusalReason` is set to category-specific values like `guardrail_medical`
 
 Citations returned by `/api/v1/chat` now include richer metadata for traceability:
 
@@ -157,6 +163,8 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Retrieval:EnableQueryRewriting` | `true` | Rewrites follow-up user messages into standalone retrieval queries |
 | `Retrieval:EnableReranking` | `true` | Enables local lexical reranking after vector retrieval |
 | `Retrieval:RerankCandidateMultiplier` | `3` | Multiplies `TopK` to build the reranking candidate pool |
+| `Guardrails:EnableRuleBasedGuardrails` | `true` | Enables local rule-based safety/escalation interception |
+| `Guardrails:Categories` | _(see appsettings)_ | Configurable category keywords and escalation messages |
 | `Challenge:SourceDocumentPath` | `../../../../knowledge-base/Grocery_Store_SOP.md` | Path to the SOP markdown file |
 | `Challenge:VectorStorePath` | `Data/vector-store.json` | Path for vector store persistence |
 | `VectorStore:Provider` | `json` | Vector store provider key, validated at startup |
@@ -204,6 +212,7 @@ Test coverage:
 - `DeterministicEmbeddingServiceTests` — verifies FNV1a determinism and dimensionality
 - `FallbackRetrievalChatServiceTests` — verifies keyword-based response generation plus prompt-injection and out-of-scope grounding behavior
 - `RagEvaluationFixtureTests` — runs fixture-driven retrieval/grounding checks without paid OpenAI calls
+- `RuleBasedUserQueryGuardrailServiceTests` — verifies category matching and escalation behavior
 - `ChatControllerTests` — verifies chat endpoint request handling and validation
 - `HealthControllerTests` — verifies mode-aware notes in both API-key and fallback modes
 - `IngestControllerTests` — verifies path resolution, ingestion pipeline, and 404 on missing document

@@ -18,6 +18,7 @@ public sealed class OpenAIRetrievalChatService(
     IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
     IRetrievalReranker reranker,
+    IUserQueryGuardrailService guardrailService,
     ILogger<OpenAIRetrievalChatService> logger) : IRetrievalChatService
 {
     private readonly string _chatModel = openAiOptions.Value.ChatModel;
@@ -53,6 +54,21 @@ public sealed class OpenAIRetrievalChatService(
         {
             var totalStopwatch = Stopwatch.StartNew();
             var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+            var latestUserMessage = request.Messages
+                .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
+            var guardrailDecision = guardrailService.Evaluate(latestUserMessage);
+
+            if (guardrailDecision.IsEscalated)
+            {
+                logger.LogWarning(
+                    "Guardrail escalation triggered. ConversationId={ConversationId}, Mode={Mode}, Category={Category}",
+                    request.ConversationId,
+                    "openai",
+                    guardrailDecision.Category);
+
+                return BuildGuardrailResponse(request, guardrailDecision);
+            }
+
             var (retrievalQuery, wasRewritten) = QueryRewriteHeuristics.Rewrite(request.Messages, _enableQueryRewriting);
 
             logger.LogInformation(
@@ -61,7 +77,7 @@ public sealed class OpenAIRetrievalChatService(
                 knowledgeBaseId,
                 _enableQueryRewriting,
                 wasRewritten,
-                request.Messages.LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content?.Length ?? 0,
+                latestUserMessage.Length,
                 retrievalQuery.Length);
 
             // 1. Initial Retrieval (Standard RAG)
@@ -320,6 +336,30 @@ public sealed class OpenAIRetrievalChatService(
                 EvidenceCoverage = 0
             }
         };
+
+    private static ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
+    {
+        var refusalReason = $"guardrail_{decision.Category}";
+
+        return new ChatResponse
+        {
+            ConversationId = request.ConversationId,
+            Status = "success",
+            IsPlaceholder = false,
+            AssistantMessage = decision.EscalationMessage,
+            ToolCalls = [],
+            Citations = [],
+            StructuredOutput = StructuredAnswerFactory.Create(
+                decision.EscalationMessage,
+                [],
+                refusalReason),
+            Confidence = new ConfidenceIndicatorDto
+            {
+                Level = ConfidenceIndicatorDto.NotFound,
+                EvidenceCoverage = 0
+            }
+        };
+    }
 
     private static ChatResponse BuildChatResponse(
         ChatRequest request,

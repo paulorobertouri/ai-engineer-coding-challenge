@@ -48,6 +48,10 @@ public sealed class RagEvaluationFixtureTests : IDisposable
             embedder,
             vectorStore,
             new LexicalRetrievalReranker(),
+            new RuleBasedUserQueryGuardrailService(Microsoft.Extensions.Options.Options.Create(new GuardrailOptions
+            {
+                EnableRuleBasedGuardrails = false
+            })),
             Microsoft.Extensions.Options.Options.Create(new RetrievalOptions
             {
                 TopK = 3,

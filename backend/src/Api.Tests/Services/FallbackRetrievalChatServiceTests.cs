@@ -14,6 +14,7 @@ public class FallbackRetrievalChatServiceTests
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
     private readonly Mock<IRetrievalReranker> _mockReranker = new();
+    private readonly Mock<IUserQueryGuardrailService> _mockGuardrailService = new();
     private readonly Mock<ILogger<FallbackRetrievalChatService>> _mockLogger = new();
     private readonly IOptions<RetrievalOptions> _retrievalOptions;
     private readonly FallbackRetrievalChatService _service;
@@ -33,6 +34,7 @@ public class FallbackRetrievalChatServiceTests
             _mockEmbedding.Object,
             _mockVectorStore.Object,
             _mockReranker.Object,
+            _mockGuardrailService.Object,
             _retrievalOptions,
             _mockLogger.Object);
         _mockEmbedding
@@ -42,6 +44,9 @@ public class FallbackRetrievalChatServiceTests
             .Setup(r => r.Rerank(It.IsAny<string>(), It.IsAny<IReadOnlyList<VectorSearchMatch>>(), It.IsAny<int>()))
             .Returns<string, IReadOnlyList<VectorSearchMatch>, int>((_, candidates, take) =>
                 candidates.Take(take).ToList());
+        _mockGuardrailService
+            .Setup(g => g.Evaluate(It.IsAny<string>()))
+            .Returns(GuardrailDecision.None);
     }
 
     private static ChatRequest BuildRequest(string userMessage, string? knowledgeBaseId = null) => new()
@@ -346,6 +351,7 @@ public class FallbackRetrievalChatServiceTests
             _mockEmbedding.Object,
             _mockVectorStore.Object,
             _mockReranker.Object,
+            _mockGuardrailService.Object,
             noRewriteOptions,
             _mockLogger.Object);
 
@@ -369,5 +375,26 @@ public class FallbackRetrievalChatServiceTests
         _mockEmbedding.Verify(
             e => e.EmbedAsync("What about Sundays?", It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_GuardrailCategory_ReturnsEscalationWithoutRetrieval()
+    {
+        _mockGuardrailService
+            .Setup(g => g.Evaluate(It.IsAny<string>()))
+            .Returns(new GuardrailDecision
+            {
+                IsEscalated = true,
+                Category = "medical",
+                EscalationMessage = "Please contact your manager or approved healthcare and safety channel."
+            });
+
+        var response = await _service.GenerateResponseAsync(BuildRequest("An employee has a bleeding injury."), CancellationToken.None);
+
+        Assert.Contains("healthcare", response.AssistantMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("guardrail_medical", response.StructuredOutput.RefusalReason);
+        Assert.Empty(response.Citations);
+        _mockEmbedding.Verify(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockVectorStore.Verify(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
