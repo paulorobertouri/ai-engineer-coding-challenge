@@ -234,6 +234,9 @@ public sealed class IngestController(
         IReadOnlyList<VectorRecord> existingRecords,
         CancellationToken cancellationToken)
     {
+        var sourceChecksum = DocumentVersioning.ComputeSourceChecksum(sourceText);
+        var documentVersion = DocumentVersioning.ComputeDefaultVersionLabel(sourceChecksum);
+        var ingestedAtUtc = DateTimeOffset.UtcNow;
         var chunks = await chunkingService.ChunkAsync(sourceText, sourceName, cancellationToken);
         var records = new List<VectorRecord>();
         var existingByHash = existingRecords
@@ -276,6 +279,9 @@ public sealed class IngestController(
                 metadata["ContentHash"] = chunk.ContentHash;
 
             metadata[KnowledgeBaseScope.MetadataKey] = knowledgeBaseId;
+            metadata[DocumentVersioning.SourceChecksumMetadataKey] = sourceChecksum;
+            metadata[DocumentVersioning.DocumentVersionMetadataKey] = documentVersion;
+            metadata[DocumentVersioning.IngestedAtUtcMetadataKey] = ingestedAtUtc.ToString("O");
 
             records.Add(new VectorRecord
             {
@@ -312,6 +318,9 @@ public sealed class IngestController(
             RecordsPersisted = records.Count,
             VectorStorePath = vectorStorePath,
             KnowledgeBaseId = knowledgeBaseId,
+            DocumentVersion = documentVersion,
+            SourceChecksum = sourceChecksum,
+            IngestedAtUtc = ingestedAtUtc,
             IsPlaceholder = false
         });
     }

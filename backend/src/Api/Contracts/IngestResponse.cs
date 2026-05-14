@@ -16,5 +16,11 @@ public sealed class IngestResponse
 
     public string KnowledgeBaseId { get; init; } = string.Empty;
 
+    public string DocumentVersion { get; init; } = string.Empty;
+
+    public string SourceChecksum { get; init; } = string.Empty;
+
+    public DateTimeOffset IngestedAtUtc { get; init; }
+
     public bool IsPlaceholder { get; init; }
 }

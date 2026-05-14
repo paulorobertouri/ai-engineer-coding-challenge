@@ -50,6 +50,7 @@ Tool-call observability:
 - Chunk IDs are deterministic (`<source>-<section>-<index>-<hash>`) to keep citations/logs stable across unchanged reingests
 - Metadata includes stable `ContentHash` per chunk for change detection
 - Metadata includes `KnowledgeBaseId` (default scope: `default`) so multiple SOP sets can coexist in one store
+- Metadata includes `SourceChecksum`, `DocumentVersion`, and `IngestedAtUtc` so citations can identify the document version used for an answer
 - During forced reingest, unchanged `ContentHash` values reuse existing embeddings to avoid recomputation
 - Search: cosine similarity computed in-process over all records (suitable for POC scale)
 
@@ -58,6 +59,11 @@ Knowledge-base scoping:
 - If omitted, the backend uses `default`
 - Legacy records without explicit `KnowledgeBaseId` metadata are treated as `default`
 - Reingesting one knowledge base replaces only that knowledge base records, preserving other scopes
+
+Document versioning:
+- Each ingest computes a SHA-256 checksum for the source document text
+- If no explicit version is supplied, the backend derives a local version label such as `sha256:abcd1234ef56`
+- Citations expose the `documentVersion` and checksum metadata for traceability
 
 To reset persisted Docker ingestion data intentionally:
 
@@ -93,6 +99,7 @@ Retrieval is threshold-aware in both OpenAI and fallback chat services:
 Citations returned by `/api/v1/chat` now include richer metadata for traceability:
 - `chunkId` (stable ID for the cited chunk in the vector store)
 - `knowledgeBaseId` (scope the cited chunk belongs to)
+- `documentVersion` / `sourceChecksum` / `ingestedAtUtc` (document version metadata)
 - `score` (retrieval similarity score)
 - `sectionTitle` (derived from chunk heading when available)
 - `startLine` / `endLine` (line range when available from ingestion metadata)

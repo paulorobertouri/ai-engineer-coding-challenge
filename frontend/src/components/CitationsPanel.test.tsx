@@ -41,12 +41,16 @@ describe('CitationsPanel', () => {
         sectionTitle: 'Store Opening',
         score: 0.9182,
         chunkId: 'chunk-1',
+        documentVersion: 'sha256:abc123def456',
+        knowledgeBaseId: 'default',
       },
     ]
     render(<CitationsPanel citations={citations} />)
     expect(screen.getByText(/Section: Store Opening/)).toBeInTheDocument()
     expect(screen.getByText(/score 0.918/)).toBeInTheDocument()
     expect(screen.getByText(/Chunk: chunk-1/)).toBeInTheDocument()
+    expect(screen.getByText(/Version: sha256:abc123def456/)).toBeInTheDocument()
+    expect(screen.getByText(/KB: default/)).toBeInTheDocument()
   })
 
   it('renders startLine only when endLine is absent', () => {

@@ -6,6 +6,12 @@ public sealed class CitationDto
 
     public string KnowledgeBaseId { get; init; } = string.Empty;
 
+    public string DocumentVersion { get; init; } = string.Empty;
+
+    public string SourceChecksum { get; init; } = string.Empty;
+
+    public DateTimeOffset? IngestedAtUtc { get; init; }
+
     public string Source { get; init; } = string.Empty;
 
     public string SectionTitle { get; init; } = string.Empty;

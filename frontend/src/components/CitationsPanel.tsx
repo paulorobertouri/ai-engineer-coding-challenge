@@ -81,6 +81,13 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
                       {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
                     </p>
                   )}
+                  {(citation.documentVersion || citation.knowledgeBaseId) && (
+                    <p className="citation-source">
+                      {citation.documentVersion ? `Version: ${citation.documentVersion}` : ''}
+                      {citation.documentVersion && citation.knowledgeBaseId ? ' · ' : ''}
+                      {citation.knowledgeBaseId ? `KB: ${citation.knowledgeBaseId}` : ''}
+                    </p>
+                  )}
                   <p
                     className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}
                   >

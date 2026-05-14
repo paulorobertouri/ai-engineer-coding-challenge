@@ -11,6 +11,9 @@ internal static class CitationMapper
         {
             ChunkId = match.Record.Id,
             KnowledgeBaseId = KnowledgeBaseScope.GetRecordKnowledgeBaseId(match.Record),
+            DocumentVersion = TryGetMetadata(match.Record, DocumentVersioning.DocumentVersionMetadataKey) ?? string.Empty,
+            SourceChecksum = TryGetMetadata(match.Record, DocumentVersioning.SourceChecksumMetadataKey) ?? string.Empty,
+            IngestedAtUtc = TryGetDateTimeOffsetMetadata(match.Record, DocumentVersioning.IngestedAtUtcMetadataKey),
             Source = match.Record.Source,
             SectionTitle = TryGetMetadata(match.Record, "SectionTitle") ?? ExtractSectionTitle(match.Record.ChunkText),
             Snippet = BuildSnippet(match.Record.ChunkText),
@@ -48,6 +51,16 @@ internal static class CitationMapper
         }
 
         return int.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static DateTimeOffset? TryGetDateTimeOffsetMetadata(VectorRecord record, string key)
+    {
+        if (!record.Metadata.TryGetValue(key, out var value))
+        {
+            return null;
+        }
+
+        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
     }
 
     private static string? TryGetMetadata(VectorRecord record, string key)

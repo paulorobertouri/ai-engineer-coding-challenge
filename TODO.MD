@@ -659,7 +659,7 @@ A real grocery chain may have different SOPs for departments, store formats, reg
 
 ### 30. Add Document Versioning
 
-- [ ] Track source document versions and cite the version used for each answer.
+- [x] Track source document versions and cite the version used for each answer.
 
 **Why**
 

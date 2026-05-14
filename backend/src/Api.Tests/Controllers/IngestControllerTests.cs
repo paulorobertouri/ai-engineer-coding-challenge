@@ -89,7 +89,32 @@ public class IngestControllerTests
             Assert.True(response.Accepted);
             Assert.Equal(1, response.ChunksCreated);
             Assert.Equal(1, response.RecordsPersisted);
+            Assert.StartsWith("sha256:", response.DocumentVersion, StringComparison.Ordinal);
+            Assert.NotEmpty(response.SourceChecksum);
+            Assert.NotEqual(default, response.IngestedAtUtc);
             Assert.False(response.IsPlaceholder);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_PersistsDocumentVersionMetadataOnSavedRecords()
+    {
+        var controller = BuildController();
+
+        try
+        {
+            await controller.Post(null, CancellationToken.None);
+
+            _mockVectorStore.Verify(
+                v => v.SaveAsync(
+                    It.Is<IEnumerable<VectorRecord>>(records =>
+                        records.All(record =>
+                            record.Metadata.ContainsKey("DocumentVersion") &&
+                            record.Metadata.ContainsKey("SourceChecksum") &&
+                            record.Metadata.ContainsKey("IngestedAtUtc"))),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
         finally { Cleanup(); }
     }

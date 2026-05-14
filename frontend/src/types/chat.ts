@@ -12,6 +12,9 @@ export interface ChatMessage {
 export interface Citation {
   chunkId?: string
   knowledgeBaseId?: string
+  documentVersion?: string
+  sourceChecksum?: string
+  ingestedAtUtc?: string
   source: string
   sectionTitle?: string
   snippet: string
@@ -54,6 +57,9 @@ export interface IngestResponse {
   recordsPersisted: number
   vectorStorePath: string
   knowledgeBaseId: string
+  documentVersion?: string
+  sourceChecksum?: string
+  ingestedAtUtc?: string
   isPlaceholder: boolean
 }
 

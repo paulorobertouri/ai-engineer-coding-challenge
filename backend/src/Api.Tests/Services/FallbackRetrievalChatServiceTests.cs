@@ -102,7 +102,10 @@ public class FallbackRetrievalChatServiceTests
             Metadata = new Dictionary<string, string>
             {
                 ["StartLine"] = "12",
-                ["EndLine"] = "18"
+                ["EndLine"] = "18",
+                ["DocumentVersion"] = "sha256:123456789abc",
+                ["SourceChecksum"] = "123456789abcdef0",
+                ["IngestedAtUtc"] = "2026-05-14T10:00:00.0000000+00:00"
             }
         };
         var matches = new List<VectorSearchMatch> { new() { Record = record, Score = 0.9 } };
@@ -122,6 +125,9 @@ public class FallbackRetrievalChatServiceTests
         Assert.Equal(12, response.Citations[0].StartLine);
         Assert.Equal(18, response.Citations[0].EndLine);
         Assert.Equal("default", response.Citations[0].KnowledgeBaseId);
+        Assert.Equal("sha256:123456789abc", response.Citations[0].DocumentVersion);
+        Assert.Equal("123456789abcdef0", response.Citations[0].SourceChecksum);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-14T10:00:00.0000000+00:00"), response.Citations[0].IngestedAtUtc);
     }
 
     [Fact]
