@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Bot, Clock, MessageSquareDashed } from 'lucide-react'
+import { User, Bot, Clock, MessageSquareDashed, Copy, Check } from 'lucide-react'
 import type { ChatMessage } from '../types/chat'
 import { format } from 'date-fns'
 import { MarkdownContent } from './MarkdownContent'
@@ -20,6 +20,19 @@ export function ChatTranscript({
   onPromptSelect,
 }: ChatTranscriptProps) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+
+  async function copyAssistantMessage(messageId: string, content: string) {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedMessageId(messageId)
+      setTimeout(() => {
+        setCopiedMessageId((current) => (current === messageId ? null : current))
+      }, 1500)
+    } catch {
+      setCopiedMessageId(null)
+    }
+  }
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -77,6 +90,24 @@ export function ChatTranscript({
               >
                 <MarkdownContent content={message.content} className="message-markdown" />
               </div>
+
+              {message.role === 'assistant' && (
+                <button
+                  type="button"
+                  className="message-copy-btn"
+                  onClick={() => copyAssistantMessage(message.id, message.content)}
+                >
+                  {copiedMessageId === message.id ? (
+                    <>
+                      <Check size={12} /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} /> Copy answer
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </motion.article>
         ))}

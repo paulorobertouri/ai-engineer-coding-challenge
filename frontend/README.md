@@ -9,7 +9,7 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 | Component          | Description                                                                                           |
 | ------------------ | ----------------------------------------------------------------------------------------------------- |
 | `ChatPage`         | Root page — owns conversation state, health check on mount, ingest and send handlers (`useCallback`)  |
-| `ChatTranscript`   | Animated message history (Framer Motion fade + slide); auto-scrolls to latest turn                    |
+| `ChatTranscript`   | Animated message history (Framer Motion fade + slide); auto-scrolls to latest turn and supports copy-answer action |
 | `ChatComposer`     | Auto-expanding textarea; Enter to send, Shift+Enter for newline; disabled while sending               |
 | `CitationsPanel`   | Sidebar card listing source chunks returned by the API (`source`, `snippet`, optional line range)     |
 | `IngestPanel`      | Sidebar card with a single "Run Ingest" button; source path is server-side only                       |
@@ -25,6 +25,12 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 | `services/utils.ts`     | Shared utility helpers                                                                                                                                      |
 | `types/chat.ts`         | `ChatMessage`, `Citation`, `ChatRequest`, `ChatResponse`, `IngestRequest`, `IngestResponse`, `HealthResponse`, `StatusMessage`                              |
 | `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                       |
+
+UX quality-of-life features:
+- Retry last failed chat request and retry failed ingest attempts
+- Start a fresh conversation with `New chat`
+- Visible offline/fallback mode badge when backend reports fallback mode
+- Session persistence for current conversation and citations via `sessionStorage`
 
 ## Local Development
 

@@ -10,6 +10,14 @@ import { StatusBanner } from '../components/StatusBanner'
 
 import { ChatRequestSchema, IngestRequestSchema, CHAT_MAX_MESSAGES } from '../types/validation'
 
+const CHAT_SESSION_KEY = 'sop-assistant-chat-session-v1'
+
+interface StoredChatSession {
+  conversationId: string
+  messages: ChatMessage[]
+  citations: Citation[]
+}
+
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return {
     id: globalThis.crypto.randomUUID(),
@@ -20,10 +28,14 @@ function createMessage(role: ChatMessage['role'], content: string): ChatMessage 
 }
 
 export function ChatPage() {
-  const [conversationId] = useState(() => globalThis.crypto.randomUUID())
+  const [conversationId, setConversationId] = useState<string>(() => globalThis.crypto.randomUUID())
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isIngesting, setIsIngesting] = useState(false)
+  const [isOfflineMode, setIsOfflineMode] = useState(false)
+  const [lastFailedDraft, setLastFailedDraft] = useState<string | null>(null)
+  const [hasIngestToRetry, setHasIngestToRetry] = useState(false)
+  const [lastIngestFile, setLastIngestFile] = useState<File | undefined>(undefined)
   const [citations, setCitations] = useState<Citation[]>([])
   const [status, setStatus] = useState<StatusMessage>({
     tone: 'info',
@@ -32,6 +44,37 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   // null = health check in progress; false = not yet ingested; true = ingested
   const [isIngested, setIsIngested] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CHAT_SESSION_KEY)
+      if (!raw) {
+        return
+      }
+
+      const stored = JSON.parse(raw) as StoredChatSession
+      if (stored.conversationId) {
+        setConversationId(stored.conversationId)
+      }
+      if (Array.isArray(stored.messages)) {
+        setMessages(stored.messages)
+      }
+      if (Array.isArray(stored.citations)) {
+        setCitations(stored.citations)
+      }
+    } catch {
+      sessionStorage.removeItem(CHAT_SESSION_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    const snapshot: StoredChatSession = {
+      conversationId,
+      messages,
+      citations,
+    }
+    sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(snapshot))
+  }, [conversationId, messages, citations])
 
   // Auto-dismiss success/info banners after 4 s
   useEffect(() => {
@@ -52,9 +95,11 @@ export function ChatPage() {
         const health = await apiClient.getHealth()
 
         if (!isCancelled) {
+          const isFallbackMode = health.notes.some((note) => /fallback|no openai api key/i.test(note))
+          setIsOfflineMode(isFallbackMode)
           setIsIngested(health.isIngested)
           setStatus({
-            tone: 'success',
+            tone: isFallbackMode ? 'warning' : 'success',
             message: `${health.service} is running. ${health.notes[0] ?? ''}`.trim(),
           })
         }
@@ -90,6 +135,8 @@ export function ChatPage() {
 
   const handleIngest = useCallback(async (file?: File) => {
     setIsIngesting(true)
+    setHasIngestToRetry(true)
+    setLastIngestFile(file)
     setStatus({
       tone: 'info',
       message: file ? `Uploading "${file.name}"…` : 'Calling the ingest endpoint…',
@@ -105,6 +152,8 @@ export function ChatPage() {
       }
 
       setIsIngested(true)
+      setHasIngestToRetry(false)
+      setLastIngestFile(undefined)
       setStatus({
         tone: response.isPlaceholder ? 'warning' : 'success',
         message: `${response.message} Vector store: ${response.vectorStorePath}`,
@@ -124,57 +173,68 @@ export function ChatPage() {
     }
   }, [])
 
+  const submitChat = useCallback(
+    async (messageText: string, clearDraft: boolean) => {
+      const userMessage = createMessage('user', messageText)
+      const nextMessages = [...messages, userMessage]
+
+      setMessages(nextMessages)
+      if (clearDraft) {
+        setDraft('')
+      }
+      setIsSending(true)
+      setStatus({ tone: 'info', message: 'Sending chat request…' })
+
+      try {
+        // Limit history sent to the API to avoid unbounded token growth
+        const historyWindow = nextMessages.slice(-CHAT_MAX_MESSAGES)
+
+        const payload = ChatRequestSchema.parse({
+          conversationId,
+          messages: historyWindow.map((message) => ({
+            role: message.role,
+            content: message.content,
+            timestampUtc: message.timestamp,
+          })),
+        })
+
+        const response = await apiClient.chat(payload)
+
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          createMessage('assistant', response.assistantMessage),
+        ])
+        setLastFailedDraft(null)
+        setCitations(response.citations)
+        setStatus({
+          tone: response.isPlaceholder ? 'warning' : 'success',
+          message: `Chat response received with status '${response.status}'.`,
+        })
+      } catch (error) {
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
+        ])
+        setLastFailedDraft(messageText)
+        setStatus({
+          tone: 'error',
+          message: error instanceof Error ? error.message : 'Chat request failed.',
+        })
+      } finally {
+        setIsSending(false)
+      }
+    },
+    [conversationId, messages],
+  )
+
   const handleSend = useCallback(async () => {
     const trimmedDraft = draft.trim()
     if (!trimmedDraft) {
       return
     }
 
-    const userMessage = createMessage('user', trimmedDraft)
-    const nextMessages = [...messages, userMessage]
-
-    setMessages(nextMessages)
-    setDraft('')
-    setIsSending(true)
-    setStatus({ tone: 'info', message: 'Sending chat request…' })
-
-    try {
-      // Limit history sent to the API to avoid unbounded token growth
-      const historyWindow = nextMessages.slice(-CHAT_MAX_MESSAGES)
-
-      const payload = ChatRequestSchema.parse({
-        conversationId,
-        messages: historyWindow.map((message) => ({
-          role: message.role,
-          content: message.content,
-          timestampUtc: message.timestamp,
-        })),
-      })
-
-      const response = await apiClient.chat(payload)
-
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        createMessage('assistant', response.assistantMessage),
-      ])
-      setCitations(response.citations)
-      setStatus({
-        tone: response.isPlaceholder ? 'warning' : 'success',
-        message: `Chat response received with status '${response.status}'.`,
-      })
-    } catch (error) {
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
-      ])
-      setStatus({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Chat request failed.',
-      })
-    } finally {
-      setIsSending(false)
-    }
-  }, [conversationId, draft, messages])
+    await submitChat(trimmedDraft, true)
+  }, [draft, submitChat])
 
   const handlePromptSelect = useCallback((prompt: string) => {
     setDraft(prompt)
@@ -184,13 +244,42 @@ export function ChatPage() {
     setStatus({ tone: 'info', message: '' })
   }, [])
 
+  const handleRetryChat = useCallback(async () => {
+    if (!lastFailedDraft || isSending) {
+      return
+    }
+
+    await submitChat(lastFailedDraft, false)
+  }, [isSending, lastFailedDraft, submitChat])
+
+  const handleRetryIngest = useCallback(async () => {
+    await handleIngest(lastIngestFile)
+  }, [handleIngest, lastIngestFile])
+
+  const handleNewChat = useCallback(() => {
+    setConversationId(globalThis.crypto.randomUUID())
+    setMessages([])
+    setCitations([])
+    setDraft('')
+    setLastFailedDraft(null)
+    setStatus({ tone: 'success', message: 'Started a new conversation.' })
+  }, [])
+
+  const badge = isOfflineMode ? 'Offline Mode' : 'GPT-4o-mini'
+  const badgeClassName = isOfflineMode ? 'app-header-badge--offline' : undefined
+
   if (!isIngested) {
     return (
       <main className="app-shell app-shell--setup">
         <div className="setup-layout">
-          <AppHeader />
+          <AppHeader badge={badge} badgeClassName={badgeClassName} />
           {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
           <IngestPanel onIngest={handleIngest} isBusy={isIngesting || isIngested === null} />
+          {hasIngestToRetry && !isIngesting && (
+            <button type="button" className="page-action-btn" onClick={handleRetryIngest}>
+              Retry ingest
+            </button>
+          )}
         </div>
       </main>
     )
@@ -199,7 +288,7 @@ export function ChatPage() {
   return (
     <main className="app-shell">
       <section className="chat-layout">
-        <AppHeader />
+        <AppHeader badge={badge} badgeClassName={badgeClassName} onNewChat={handleNewChat} />
         {status.message && <StatusBanner status={status} onDismiss={handleDismissStatus} />}
         <ChatTranscript
           messages={messages}
@@ -207,6 +296,13 @@ export function ChatPage() {
           onPromptSelect={handlePromptSelect}
         />
         <ChatComposer value={draft} onChange={setDraft} onSubmit={handleSend} isBusy={isSending} />
+        {lastFailedDraft && (
+          <div className="page-action-row">
+            <button type="button" className="page-action-btn" onClick={handleRetryChat}>
+              Retry last failed message
+            </button>
+          </div>
+        )}
       </section>
 
       <aside className="sidebar">

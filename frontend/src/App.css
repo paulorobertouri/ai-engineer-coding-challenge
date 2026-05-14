@@ -144,6 +144,34 @@
   white-space: nowrap;
 }
 
+.app-header-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-header-action-btn {
+  border: 1px solid rgba(22, 101, 52, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  color: #166534;
+  border-radius: 999px;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-header-action-btn:hover {
+  background: rgba(240, 253, 244, 0.95);
+}
+
+.app-header-badge--offline {
+  background: rgba(180, 83, 9, 0.08);
+  border-color: rgba(180, 83, 9, 0.2);
+  color: #92400e;
+}
+
 /* ─── Status Banner ──────────────────────────────────────────── */
 .status-banner {
   margin: 0.8rem 1rem 0;
@@ -281,6 +309,25 @@
   color: #94a3b8;
   padding: 0.3rem 0.25rem 0;
   margin: 0;
+}
+
+.page-action-row {
+  padding: 0 1rem 0.8rem;
+}
+
+.page-action-btn {
+  border: 1px solid rgba(22, 101, 52, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  color: #166534;
+  border-radius: 0.65rem;
+  padding: 0.42rem 0.72rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.page-action-btn:hover {
+  background: rgba(240, 253, 244, 0.95);
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
@@ -865,6 +912,25 @@
 
 .message-markdown table {
   margin: 0.9rem 0;
+}
+
+.message-copy-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.55rem;
+  background: white;
+  color: #334155;
+  padding: 0.24rem 0.5rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.message-copy-btn:hover {
+  border-color: rgba(22, 101, 52, 0.3);
+  color: #166534;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────── */

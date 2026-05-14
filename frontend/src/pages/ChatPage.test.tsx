@@ -40,6 +40,7 @@ const chatOk = {
 
 describe('ChatPage', () => {
   beforeEach(() => {
+    sessionStorage.clear()
     vi.mocked(apiClient.getHealth).mockResolvedValue(healthIngested)
   })
 
@@ -446,6 +447,66 @@ describe('ChatPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Chat request failed.')).toBeInTheDocument()
+    })
+  })
+
+  it('shows offline badge when backend reports fallback mode', async () => {
+    vi.mocked(apiClient.getHealth).mockResolvedValueOnce({
+      ...healthIngested,
+      notes: ['Service is running in offline/fallback mode (no OpenAI API key).'],
+    })
+
+    render(<ChatPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Offline Mode')).toBeInTheDocument()
+    })
+  })
+
+  it('retries the last failed chat without retyping', async () => {
+    vi.mocked(apiClient.chat)
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(chatOk)
+
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'retry me' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /retry last failed message/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /retry last failed message/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(apiClient.chat).mock.calls.length).toBeGreaterThanOrEqual(2)
+      expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
+    })
+  })
+
+  it('starts a fresh conversation when New chat is clicked', async () => {
+    vi.mocked(apiClient.chat).mockResolvedValueOnce(chatOk)
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'hello' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /new chat/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Hello! How can I help?')).not.toBeInTheDocument()
+      expect(screen.getByText(/Started a new conversation/i)).toBeInTheDocument()
     })
   })
 })

@@ -2,9 +2,15 @@ import { ShoppingCart } from 'lucide-react'
 
 interface AppHeaderProps {
   readonly badge?: string
+  readonly badgeClassName?: string
+  readonly onNewChat?: () => void
 }
 
-export function AppHeader({ badge = 'GPT-4o-mini' }: Readonly<AppHeaderProps>) {
+export function AppHeader({
+  badge = 'GPT-4o-mini',
+  badgeClassName,
+  onNewChat,
+}: Readonly<AppHeaderProps>) {
   return (
     <header className="app-header">
       <div className="app-header-inner">
@@ -15,7 +21,16 @@ export function AppHeader({ badge = 'GPT-4o-mini' }: Readonly<AppHeaderProps>) {
           <h1>SOP Assistant</h1>
           <p>Grocery Store Operating Procedures · Powered by AI</p>
         </div>
-        <span className="app-header-badge">{badge}</span>
+        <div className="app-header-actions">
+          {onNewChat && (
+            <button type="button" className="app-header-action-btn" onClick={onNewChat}>
+              New chat
+            </button>
+          )}
+          <span className={`app-header-badge${badgeClassName ? ` ${badgeClassName}` : ''}`}>
+            {badge}
+          </span>
+        </div>
       </div>
     </header>
   )

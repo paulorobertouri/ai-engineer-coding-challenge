@@ -328,7 +328,7 @@ The one-time ingest rule is safe for a challenge, but real development and opera
 
 ### 15. Improve Chat UX
 
-- [ ] Add small workflow improvements that make the assistant easier to use repeatedly.
+- [x] Add small workflow improvements that make the assistant easier to use repeatedly.
 
 **Why**
 
