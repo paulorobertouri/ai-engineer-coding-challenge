@@ -45,6 +45,8 @@ Tool-call observability:
 - File: `Data/vector-store.json` (configurable via `Challenge__VectorStorePath`)
 - Inside Docker the file lives at `/app/Data/vector-store.json` (persisted in the `backend_data` named volume)
 - Format: JSON array of `VectorRecord` objects (`id`, `source`, `chunkText`, `embedding`, `metadata`)
+- Chunk IDs are deterministic (`<source>-<section>-<index>-<hash>`) to keep citations/logs stable across unchanged reingests
+- Metadata includes stable `ContentHash` per chunk for change detection
 - Search: cosine similarity computed in-process over all records (suitable for POC scale)
 
 To reset persisted Docker ingestion data intentionally:

@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 using Api.Models;
 
 namespace Api.Services;
@@ -35,14 +37,18 @@ public sealed partial class MarkdownChunkingService : IChunkingService
 
             searchStart = Math.Min(sourceText.Length, sectionStart + section.Length);
 
+            var sectionTitle = ExtractSectionTitle(trimmed);
+            var contentHash = ComputeContentHash(trimmed);
+
             chunks.Add(new TextChunk
             {
-                Id = Guid.NewGuid().ToString("N"),
+                Id = BuildDeterministicChunkId(sourceName, sectionTitle, index, contentHash),
                 Source = sourceName,
                 Index = index++,
                 StartLine = startLine,
                 EndLine = endLine,
-                SectionTitle = ExtractSectionTitle(trimmed),
+                SectionTitle = sectionTitle,
+                ContentHash = contentHash,
                 Content = trimmed
             });
         }
@@ -92,5 +98,33 @@ public sealed partial class MarkdownChunkingService : IChunkingService
         }
 
         return string.Empty;
+    }
+
+    private static string ComputeContentHash(string content)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(bytes)[..12].ToLowerInvariant();
+    }
+
+    private static string BuildDeterministicChunkId(string sourceName, string sectionTitle, int index, string contentHash)
+    {
+        var sourceSegment = NormalizeSegment(Path.GetFileNameWithoutExtension(sourceName));
+        var sectionSegment = NormalizeSegment(sectionTitle);
+        return $"{sourceSegment}-{sectionSegment}-{index:D4}-{contentHash}";
+    }
+
+    private static string NormalizeSegment(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "chunk";
+        }
+
+        var chars = value
+            .ToLowerInvariant()
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+            .ToArray();
+        var normalized = new string(chars).Trim('-');
+        return string.IsNullOrWhiteSpace(normalized) ? "chunk" : normalized;
     }
 }

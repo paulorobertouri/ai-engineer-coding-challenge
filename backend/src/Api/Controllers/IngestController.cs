@@ -177,6 +177,9 @@ public sealed class IngestController(
             if (!string.IsNullOrWhiteSpace(chunk.SectionTitle))
                 metadata["SectionTitle"] = chunk.SectionTitle;
 
+            if (!string.IsNullOrWhiteSpace(chunk.ContentHash))
+                metadata["ContentHash"] = chunk.ContentHash;
+
             records.Add(new VectorRecord
             {
                 Id = chunk.Id,

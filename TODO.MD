@@ -372,7 +372,7 @@ Citations are present, but they are passive. A user should be able to move from 
 
 ### 17. Add Deterministic Chunk IDs
 
-- [ ] Generate chunk IDs from stable source metadata instead of random GUIDs.
+- [x] Generate chunk IDs from stable source metadata instead of random GUIDs.
 
 **Why**
 

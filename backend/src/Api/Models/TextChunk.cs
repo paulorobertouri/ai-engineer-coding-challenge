@@ -14,5 +14,7 @@ public sealed class TextChunk
 
     public string SectionTitle { get; init; } = string.Empty;
 
+    public string ContentHash { get; init; } = string.Empty;
+
     public string Content { get; init; } = string.Empty;
 }

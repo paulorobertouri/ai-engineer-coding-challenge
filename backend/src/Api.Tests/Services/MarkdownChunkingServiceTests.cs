@@ -106,6 +106,36 @@ public class MarkdownChunkingServiceTests
     }
 
     [Fact]
+    public async Task ChunkAsync_SameInput_ProducesStableChunkIdsAndHashes()
+    {
+        var service = new MarkdownChunkingService();
+        var markdown = "# Title\n## S1\nA\n## S2\nB";
+
+        var first = await service.ChunkAsync(markdown, "test.md");
+        var second = await service.ChunkAsync(markdown, "test.md");
+
+        Assert.Equal(first.Select(c => c.Id), second.Select(c => c.Id));
+        Assert.Equal(first.Select(c => c.ContentHash), second.Select(c => c.ContentHash));
+    }
+
+    [Fact]
+    public async Task ChunkAsync_ContentChange_OnlyChangesAffectedChunkIdentity()
+    {
+        var service = new MarkdownChunkingService();
+        var original = "## S1\nA\n## S2\nB";
+        var updated = "## S1\nA\n## S2\nChanged";
+
+        var first = await service.ChunkAsync(original, "test.md");
+        var second = await service.ChunkAsync(updated, "test.md");
+
+        Assert.Equal(first[0].Id, second[0].Id);
+        Assert.Equal(first[0].ContentHash, second[0].ContentHash);
+
+        Assert.NotEqual(first[1].Id, second[1].Id);
+        Assert.NotEqual(first[1].ContentHash, second[1].ContentHash);
+    }
+
+    [Fact]
     public async Task ChunkAsync_NoHeaders_ReturnsSingleChunk()
     {
         var service = new MarkdownChunkingService();
