@@ -18,6 +18,22 @@ describe('MarkdownContent', () => {
     const link = screen.getByRole('link', { name: 'Click here' })
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText('(external)')).toBeInTheDocument()
+  })
+
+  it('does not render javascript protocol links as clickable anchors', () => {
+    render(<MarkdownContent content="[Unsafe](javascript:alert('xss'))" />)
+    expect(screen.queryByRole('link', { name: 'Unsafe' })).not.toBeInTheDocument()
+    expect(screen.getByText('Unsafe')).toBeInTheDocument()
+  })
+
+  it('does not execute raw HTML', () => {
+    const { container } = render(
+      <MarkdownContent content={'<script>alert("xss")</script>\n\n**still markdown**'} />,
+    )
+
+    expect(container.querySelector('script')).not.toBeInTheDocument()
+    expect(screen.getByText('still markdown')).toBeInTheDocument()
   })
 
   it('applies additional className to the wrapper', () => {

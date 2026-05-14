@@ -497,7 +497,7 @@ OpenAI calls and ingestion can take time. Cancellation and endpoint-specific tim
 
 ### 23. Improve Markdown And Link Safety
 
-- [ ] Harden assistant Markdown rendering and external links.
+- [x] Harden assistant Markdown rendering and external links.
 
 **Why**
 

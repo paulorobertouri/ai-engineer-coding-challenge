@@ -7,6 +7,14 @@ interface MarkdownContentProps {
   className?: string
 }
 
+function isAllowedHref(href: string): boolean {
+  return /^(https?:|mailto:|tel:|\/|#)/i.test(href)
+}
+
+function isExternalHref(href: string): boolean {
+  return /^https?:\/\//i.test(href)
+}
+
 /**
  * Senior-level Markdown renderer with accessibility and GFM support.
  */
@@ -27,14 +35,32 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ ...props }) => (
-            <a
-              {...props}
-              className="text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:decoration-emerald-500"
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          ),
+          a: ({ href, children, ...props }) => {
+            const safeHref = typeof href === 'string' && isAllowedHref(href) ? href : null
+
+            if (!safeHref) {
+              return <span className="text-slate-600">{children}</span>
+            }
+
+            const isExternal = isExternalHref(safeHref)
+
+            return (
+              <a
+                {...props}
+                href={safeHref}
+                className="text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:decoration-emerald-500"
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+              >
+                {children}
+                {isExternal && (
+                  <span aria-hidden="true" className="ml-1 text-xs text-slate-500">
+                    (external)
+                  </span>
+                )}
+              </a>
+            )
+          },
           table: ({ ...props }) => (
             <div className="my-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <table {...props} className="min-w-full border-collapse" />

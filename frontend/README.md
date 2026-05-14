@@ -14,7 +14,7 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 | `CitationsPanel`   | Sidebar card listing source chunks returned by the API (`source`, `snippet`, optional line range) with selectable evidence rows |
 | `IngestPanel`      | Sidebar card with a single "Run Ingest" button; source path is server-side only                       |
 | `StatusBanner`     | Colour-coded banner (`info` / `success` / `warning` / `error`) for health, ingest, and error feedback |
-| `MarkdownContent`  | Renders assistant messages as Markdown                                                                |
+| `MarkdownContent`  | Renders assistant messages as Markdown with safe-link protocol allowlist and external-link indicator |
 | `AppErrorBoundary` | React error boundary catching unhandled render errors                                                 |
 
 ## Services & Types
@@ -77,6 +77,6 @@ PowerShell on Windows:
 | `ChatTranscript.test.tsx`   | Renders empty state, displays messages, shows correct role labels               |
 | `CitationsPanel.test.tsx`   | Renders empty state and a list of citations with source and snippet             |
 | `IngestPanel.test.tsx`      | Renders button, triggers `onIngest`, disables while busy                        |
-| `MarkdownContent.test.tsx`  | Renders plain text and basic Markdown (bold, lists)                             |
+| `MarkdownContent.test.tsx`  | Renders Markdown and validates link/HTML safety behavior                         |
 | `StatusBanner.test.tsx`     | Renders all tone variants with correct accessible roles                         |
 | `validation.test.ts`        | Validates `ChatRequestSchema` and `IngestRequestSchema` with valid/invalid data |
