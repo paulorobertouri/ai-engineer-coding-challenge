@@ -11,7 +11,7 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 | `ChatPage`         | Root page — owns conversation state, health check on mount, ingest and send handlers (`useCallback`)  |
 | `ChatTranscript`   | Animated message history (Framer Motion fade + slide); auto-scrolls to latest turn and supports copy-answer action |
 | `ChatComposer`     | Auto-expanding textarea; Enter to send, Shift+Enter for newline; disabled while sending               |
-| `CitationsPanel`   | Sidebar card listing source chunks returned by the API (`source`, `snippet`, optional line range)     |
+| `CitationsPanel`   | Sidebar card listing source chunks returned by the API (`source`, `snippet`, optional line range) with selectable evidence rows |
 | `IngestPanel`      | Sidebar card with a single "Run Ingest" button; source path is server-side only                       |
 | `StatusBanner`     | Colour-coded banner (`info` / `success` / `warning` / `error`) for health, ingest, and error feedback |
 | `MarkdownContent`  | Renders assistant messages as Markdown                                                                |

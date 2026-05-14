@@ -9,6 +9,7 @@ interface CitationsPanelProps {
 
 export function CitationsPanel({ citations, hasMessages = false }: CitationsPanelProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
   function toggleExpand(index: number) {
     setExpanded((prev) => {
@@ -20,6 +21,11 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
       }
       return next
     })
+  }
+
+  function selectCitation(index: number) {
+    setSelectedIndex(index)
+    setExpanded((prev) => new Set(prev).add(index))
   }
 
   const emptyMessage = hasMessages
@@ -45,29 +51,40 @@ export function CitationsPanel({ citations, hasMessages = false }: CitationsPane
         <ul className="citations-list">
           {citations.map((citation, index) => {
             const isExpanded = expanded.has(index)
+            const isSelected = selectedIndex === index
             const scoreLabel =
               typeof citation.score === 'number' ? `score ${citation.score.toFixed(3)}` : null
             return (
-              <li key={`${citation.chunkId ?? citation.source}-${index}`} className="citation-item">
-                <p className="citation-source">
-                  <FileText size={11} />
-                  {citation.source}
-                  {citation.startLine
-                    ? ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
-                    : ''}
-                </p>
-                {(citation.sectionTitle || scoreLabel || citation.chunkId) && (
+              <li
+                key={`${citation.chunkId ?? citation.source}-${index}`}
+                className={`citation-item${isSelected ? ' citation-item--selected' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="citation-select-btn"
+                  onClick={() => selectCitation(index)}
+                  aria-pressed={isSelected}
+                >
                   <p className="citation-source">
-                    {citation.sectionTitle ? `Section: ${citation.sectionTitle}` : ''}
-                    {citation.sectionTitle && scoreLabel ? ' · ' : ''}
-                    {scoreLabel ?? ''}
-                    {(citation.sectionTitle || scoreLabel) && citation.chunkId ? ' · ' : ''}
-                    {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
+                    <FileText size={11} />
+                    {citation.source}
+                    {citation.startLine
+                      ? ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
+                      : ''}
                   </p>
-                )}
-                <p className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}>
-                  {citation.snippet}
-                </p>
+                  {(citation.sectionTitle || scoreLabel || citation.chunkId) && (
+                    <p className="citation-source">
+                      {citation.sectionTitle ? `Section: ${citation.sectionTitle}` : ''}
+                      {citation.sectionTitle && scoreLabel ? ' · ' : ''}
+                      {scoreLabel ?? ''}
+                      {(citation.sectionTitle || scoreLabel) && citation.chunkId ? ' · ' : ''}
+                      {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
+                    </p>
+                  )}
+                  <p className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}>
+                    {citation.snippet}
+                  </p>
+                </button>
                 <button
                   className="citation-expand-btn"
                   type="button"

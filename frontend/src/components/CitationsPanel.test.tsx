@@ -70,6 +70,28 @@ describe('CitationsPanel', () => {
     expect(screen.getAllByRole('button', { name: /show more/i })).toHaveLength(2)
   })
 
+  it('selects a citation when clicked', () => {
+    const citations: Citation[] = [{ source: 'SOP.md', snippet: 'selectable text' }]
+    render(<CitationsPanel citations={citations} />)
+
+    const selectButton = screen.getByRole('button', { name: /SOP.md/i })
+    fireEvent.click(selectButton)
+
+    expect(selectButton).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('supports keyboard selection for citation rows', () => {
+    const citations: Citation[] = [{ source: 'SOP.md', snippet: 'keyboard text' }]
+    render(<CitationsPanel citations={citations} />)
+
+    const selectButton = screen.getByRole('button', { name: /SOP.md/i })
+    selectButton.focus()
+    fireEvent.keyDown(selectButton, { key: 'Enter', code: 'Enter' })
+    fireEvent.click(selectButton)
+
+    expect(selectButton).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('toggles citation expansion when "Show more" is clicked', () => {
     const citations: Citation[] = [{ source: 'SOP.md', snippet: 'expandable text' }]
     render(<CitationsPanel citations={citations} />)

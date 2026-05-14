@@ -351,7 +351,7 @@ The current UI covers the core ingest/chat loop well, but users will quickly exp
 
 ### 16. Make Citations Interactive
 
-- [ ] Let users inspect the exact evidence behind an answer.
+- [x] Let users inspect the exact evidence behind an answer.
 
 **Why**
 
