@@ -1,6 +1,8 @@
 using Api.Options;
+using Api.Observability;
 using Microsoft.Extensions.Options;
 using Api.Models;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -80,9 +82,19 @@ public sealed class JsonVectorStoreService : IVectorStoreService
 
     public async Task<IReadOnlyList<VectorSearchMatch>> SearchAsync(float[] queryEmbedding, int topK, CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
         var records = await LoadAsync(cancellationToken);
+        var results = Rank(queryEmbedding, records, topK);
+        stopwatch.Stop();
 
-        return Rank(queryEmbedding, records, topK);
+        AppTelemetry.VectorSearchLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
+
+        using var activity = AppTelemetry.ActivitySource.StartActivity("vector.search");
+        activity?.SetTag("vector.top_k", topK);
+        activity?.SetTag("vector.result_count", results.Count);
+        activity?.SetTag("vector.search_ms", stopwatch.Elapsed.TotalMilliseconds);
+
+        return results;
     }
 
     public async Task<IReadOnlyList<VectorSearchMatch>> SearchAsync(
@@ -91,10 +103,21 @@ public sealed class JsonVectorStoreService : IVectorStoreService
         IReadOnlyDictionary<string, string> metadataFilter,
         CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
         var records = await LoadAsync(cancellationToken);
         var filteredRecords = records.Where(record => MatchesMetadataFilter(record, metadataFilter));
+        var results = Rank(queryEmbedding, filteredRecords, topK);
+        stopwatch.Stop();
 
-        return Rank(queryEmbedding, filteredRecords, topK);
+        AppTelemetry.VectorSearchLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
+
+        using var activity = AppTelemetry.ActivitySource.StartActivity("vector.search.filtered");
+        activity?.SetTag("vector.top_k", topK);
+        activity?.SetTag("vector.result_count", results.Count);
+        activity?.SetTag("vector.filter_count", metadataFilter.Count);
+        activity?.SetTag("vector.search_ms", stopwatch.Elapsed.TotalMilliseconds);
+
+        return results;
     }
 
     public async Task DeleteByIdsAsync(IEnumerable<string> ids, CancellationToken cancellationToken = default)

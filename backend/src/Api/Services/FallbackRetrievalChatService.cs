@@ -1,5 +1,6 @@
 using Api.Contracts;
 using Api.Models;
+using Api.Observability;
 using Api.Options;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
@@ -27,6 +28,11 @@ public sealed class FallbackRetrievalChatService(
     {
         var stopwatch = Stopwatch.StartNew();
         var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+        using var activity = AppTelemetry.ActivitySource.StartActivity("chat.fallback.generate");
+        activity?.SetTag("chat.mode", "fallback");
+        activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);
+        AppTelemetry.ChatRequests.Add(1);
+
         var latestUserMessage = request.Messages.LastOrDefault(m =>
             m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
         var guardrailDecision = guardrailService.Evaluate(latestUserMessage);
@@ -76,6 +82,9 @@ public sealed class FallbackRetrievalChatService(
         var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
         var confidence = ConfidenceIndicatorFactory.Create(matches, citedChunkIds);
         stopwatch.Stop();
+        AppTelemetry.ChatLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
+        activity?.SetTag("chat.total_ms", stopwatch.Elapsed.TotalMilliseconds);
+        activity?.SetTag("chat.citation_count", matches.Count);
 
         logger.LogInformation(
             "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",

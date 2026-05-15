@@ -991,7 +991,7 @@ In-memory rate limiting works for one process. Multiple instances need shared co
 
 ### 46. Add OpenTelemetry Tracing And Metrics
 
-- [ ] Instrument requests, retrieval, ingestion, vector search, and model calls.
+- [x] Instrument requests, retrieval, ingestion, vector search, and model calls.
 
 **Why**
 

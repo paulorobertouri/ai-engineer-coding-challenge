@@ -1,5 +1,6 @@
 using Api.Contracts;
 using Api.Models;
+using Api.Observability;
 using Api.Services;
 using Api.Options;
 using Microsoft.Extensions.Options;
@@ -55,6 +56,12 @@ public sealed class OpenAIRetrievalChatService(
         {
             var totalStopwatch = Stopwatch.StartNew();
             var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+            using var activity = AppTelemetry.ActivitySource.StartActivity("chat.openai.generate");
+            activity?.SetTag("chat.mode", "openai");
+            activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);
+            activity?.SetTag("chat.model", _chatModel);
+            AppTelemetry.ChatRequests.Add(1);
+
             var latestUserMessage = request.Messages
                 .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
             var guardrailDecision = guardrailService.Evaluate(latestUserMessage);
@@ -159,6 +166,10 @@ public sealed class OpenAIRetrievalChatService(
             }
 
             totalStopwatch.Stop();
+            AppTelemetry.ChatLatencyMs.Record(totalStopwatch.Elapsed.TotalMilliseconds);
+            activity?.SetTag("chat.total_ms", totalStopwatch.Elapsed.TotalMilliseconds);
+            activity?.SetTag("chat.citation_count", matches.Count);
+
             logger.LogInformation(
                 "Chat response generated. ConversationId={ConversationId}, Model={Model}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, ToolingEnabled={ToolingEnabled}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, CompletionLatencyMs={CompletionLatencyMs}, TotalLatencyMs={TotalLatencyMs}",
                 request.ConversationId,

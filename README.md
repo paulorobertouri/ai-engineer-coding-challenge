@@ -128,6 +128,7 @@ When the model returns `finish_reason: tool_calls`, each tool is executed and it
 - `GlobalExceptionHandler` maps unhandled exceptions to RFC 9457 `ProblemDetails` responses.
 - Response compression (Gzip / Brotli) enabled for HTTPS.
 - Forwarded headers middleware (`X-Forwarded-For`, `X-Forwarded-Proto`) for accurate client IP detection behind proxies/Docker.
+- OpenTelemetry traces/metrics are emitted for ASP.NET requests plus ingestion/retrieval/vector-search/model-call paths, with console export by default and optional OTLP export.
 
 ### 6. Rate Limiting
 Fixed-window rate limiting applied per client IP:

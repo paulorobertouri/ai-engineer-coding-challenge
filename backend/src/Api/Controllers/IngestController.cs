@@ -1,5 +1,6 @@
 using Api.Contracts;
 using Api.Models;
+using Api.Observability;
 using Api.Options;
 using Api.Services;
 using Api.Security;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Diagnostics;
 
 namespace Api.Controllers;
 
@@ -441,10 +443,22 @@ public sealed class IngestController(
         string? precomputedSourceChecksum,
         CancellationToken cancellationToken)
     {
+        var processStopwatch = Stopwatch.StartNew();
+        using var activity = AppTelemetry.ActivitySource.StartActivity("ingest.process");
+        activity?.SetTag("ingest.knowledge_base_id", knowledgeBaseId);
+        activity?.SetTag("ingest.action", action);
+        activity?.SetTag("ingest.source_name", sourceName);
+
         var sourceChecksum = precomputedSourceChecksum ?? DocumentVersioning.ComputeSourceChecksum(sourceText);
         var documentVersion = DocumentVersioning.ComputeDefaultVersionLabel(sourceChecksum);
         var ingestedAtUtc = DateTimeOffset.UtcNow;
+        var chunkingStopwatch = Stopwatch.StartNew();
         var chunks = await chunkingService.ChunkAsync(sourceText, sourceName, cancellationToken);
+        chunkingStopwatch.Stop();
+        AppTelemetry.IngestChunks.Add(chunks.Count);
+        activity?.SetTag("ingest.chunk_count", chunks.Count);
+        activity?.SetTag("ingest.chunking_ms", chunkingStopwatch.Elapsed.TotalMilliseconds);
+
         var records = new List<VectorRecord>();
         var existingById = existingRecords.ToDictionary(record => record.Id, StringComparer.Ordinal);
         var existingByHash = existingRecords
@@ -532,6 +546,11 @@ public sealed class IngestController(
             .ToList();
 
         await vectorStoreService.SaveAsync(mergedRecords, cancellationToken);
+        processStopwatch.Stop();
+        AppTelemetry.IngestLatencyMs.Record(processStopwatch.Elapsed.TotalMilliseconds);
+        activity?.SetTag("ingest.total_ms", processStopwatch.Elapsed.TotalMilliseconds);
+        activity?.SetTag("ingest.records_saved", records.Count);
+
         logger.LogInformation(
             "[INGEST] Incremental ingest completed for knowledge base '{KnowledgeBaseId}'. Unchanged={Unchanged}, New={New}, Updated={Updated}, Deleted={Deleted}, ReusedEmbeddings={Reused}, Recomputed={Recomputed}, Total={Total}",
             knowledgeBaseId,

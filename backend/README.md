@@ -104,6 +104,14 @@ For local development without Docker volume reset, the API also supports a guard
 - Exponential backoff retry — 3 attempts, 2 s base delay
 - 30 s timeout
 
+## OpenTelemetry
+
+OpenTelemetry instrumentation is enabled for ASP.NET Core requests and custom application spans/metrics:
+- Traces: request pipeline, ingestion processing, vector search, and chat generation paths
+- Metrics: chat request counts/latency, vector search latency, and ingest chunk/latency metrics
+- Exporters: console exporter enabled by default; OTLP exporter is optional via configuration
+- Sensitive-content safety: telemetry tags record IDs, counts, and timings only (not raw document/chat content)
+
 ## Observability
 
 Structured logs for retrieval/chat flows now include:
@@ -203,6 +211,9 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Auth:ApiKey` | _(empty)_ | Local API key used by the built-in authentication handler when admin endpoints are protected |
 | `Auth:ApiKeyHeaderName` | `X-Api-Key` | Header name read by the local API-key auth handler |
 | `Auth:AllowAnonymousInDevelopment` | `true` | Lets local development access protected admin endpoints without an identity provider |
+| `Observability:Enabled` | `true` | Enables OpenTelemetry tracing and metrics wiring |
+| `Observability:EnableConsoleExporter` | `true` | Emits traces/metrics to console without any cloud dependency |
+| `Observability:OtlpEndpoint` | _(empty)_ | Optional OTLP endpoint URL (for example `http://localhost:4317`) |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
 
 ## Local Development

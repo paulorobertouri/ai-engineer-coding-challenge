@@ -1,5 +1,6 @@
 using Api;
 using Api.Middleware;
+using Api.Observability;
 using Api.Options;
 using Api.Services;
 using Api.Security;
@@ -10,6 +11,9 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using OpenAI;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -90,6 +94,12 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services
+    .AddOptions<ObservabilityOptions>()
+    .Bind(builder.Configuration.GetSection(ObservabilityOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
     .AddOptions<AuthOptions>()
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
     .ValidateDataAnnotations()
@@ -103,6 +113,7 @@ var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.S
 var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
 var vectorStoreOptions = builder.Configuration.GetSection(VectorStoreOptions.SectionName).Get<VectorStoreOptions>() ?? new VectorStoreOptions();
 var isDistributedRateLimiting = DistributedRateLimitingRegistration.IsDistributedEnabled(rateLimitingOptions);
+var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 
 builder.Services.AddControllers();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = uploadOptions.MaxUploadBytes);
@@ -137,6 +148,50 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+
+if (observabilityOptions.Enabled)
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource.AddService(AppTelemetry.ServiceName))
+        .WithTracing(tracing =>
+        {
+            tracing
+                .AddAspNetCoreInstrumentation()
+                .AddSource(AppTelemetry.ActivitySourceName);
+
+            if (observabilityOptions.EnableConsoleExporter)
+            {
+                tracing.AddConsoleExporter();
+            }
+
+            if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))
+            {
+                tracing.AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri(observabilityOptions.OtlpEndpoint);
+                });
+            }
+        })
+        .WithMetrics(metrics =>
+        {
+            metrics
+                .AddAspNetCoreInstrumentation()
+                .AddMeter(AppTelemetry.MeterName);
+
+            if (observabilityOptions.EnableConsoleExporter)
+            {
+                metrics.AddConsoleExporter();
+            }
+
+            if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))
+            {
+                metrics.AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri(observabilityOptions.OtlpEndpoint);
+                });
+            }
+        });
+}
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
 builder.Services.AddSingleton<IDocumentExtractionService, LocalDocumentExtractionService>();
