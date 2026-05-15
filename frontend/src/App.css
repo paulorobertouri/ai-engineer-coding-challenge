@@ -985,6 +985,49 @@
   color: #166534;
 }
 
+.message-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.message-feedback-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.message-feedback-btn {
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 0.55rem;
+  background: rgba(236, 253, 245, 0.75);
+  color: #166534;
+  padding: 0.24rem 0.52rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.message-feedback-btn:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(220, 252, 231, 0.9);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .app-shell {

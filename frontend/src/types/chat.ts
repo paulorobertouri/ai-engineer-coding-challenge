@@ -35,6 +35,21 @@ export interface ChatRequest {
   messages: ChatApiMessage[]
 }
 
+export type FeedbackKind = 'helpful' | 'unhelpful' | 'wrong-citation'
+
+export interface ConversationFeedbackRequest {
+  conversationId: string
+  messageId: string
+  feedbackType: FeedbackKind
+  comment?: string
+}
+
+export interface ConversationFeedbackResponse {
+  accepted: boolean
+  message: string
+  submittedAtUtc: string
+}
+
 export interface ChatResponse {
   conversationId: string
   assistantMessage: string

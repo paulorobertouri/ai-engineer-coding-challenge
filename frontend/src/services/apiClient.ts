@@ -1,6 +1,8 @@
 import type {
   ChatRequest,
   ChatResponse,
+  ConversationFeedbackRequest,
+  ConversationFeedbackResponse,
   HealthResponse,
   IngestJobStatusResponse,
   IngestRequest,
@@ -365,6 +367,16 @@ export const apiClient = {
   },
   getIngestJobStatus(jobId: string, signal?: AbortSignal): Promise<IngestJobStatusResponse> {
     return request<IngestJobStatusResponse>(`/api/v1/ingest/jobs/${jobId}`, { signal })
+  },
+  submitFeedback(
+    payload: ConversationFeedbackRequest,
+    signal?: AbortSignal,
+  ): Promise<ConversationFeedbackResponse> {
+    return request<ConversationFeedbackResponse>('/api/v1/chat/feedback', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal,
+    })
   },
   chat(payload: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
     return request<ChatResponse>('/api/v1/chat', {

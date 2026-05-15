@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   Citation,
   ConfidenceIndicator,
+  FeedbackKind,
   IngestResponse,
   StatusMessage,
 } from '../types/chat'
@@ -42,7 +43,7 @@ function loadStoredChatSession(): StoredChatSession | null {
       citations: Array.isArray(stored.citations) ? stored.citations : [],
       confidence:
         typeof stored.confidence === 'object' && stored.confidence !== null
-          ? (stored.confidence as ConfidenceIndicator)
+          ? stored.confidence
           : null,
     }
   } catch {
@@ -108,9 +109,29 @@ async function waitForIngestJobCompletion(
     }
 
     await new Promise((resolve) => {
-      window.setTimeout(resolve, 1000)
+      globalThis.window.setTimeout(resolve, 1000)
     })
   }
+}
+
+async function submitIngestRequest(
+  file: File | undefined,
+  signal: AbortSignal,
+): Promise<IngestResponse> {
+  if (file) {
+    return apiClient.ingestFile(file, signal)
+  }
+
+  return apiClient.ingest(IngestRequestSchema.parse({ forceReingest: false }), signal)
+}
+
+function normalizeOptionalComment(comment: string | null | undefined): string | undefined {
+  if (!comment) {
+    return undefined
+  }
+
+  const trimmed = comment.trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function replaceStreamingMessage(
@@ -256,20 +277,14 @@ export function ChatPage() {
     })
 
     try {
-      let response: IngestResponse
-      if (file) {
-        response = await apiClient.ingestFile(file, abortController.signal)
-      } else {
-        const payload = IngestRequestSchema.parse({ forceReingest: false })
-        response = await apiClient.ingest(payload, abortController.signal)
-      }
-
-      if (response.jobId && response.jobStatusUrl) {
+      const initialResponse = await submitIngestRequest(file, abortController.signal)
+      let response = initialResponse
+      if (initialResponse.jobId && initialResponse.jobStatusUrl) {
         setStatus({
           tone: 'info',
-          message: `${response.message} Waiting for the job to finish…`,
+          message: `${initialResponse.message} Waiting for the job to finish…`,
         })
-        response = await waitForIngestJobCompletion(response.jobId, abortController.signal)
+        response = await waitForIngestJobCompletion(initialResponse.jobId, abortController.signal)
       }
 
       setIsIngested(true)
@@ -415,6 +430,37 @@ export function ChatPage() {
     await handleIngest(lastIngestFile)
   }, [handleIngest, lastIngestFile])
 
+  const handleSubmitFeedback = useCallback(
+    async (messageId: string, feedbackType: FeedbackKind) => {
+      const optionalComment =
+        feedbackType === 'helpful'
+          ? undefined
+          : globalThis.window.prompt('Optional feedback note (leave empty to skip):')
+
+      const comment = normalizeOptionalComment(optionalComment)
+
+      try {
+        await apiClient.submitFeedback({
+          conversationId,
+          messageId,
+          feedbackType,
+          comment,
+        })
+
+        setStatus({
+          tone: 'success',
+          message: 'Feedback submitted. Thank you.',
+        })
+      } catch (error) {
+        setStatus({
+          tone: 'error',
+          message: error instanceof Error ? error.message : 'Failed to submit feedback.',
+        })
+      }
+    },
+    [conversationId],
+  )
+
   const handleNewChat = useCallback(() => {
     chatAbortRef.current?.abort()
     setConversationId(globalThis.crypto.randomUUID())
@@ -459,6 +505,7 @@ export function ChatPage() {
           messages={messages}
           isSending={isSending}
           onPromptSelect={handlePromptSelect}
+          onFeedbackSubmit={handleSubmitFeedback}
         />
         <ChatComposer value={draft} onChange={setDraft} onSubmit={handleSend} isBusy={isSending} />
         {lastFailedDraft && (

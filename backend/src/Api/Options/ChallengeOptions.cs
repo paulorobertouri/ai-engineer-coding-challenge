@@ -17,4 +17,8 @@ public sealed class ChallengeOptions
     [Required]
     [MinLength(1)]
     public string IngestionAuditPath { get; init; } = "Data/ingestion-audit.json";
+
+    [Required]
+    [MinLength(1)]
+    public string ConversationFeedbackPath { get; init; } = "Data/conversation-feedback.json";
 }

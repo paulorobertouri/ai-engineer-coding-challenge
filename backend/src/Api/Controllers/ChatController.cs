@@ -17,6 +17,7 @@ namespace Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.ChatUser)]
 public sealed class ChatController(
     IRetrievalChatService retrievalChatService,
+    IConversationFeedbackService conversationFeedbackService,
     IOptions<TimeoutOptions> timeoutOptions) : ControllerBase
 {
     private const string ValidationErrorTitle = "One or more validation errors occurred.";
@@ -89,6 +90,33 @@ public sealed class ChatController(
                 HttpContext?.Request.Path.Value);
             return StatusCode(StatusCodes.Status408RequestTimeout, details);
         }
+    }
+
+    [HttpPost("feedback")]
+    [EnableRateLimiting("chat")]
+    public async Task<ActionResult<ConversationFeedbackResponse>> SubmitFeedback(
+        [FromBody] ConversationFeedbackRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedComment = string.IsNullOrWhiteSpace(request.Comment)
+            ? null
+            : request.Comment.Trim();
+
+        await conversationFeedbackService.RecordAsync(new ConversationFeedbackRecord
+        {
+            TimestampUtc = DateTimeOffset.UtcNow,
+            ConversationId = request.ConversationId,
+            MessageId = request.MessageId,
+            FeedbackType = request.FeedbackType,
+            Comment = normalizedComment
+        }, cancellationToken);
+
+        return Ok(new ConversationFeedbackResponse
+        {
+            Accepted = true,
+            Message = "Feedback submitted successfully.",
+            SubmittedAtUtc = DateTimeOffset.UtcNow
+        });
     }
 
     private ActionResult<ChatResponse>? ValidateRequest(ChatRequest request)

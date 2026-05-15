@@ -14,12 +14,14 @@ namespace Api.Tests;
 public class ChatControllerTests
 {
     private readonly Mock<IRetrievalChatService> _mockService = new();
+    private readonly Mock<IConversationFeedbackService> _mockFeedbackService = new();
     private readonly ChatController _controller;
 
     public ChatControllerTests()
     {
         _controller = new ChatController(
             _mockService.Object,
+            _mockFeedbackService.Object,
             Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { ChatSeconds = 30 }));
     }
 
@@ -197,7 +199,7 @@ public class ChatControllerTests
         };
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _controller.Post(request, cts.Token));
     }
@@ -235,5 +237,57 @@ public class ChatControllerTests
         Assert.Contains("event: delta", body, StringComparison.Ordinal);
         Assert.Contains("event: complete", body, StringComparison.Ordinal);
         Assert.Contains("Hello from stream", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubmitFeedback_ValidRequest_PersistsFeedback()
+    {
+        var request = new ConversationFeedbackRequest
+        {
+            ConversationId = "conv-1",
+            MessageId = "assistant-1",
+            FeedbackType = "helpful",
+            Comment = "Great answer"
+        };
+
+        var result = await _controller.SubmitFeedback(request, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<ConversationFeedbackResponse>(ok.Value);
+        Assert.True(response.Accepted);
+
+        _mockFeedbackService.Verify(
+            service => service.RecordAsync(
+                It.Is<ConversationFeedbackRecord>(record =>
+                    record.ConversationId == "conv-1"
+                    && record.MessageId == "assistant-1"
+                    && record.FeedbackType == "helpful"
+                    && record.Comment == "Great answer"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task SubmitFeedback_WhitespaceComment_StoresNullComment()
+    {
+        var request = new ConversationFeedbackRequest
+        {
+            ConversationId = "conv-1",
+            MessageId = "assistant-2",
+            FeedbackType = "wrong-citation",
+            Comment = "   "
+        };
+
+        await _controller.SubmitFeedback(request, CancellationToken.None);
+
+        _mockFeedbackService.Verify(
+            service => service.RecordAsync(
+                It.Is<ConversationFeedbackRecord>(record =>
+                    record.ConversationId == "conv-1"
+                    && record.MessageId == "assistant-2"
+                    && record.FeedbackType == "wrong-citation"
+                    && record.Comment == null),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

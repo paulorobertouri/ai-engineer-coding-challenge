@@ -66,6 +66,27 @@ describe('apiClient', () => {
     )
   })
 
+  it('submitFeedback sends POST to /api/v1/chat/feedback and returns response', async () => {
+    const feedbackResponse = {
+      accepted: true,
+      message: 'Feedback submitted successfully.',
+      submittedAtUtc: '2026-05-15T16:00:00Z',
+    }
+
+    mockFetch(feedbackResponse)
+    const result = await apiClient.submitFeedback({
+      conversationId: 'conv-1',
+      messageId: 'assistant-1',
+      feedbackType: 'helpful',
+    })
+
+    expect(result.accepted).toBe(true)
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/chat/feedback'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
   it('chatStream emits deltas and returns the final response', async () => {
     const streamBody = new ReadableStream<Uint8Array>({
       start(controller) {

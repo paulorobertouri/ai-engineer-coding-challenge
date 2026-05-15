@@ -10,6 +10,7 @@ vi.mock('../services/apiClient', () => ({
     chatStream: vi.fn(),
     ingest: vi.fn(),
     ingestFile: vi.fn(),
+    submitFeedback: vi.fn(),
   },
 }))
 
@@ -44,6 +45,11 @@ describe('ChatPage', () => {
     sessionStorage.clear()
     vi.mocked(apiClient.getHealth).mockResolvedValue(healthIngested)
     vi.mocked(apiClient.chatStream).mockResolvedValue(chatOk)
+    vi.mocked(apiClient.submitFeedback).mockResolvedValue({
+      accepted: true,
+      message: 'Feedback submitted successfully.',
+      submittedAtUtc: '2026-05-15T16:00:00Z',
+    })
   })
 
   afterEach(() => {
@@ -134,6 +140,30 @@ describe('ChatPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
+    })
+  })
+
+  it('submits helpful feedback for an assistant message', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'What are the opening steps?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /^helpful$/i }))
+
+    await waitFor(() => {
+      expect(apiClient.submitFeedback).toHaveBeenCalledWith(
+        expect.objectContaining({ feedbackType: 'helpful' }),
+      )
     })
   })
 

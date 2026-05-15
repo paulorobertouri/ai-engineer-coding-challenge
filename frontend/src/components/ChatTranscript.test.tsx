@@ -72,6 +72,19 @@ describe('ChatTranscript', () => {
     })
   })
 
+  it('emits selected feedback for assistant messages', () => {
+    const onFeedbackSubmit = vi.fn()
+    render(<ChatTranscript messages={mockMessages} onFeedbackSubmit={onFeedbackSubmit} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^helpful$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^unhelpful$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /wrong citation/i }))
+
+    expect(onFeedbackSubmit).toHaveBeenNthCalledWith(1, '2', 'helpful')
+    expect(onFeedbackSubmit).toHaveBeenNthCalledWith(2, '2', 'unhelpful')
+    expect(onFeedbackSubmit).toHaveBeenNthCalledWith(3, '2', 'wrong-citation')
+  })
+
   it('uses non-animated scrolling when reduced motion is preferred', () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query.includes('prefers-reduced-motion'),

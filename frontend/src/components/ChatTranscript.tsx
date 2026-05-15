@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Bot, Clock, MessageSquareDashed, Copy, Check } from 'lucide-react'
-import type { ChatMessage } from '../types/chat'
+import type { ChatMessage, FeedbackKind } from '../types/chat'
 import { format } from 'date-fns'
 import { MarkdownContent } from './MarkdownContent'
 import { TypingIndicator } from './TypingIndicator'
@@ -12,19 +12,21 @@ interface ChatTranscriptProps {
   messages: ChatMessage[]
   isSending?: boolean
   onPromptSelect?: (prompt: string) => void
+  onFeedbackSubmit?: (messageId: string, feedbackType: FeedbackKind) => void
 }
 
 export function ChatTranscript({
   messages,
   isSending = false,
   onPromptSelect,
-}: ChatTranscriptProps) {
+  onFeedbackSubmit,
+}: Readonly<ChatTranscriptProps>) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const shouldReduceMotion =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    globalThis.window !== undefined &&
+    typeof globalThis.window.matchMedia === 'function' &&
+    globalThis.window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   async function copyAssistantMessage(messageId: string, content: string) {
     try {
@@ -99,21 +101,50 @@ export function ChatTranscript({
               </div>
 
               {message.role === 'assistant' && (
-                <button
-                  type="button"
-                  className="message-copy-btn"
-                  onClick={() => copyAssistantMessage(message.id, message.content)}
-                >
-                  {copiedMessageId === message.id ? (
-                    <>
-                      <Check size={12} /> Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={12} /> Copy answer
-                    </>
+                <div className="message-actions">
+                  <button
+                    type="button"
+                    className="message-copy-btn"
+                    onClick={() => copyAssistantMessage(message.id, message.content)}
+                  >
+                    {copiedMessageId === message.id ? (
+                      <>
+                        <Check size={12} /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} /> Copy answer
+                      </>
+                    )}
+                  </button>
+
+                  {onFeedbackSubmit && (
+                    <fieldset className="message-feedback-actions">
+                      <legend className="visually-hidden">Assistant response feedback</legend>
+                      <button
+                        type="button"
+                        className="message-feedback-btn"
+                        onClick={() => onFeedbackSubmit(message.id, 'helpful')}
+                      >
+                        Helpful
+                      </button>
+                      <button
+                        type="button"
+                        className="message-feedback-btn"
+                        onClick={() => onFeedbackSubmit(message.id, 'unhelpful')}
+                      >
+                        Unhelpful
+                      </button>
+                      <button
+                        type="button"
+                        className="message-feedback-btn"
+                        onClick={() => onFeedbackSubmit(message.id, 'wrong-citation')}
+                      >
+                        Wrong citation
+                      </button>
+                    </fieldset>
                   )}
-                </button>
+                </div>
               )}
             </div>
           </motion.article>

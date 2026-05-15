@@ -1032,7 +1032,7 @@ Retries help with transient errors, but persistent failures should trip a circui
 
 ### 48. Move Ingestion To A Background Job
 
-- [ ] Avoid doing long ingestion work entirely inside the HTTP request.
+- [x] Avoid doing long ingestion work entirely inside the HTTP request.
 
 **Why**
 
@@ -1054,7 +1054,7 @@ Large documents, extra formats, and embedding calls can exceed normal request li
 
 ### 49. Add Conversation Feedback
 
-- [ ] Let users mark answers as helpful, unhelpful, or wrong-citation.
+- [x] Let users mark answers as helpful, unhelpful, or wrong-citation.
 
 **Why**
 
