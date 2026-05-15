@@ -23,9 +23,10 @@ public sealed class IngestController(
     IOptions<TimeoutOptions> timeoutOptions,
     IChunkingService chunkingService,
     IDocumentExtractionService documentExtractionService,
-    IEmbeddingService embeddingService,
     IVectorStoreService vectorStoreService,
     IIngestionAuditService ingestionAuditService,
+    IIngestJobDispatcher ingestJobDispatcher,
+    IIngestJobStatusStore ingestJobStatusStore,
     ILogger<IngestController> logger,
     IWebHostEnvironment env) : ControllerBase
 {
@@ -135,7 +136,7 @@ public sealed class IngestController(
                     existingRecordsForKnowledgeBase.Count);
             }
 
-            return await ProcessIngestAsync(
+            return await SubmitIngestJobAsync(
                 sourceText,
                 sourceName,
                 sourcePath,
@@ -144,6 +145,7 @@ public sealed class IngestController(
                 existingRecordsForKnowledgeBase,
                 "default-ingest",
                 sourceChecksum,
+                forceReingest,
                 operationToken);
         }, operationToken), cancellationToken);
     }
@@ -255,7 +257,7 @@ public sealed class IngestController(
 
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
-            return await ProcessIngestAsync(
+            return await SubmitIngestJobAsync(
                 sourceText,
                 sourceName,
                 sourceName,
@@ -264,8 +266,42 @@ public sealed class IngestController(
                 existingRecordsForKnowledgeBase,
                 "upload-ingest",
                 sourceChecksum,
+                false,
                 operationToken);
         }, operationToken), cancellationToken);
+    }
+
+    [HttpGet("jobs/{jobId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
+    public ActionResult<IngestJobStatusResponse> GetJobStatus(Guid jobId)
+    {
+        var job = ingestJobStatusStore.Get(jobId);
+        if (job is null)
+        {
+            return NotFound(ApiErrorFactory.NotFound(
+                "Ingest job not found.",
+                $"No ingest job exists for '{jobId}'."));
+        }
+
+        return Ok(new IngestJobStatusResponse
+        {
+            JobId = job.JobId,
+            KnowledgeBaseId = job.KnowledgeBaseId,
+            Status = job.State.ToString().ToLowerInvariant(),
+            Message = job.State switch
+            {
+                IngestJobState.Queued => "Ingest job queued.",
+                IngestJobState.Running => "Ingest job is running.",
+                IngestJobState.Succeeded => job.Response?.Message ?? "Ingest job completed successfully.",
+                IngestJobState.Failed => job.ErrorMessage ?? "Ingest job failed.",
+                _ => "Unknown job state."
+            },
+            QueuedAtUtc = job.QueuedAtUtc,
+            StartedAtUtc = job.StartedAtUtc,
+            CompletedAtUtc = job.CompletedAtUtc,
+            Result = job.Response,
+            ErrorMessage = job.ErrorMessage
+        });
     }
 
     [HttpPost("preview")]
@@ -432,189 +468,6 @@ public sealed class IngestController(
         }
     }
 
-    private async Task<ActionResult<IngestResponse>> ProcessIngestAsync(
-        string sourceText,
-        string sourceName,
-        string displayPath,
-        string knowledgeBaseId,
-        IReadOnlyList<VectorRecord> allExistingRecords,
-        IReadOnlyList<VectorRecord> existingRecords,
-        string action,
-        string? precomputedSourceChecksum,
-        CancellationToken cancellationToken)
-    {
-        var processStopwatch = Stopwatch.StartNew();
-        using var activity = AppTelemetry.ActivitySource.StartActivity("ingest.process");
-        activity?.SetTag("ingest.knowledge_base_id", knowledgeBaseId);
-        activity?.SetTag("ingest.action", action);
-        activity?.SetTag("ingest.source_name", sourceName);
-
-        var sourceChecksum = precomputedSourceChecksum ?? DocumentVersioning.ComputeSourceChecksum(sourceText);
-        var documentVersion = DocumentVersioning.ComputeDefaultVersionLabel(sourceChecksum);
-        var ingestedAtUtc = DateTimeOffset.UtcNow;
-        var chunkingStopwatch = Stopwatch.StartNew();
-        var chunks = await chunkingService.ChunkAsync(sourceText, sourceName, cancellationToken);
-        chunkingStopwatch.Stop();
-        AppTelemetry.IngestChunks.Add(chunks.Count);
-        activity?.SetTag("ingest.chunk_count", chunks.Count);
-        activity?.SetTag("ingest.chunking_ms", chunkingStopwatch.Elapsed.TotalMilliseconds);
-
-        var records = new List<VectorRecord>();
-        var existingById = existingRecords.ToDictionary(record => record.Id, StringComparer.Ordinal);
-        var existingByHash = existingRecords
-            .Select(record => new { Record = record, Hash = TryGetContentHash(record) })
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Hash))
-            .GroupBy(entry => entry.Hash!, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First().Record, StringComparer.Ordinal);
-        var reusedEmbeddings = 0;
-        var unchangedRecords = 0;
-        var updatedRecords = 0;
-        var newRecords = 0;
-        var deletedRecords = existingRecords
-            .Select(record => record.Id)
-            .Except(chunks.Select(chunk => chunk.Id), StringComparer.Ordinal)
-            .Count();
-
-        foreach (var chunk in chunks)
-        {
-            if (existingById.TryGetValue(chunk.Id, out var existingRecord)
-                && ChunkMatches(existingRecord, chunk))
-            {
-                records.Add(existingRecord);
-                unchangedRecords++;
-                continue;
-            }
-
-            float[] embedding;
-            if (!string.IsNullOrWhiteSpace(chunk.ContentHash)
-                && existingByHash.TryGetValue(chunk.ContentHash, out var cachedRecord)
-                && cachedRecord.Embedding.Length > 0)
-            {
-                embedding = cachedRecord.Embedding;
-                reusedEmbeddings++;
-            }
-            else
-            {
-                embedding = await embeddingService.EmbedAsync(chunk.Content, cancellationToken);
-            }
-
-            if (existingById.ContainsKey(chunk.Id))
-            {
-                updatedRecords++;
-            }
-            else
-            {
-                newRecords++;
-            }
-
-            var metadata = new Dictionary<string, string>
-            {
-                ["Index"] = chunk.Index.ToString()
-            };
-
-            if (chunk.StartLine.HasValue)
-                metadata["StartLine"] = chunk.StartLine.Value.ToString();
-
-            if (chunk.EndLine.HasValue)
-                metadata["EndLine"] = chunk.EndLine.Value.ToString();
-
-            if (!string.IsNullOrWhiteSpace(chunk.SectionTitle))
-                metadata["SectionTitle"] = chunk.SectionTitle;
-
-            if (!string.IsNullOrWhiteSpace(chunk.ContentHash))
-                metadata["ContentHash"] = chunk.ContentHash;
-
-            metadata[KnowledgeBaseScope.MetadataKey] = knowledgeBaseId;
-            metadata[DocumentVersioning.SourceChecksumMetadataKey] = sourceChecksum;
-            metadata[DocumentVersioning.DocumentVersionMetadataKey] = documentVersion;
-            metadata[DocumentVersioning.IngestedAtUtcMetadataKey] = ingestedAtUtc.ToString("O");
-
-            records.Add(new VectorRecord
-            {
-                Id = chunk.Id,
-                Source = chunk.Source,
-                ChunkText = chunk.Content,
-                Embedding = embedding,
-                Metadata = metadata
-            });
-        }
-
-        var recordsOutsideKnowledgeBase = allExistingRecords
-            .Where(record => !KnowledgeBaseScope.BelongsToKnowledgeBase(record, knowledgeBaseId));
-        var mergedRecords = recordsOutsideKnowledgeBase
-            .Concat(records)
-            .ToList();
-
-        await vectorStoreService.SaveAsync(mergedRecords, cancellationToken);
-        processStopwatch.Stop();
-        AppTelemetry.IngestLatencyMs.Record(processStopwatch.Elapsed.TotalMilliseconds);
-        activity?.SetTag("ingest.total_ms", processStopwatch.Elapsed.TotalMilliseconds);
-        activity?.SetTag("ingest.records_saved", records.Count);
-
-        logger.LogInformation(
-            "[INGEST] Incremental ingest completed for knowledge base '{KnowledgeBaseId}'. Unchanged={Unchanged}, New={New}, Updated={Updated}, Deleted={Deleted}, ReusedEmbeddings={Reused}, Recomputed={Recomputed}, Total={Total}",
-            knowledgeBaseId,
-            unchangedRecords,
-            newRecords,
-            updatedRecords,
-            deletedRecords,
-            reusedEmbeddings,
-            newRecords + updatedRecords - reusedEmbeddings,
-            records.Count);
-
-        var vectorStorePath = challengeOptions.Value.VectorStorePath;
-
-        await RecordSuccessAsync(
-            action,
-            knowledgeBaseId,
-            sourceName,
-            sourceChecksum,
-            documentVersion,
-            chunks.Count,
-            records.Count,
-            cancellationToken);
-
-        return Ok(new IngestResponse
-        {
-            Accepted = true,
-            Message = "Document ingested successfully.",
-            SourcePath = displayPath,
-            ChunksCreated = chunks.Count,
-            RecordsPersisted = records.Count,
-            VectorStorePath = vectorStorePath,
-            KnowledgeBaseId = knowledgeBaseId,
-            DocumentVersion = documentVersion,
-            SourceChecksum = sourceChecksum,
-            IngestedAtUtc = ingestedAtUtc,
-            IsPlaceholder = false
-        });
-    }
-
-    private Task RecordSuccessAsync(
-        string action,
-        string knowledgeBaseId,
-        string sourceName,
-        string sourceChecksum,
-        string documentVersion,
-        int chunkCount,
-        int recordsPersisted,
-        CancellationToken cancellationToken)
-    {
-        return ingestionAuditService.RecordSuccessAsync(new IngestionAuditRecord
-        {
-            TimestampUtc = DateTimeOffset.UtcNow,
-            Outcome = "success",
-            Action = action,
-            KnowledgeBaseId = knowledgeBaseId,
-            SourceName = sourceName,
-            SourceChecksum = sourceChecksum,
-            DocumentVersion = documentVersion,
-            ChunkCount = chunkCount,
-            RecordsPersisted = recordsPersisted,
-            TriggeredBy = env.EnvironmentName
-        }, cancellationToken);
-    }
-
     private Task RecordFailureAsync(
         string action,
         string knowledgeBaseId,
@@ -632,33 +485,6 @@ public sealed class IngestController(
             SafeSummary = safeSummary,
             TriggeredBy = env.EnvironmentName
         }, cancellationToken);
-    }
-
-    private static string? TryGetContentHash(VectorRecord record)
-    {
-        if (!record.Metadata.TryGetValue("ContentHash", out var contentHash))
-        {
-            return null;
-        }
-
-        return string.IsNullOrWhiteSpace(contentHash) ? null : contentHash;
-    }
-
-    private static bool ChunkMatches(VectorRecord existingRecord, TextChunk chunk)
-    {
-        if (!string.Equals(existingRecord.Source, chunk.Source, StringComparison.Ordinal) ||
-            !string.Equals(existingRecord.ChunkText, chunk.Content, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var existingHash = TryGetContentHash(existingRecord);
-        if (string.IsNullOrWhiteSpace(existingHash) || string.IsNullOrWhiteSpace(chunk.ContentHash))
-        {
-            return true;
-        }
-
-        return string.Equals(existingHash, chunk.ContentHash, StringComparison.Ordinal);
     }
 
     private static bool TryFindDuplicate(
@@ -687,5 +513,50 @@ public sealed class IngestController(
         }
 
         return true;
+    }
+
+    private async Task<ActionResult<IngestResponse>> SubmitIngestJobAsync(
+        string sourceText,
+        string sourceName,
+        string displayPath,
+        string knowledgeBaseId,
+        IReadOnlyList<VectorRecord> allExistingRecords,
+        IReadOnlyList<VectorRecord> existingRecords,
+        string action,
+        string? precomputedSourceChecksum,
+        bool forceReingest,
+        CancellationToken cancellationToken)
+    {
+        if (ingestJobStatusStore.HasActiveJob(knowledgeBaseId))
+        {
+            return Conflict(ApiErrorFactory.Conflict(
+                "Knowledge base already has an active ingest job.",
+                "Another ingest job is already queued or running for this knowledge base."));
+        }
+
+        var jobRequest = new IngestJobRequest(
+            Guid.NewGuid(),
+            action,
+            knowledgeBaseId,
+            sourceText,
+            sourceName,
+            displayPath,
+            allExistingRecords,
+            existingRecords,
+            precomputedSourceChecksum,
+            forceReingest);
+
+        try
+        {
+            var submission = await ingestJobDispatcher.SubmitAsync(jobRequest, cancellationToken);
+            return submission.IsBackground ? Accepted(submission.Response) : Ok(submission.Response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Ingest job submission rejected. KnowledgeBaseId={KnowledgeBaseId}", knowledgeBaseId);
+            return Conflict(ApiErrorFactory.Conflict(
+                "Knowledge base already has an active ingest job.",
+                ex.Message));
+        }
     }
 }

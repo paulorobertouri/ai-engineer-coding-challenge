@@ -23,4 +23,10 @@ public sealed class IngestResponse
     public DateTimeOffset IngestedAtUtc { get; init; }
 
     public bool IsPlaceholder { get; init; }
+
+    public Guid? JobId { get; init; }
+
+    public string? JobStatus { get; init; }
+
+    public string? JobStatusUrl { get; init; }
 }

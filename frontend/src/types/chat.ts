@@ -85,6 +85,21 @@ export interface IngestResponse {
   sourceChecksum?: string
   ingestedAtUtc?: string
   isPlaceholder: boolean
+  jobId?: string
+  jobStatus?: string
+  jobStatusUrl?: string
+}
+
+export interface IngestJobStatusResponse {
+  jobId: string
+  knowledgeBaseId: string
+  status: string
+  message: string
+  queuedAtUtc: string
+  startedAtUtc?: string | null
+  completedAtUtc?: string | null
+  result?: IngestResponse | null
+  errorMessage?: string | null
 }
 
 export interface HealthResponse {

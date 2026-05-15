@@ -2,6 +2,7 @@ import type {
   ChatRequest,
   ChatResponse,
   HealthResponse,
+  IngestJobStatusResponse,
   IngestRequest,
   IngestResponse,
 } from '../types/chat'
@@ -361,6 +362,9 @@ export const apiClient = {
     const formData = new FormData()
     formData.append('file', file)
     return requestFormData<IngestResponse>('/api/v1/ingest/upload', formData, signal)
+  },
+  getIngestJobStatus(jobId: string, signal?: AbortSignal): Promise<IngestJobStatusResponse> {
+    return request<IngestJobStatusResponse>(`/api/v1/ingest/jobs/${jobId}`, { signal })
   },
   chat(payload: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
     return request<ChatResponse>('/api/v1/chat', {

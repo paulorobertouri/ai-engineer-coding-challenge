@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using System.Threading.Channels;
 
 namespace Api.Tests;
 
@@ -87,15 +89,36 @@ public class IngestControllerTests
             .Setup(a => a.RecordFailureAsync(It.IsAny<IngestionAuditRecord>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var ingestJobsOptions = Microsoft.Extensions.Options.Options.Create(new IngestJobsOptions
+        {
+            Mode = "sync"
+        });
+        var ingestJobStatusStore = new InMemoryIngestJobStatusStore();
+        var ingestProcessingService = new IngestProcessingService(
+            challengeOptions,
+            _mockChunking.Object,
+            _mockEmbedding.Object,
+            _mockVectorStore.Object,
+            _mockAudit.Object,
+            NullLogger<IngestProcessingService>.Instance,
+            _mockEnv.Object);
+        var ingestJobDispatcher = new IngestJobDispatcher(
+            Channel.CreateUnbounded<IngestJobRequest>(),
+            ingestProcessingService,
+            ingestJobStatusStore,
+            ingestJobsOptions,
+            NullLogger<IngestJobDispatcher>.Instance);
+
         return new IngestController(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
             _mockChunking.Object,
             _mockDocumentExtraction.Object,
-            _mockEmbedding.Object,
             _mockVectorStore.Object,
             _mockAudit.Object,
+            ingestJobDispatcher,
+            ingestJobStatusStore,
             _mockLogger.Object,
             _mockEnv.Object);
     }
@@ -223,8 +246,29 @@ public class IngestControllerTests
             .ReturnsAsync("## Fallback Section\nFallback content");
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockDocumentExtraction.Object,
-            _mockEmbedding.Object, _mockVectorStore.Object, _mockAudit.Object, _mockLogger.Object, _mockEnv.Object);
+            challengeOptions,
+            uploadOptions,
+            timeoutOptions,
+            _mockChunking.Object,
+            _mockDocumentExtraction.Object,
+            _mockVectorStore.Object,
+            _mockAudit.Object,
+            new IngestJobDispatcher(
+                Channel.CreateUnbounded<IngestJobRequest>(),
+                new IngestProcessingService(
+                    challengeOptions,
+                    _mockChunking.Object,
+                    _mockEmbedding.Object,
+                    _mockVectorStore.Object,
+                    _mockAudit.Object,
+                    NullLogger<IngestProcessingService>.Instance,
+                    _mockEnv.Object),
+                new InMemoryIngestJobStatusStore(),
+                Microsoft.Extensions.Options.Options.Create(new IngestJobsOptions { Mode = "sync" }),
+                NullLogger<IngestJobDispatcher>.Instance),
+            new InMemoryIngestJobStatusStore(),
+            _mockLogger.Object,
+            _mockEnv.Object);
 
         try
         {
@@ -276,8 +320,29 @@ public class IngestControllerTests
             .ReturnsAsync("## Fallback Section\nFallback content");
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockDocumentExtraction.Object,
-            _mockEmbedding.Object, _mockVectorStore.Object, _mockAudit.Object, _mockLogger.Object, _mockEnv.Object);
+            challengeOptions,
+            uploadOptions,
+            timeoutOptions,
+            _mockChunking.Object,
+            _mockDocumentExtraction.Object,
+            _mockVectorStore.Object,
+            _mockAudit.Object,
+            new IngestJobDispatcher(
+                Channel.CreateUnbounded<IngestJobRequest>(),
+                new IngestProcessingService(
+                    challengeOptions,
+                    _mockChunking.Object,
+                    _mockEmbedding.Object,
+                    _mockVectorStore.Object,
+                    _mockAudit.Object,
+                    NullLogger<IngestProcessingService>.Instance,
+                    _mockEnv.Object),
+                new InMemoryIngestJobStatusStore(),
+                Microsoft.Extensions.Options.Options.Create(new IngestJobsOptions { Mode = "sync" }),
+                NullLogger<IngestJobDispatcher>.Instance),
+            new InMemoryIngestJobStatusStore(),
+            _mockLogger.Object,
+            _mockEnv.Object);
 
         try
         {

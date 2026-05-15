@@ -17,6 +17,7 @@ using OpenTelemetry.Trace;
 using OpenAI;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Threading.Channels;
 using System.Threading.RateLimiting;
 
 // Load environment variables from .env file
@@ -98,6 +99,10 @@ builder.Services
     .Bind(builder.Configuration.GetSection(ObservabilityOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services
+    .AddOptions<IngestJobsOptions>()
+    .Bind(builder.Configuration.GetSection(IngestJobsOptions.SectionName));
 
 builder.Services
     .AddOptions<AuthOptions>()
@@ -200,6 +205,11 @@ builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
 builder.Services.AddSingleton<IUserQueryGuardrailService, RuleBasedUserQueryGuardrailService>();
 builder.Services.AddSingleton<OpenAIUsageTracker>();
 builder.Services.AddSingleton<OpenAIRetrievalChatServiceDependencies>();
+builder.Services.AddSingleton<IIngestJobStatusStore, InMemoryIngestJobStatusStore>();
+builder.Services.AddSingleton(Channel.CreateUnbounded<IngestJobRequest>());
+builder.Services.AddSingleton<IIngestProcessingService, IngestProcessingService>();
+builder.Services.AddSingleton<IIngestJobDispatcher, IngestJobDispatcher>();
+builder.Services.AddHostedService<IngestJobBackgroundService>();
 builder.Services.AddSingleton<IVectorStoreService>(sp =>
 {
     var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();

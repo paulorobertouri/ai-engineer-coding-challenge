@@ -79,6 +79,40 @@ function appendStreamingDelta(
   )
 }
 
+async function waitForIngestJobCompletion(
+  jobId: string,
+  signal: AbortSignal,
+): Promise<IngestResponse> {
+  const deadlineMs = Date.now() + 120000
+
+  while (true) {
+    if (signal.aborted) {
+      throw new DOMException('Request cancelled.', 'AbortError')
+    }
+
+    const status = await apiClient.getIngestJobStatus(jobId, signal)
+    if (status.status === 'succeeded') {
+      if (!status.result) {
+        throw new Error(status.message || 'Ingest job completed without a result.')
+      }
+
+      return status.result
+    }
+
+    if (status.status === 'failed') {
+      throw new Error(status.errorMessage || status.message || 'Ingest job failed.')
+    }
+
+    if (Date.now() >= deadlineMs) {
+      throw new Error('Timed out while waiting for ingest to complete.')
+    }
+
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 1000)
+    })
+  }
+}
+
 function replaceStreamingMessage(
   currentMessages: ChatMessage[],
   assistantMessageId: string,
@@ -228,6 +262,14 @@ export function ChatPage() {
       } else {
         const payload = IngestRequestSchema.parse({ forceReingest: false })
         response = await apiClient.ingest(payload, abortController.signal)
+      }
+
+      if (response.jobId && response.jobStatusUrl) {
+        setStatus({
+          tone: 'info',
+          message: `${response.message} Waiting for the job to finish…`,
+        })
+        response = await waitForIngestJobCompletion(response.jobId, abortController.signal)
       }
 
       setIsIngested(true)
