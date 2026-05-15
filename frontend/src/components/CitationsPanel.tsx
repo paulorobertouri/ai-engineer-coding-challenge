@@ -6,6 +6,55 @@ interface CitationsPanelProps {
   citations: Citation[]
   confidence?: ConfidenceIndicator | null
   hasMessages?: boolean
+  onSelectCitation?: (citation: Citation) => void
+}
+
+interface CitationListItemProps {
+  citation: Citation
+  index: number
+  isExpanded: boolean
+  isSelected: boolean
+  onSelect: (index: number) => void
+  onToggleExpand: (index: number) => void
+}
+
+function formatLineRange(citation: Citation): string {
+  if (!citation.startLine) {
+    return ''
+  }
+
+  return ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
+}
+
+function buildSectionScoreChunkText(citation: Citation): string | null {
+  const parts: string[] = []
+  if (citation.sectionTitle) {
+    parts.push(`Section: ${citation.sectionTitle}`)
+  }
+
+  if (typeof citation.score === 'number') {
+    parts.push(`score ${citation.score.toFixed(3)}`)
+  }
+
+  if (citation.chunkId) {
+    parts.push(`Chunk: ${citation.chunkId}`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+function buildVersionText(citation: Citation): string | null {
+  const parts: string[] = []
+
+  if (citation.documentVersion) {
+    parts.push(`Version: ${citation.documentVersion}`)
+  }
+
+  if (citation.knowledgeBaseId) {
+    parts.push(`KB: ${citation.knowledgeBaseId}`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 const confidenceLabels: Record<NonNullable<ConfidenceIndicator>['level'], string> = {
@@ -15,11 +64,62 @@ const confidenceLabels: Record<NonNullable<ConfidenceIndicator>['level'], string
   not_found: 'No evidence found',
 }
 
+function CitationListItem({
+  citation,
+  index,
+  isExpanded,
+  isSelected,
+  onSelect,
+  onToggleExpand,
+}: Readonly<CitationListItemProps>) {
+  const sectionScoreChunkText = buildSectionScoreChunkText(citation)
+  const versionText = buildVersionText(citation)
+
+  return (
+    <li className={`citation-item${isSelected ? ' citation-item--selected' : ''}`}>
+      <button
+        type="button"
+        className="citation-select-btn"
+        onClick={() => onSelect(index)}
+        aria-pressed={isSelected}
+      >
+        <p className="citation-source">
+          <FileText size={11} />
+          {citation.source}
+          {formatLineRange(citation)}
+        </p>
+        {sectionScoreChunkText && <p className="citation-source">{sectionScoreChunkText}</p>}
+        {versionText && <p className="citation-source">{versionText}</p>}
+        <p className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}>
+          {citation.snippet}
+        </p>
+      </button>
+      <button
+        className="citation-expand-btn"
+        type="button"
+        onClick={() => onToggleExpand(index)}
+        aria-expanded={isExpanded}
+      >
+        {isExpanded ? (
+          <>
+            <ChevronUp size={11} /> Show less
+          </>
+        ) : (
+          <>
+            <ChevronDown size={11} /> Show more
+          </>
+        )}
+      </button>
+    </li>
+  )
+}
+
 export function CitationsPanel({
   citations,
   confidence,
   hasMessages = false,
-}: CitationsPanelProps) {
+  onSelectCitation,
+}: Readonly<CitationsPanelProps>) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
@@ -38,6 +138,7 @@ export function CitationsPanel({
   function selectCitation(index: number) {
     setSelectedIndex(index)
     setExpanded((prev) => new Set(prev).add(index))
+    onSelectCitation?.(citations[index])
   }
 
   const emptyMessage = hasMessages
@@ -71,70 +172,17 @@ export function CitationsPanel({
         <p className="empty-state">{emptyMessage}</p>
       ) : (
         <ul className="citations-list">
-          {citations.map((citation, index) => {
-            const isExpanded = expanded.has(index)
-            const isSelected = selectedIndex === index
-            const scoreLabel =
-              typeof citation.score === 'number' ? `score ${citation.score.toFixed(3)}` : null
-            return (
-              <li
-                key={`${citation.chunkId ?? citation.source}-${index}`}
-                className={`citation-item${isSelected ? ' citation-item--selected' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="citation-select-btn"
-                  onClick={() => selectCitation(index)}
-                  aria-pressed={isSelected}
-                >
-                  <p className="citation-source">
-                    <FileText size={11} />
-                    {citation.source}
-                    {citation.startLine
-                      ? ` · lines ${citation.startLine}–${citation.endLine ?? citation.startLine}`
-                      : ''}
-                  </p>
-                  {(citation.sectionTitle || scoreLabel || citation.chunkId) && (
-                    <p className="citation-source">
-                      {citation.sectionTitle ? `Section: ${citation.sectionTitle}` : ''}
-                      {citation.sectionTitle && scoreLabel ? ' · ' : ''}
-                      {scoreLabel ?? ''}
-                      {(citation.sectionTitle || scoreLabel) && citation.chunkId ? ' · ' : ''}
-                      {citation.chunkId ? `Chunk: ${citation.chunkId}` : ''}
-                    </p>
-                  )}
-                  {(citation.documentVersion || citation.knowledgeBaseId) && (
-                    <p className="citation-source">
-                      {citation.documentVersion ? `Version: ${citation.documentVersion}` : ''}
-                      {citation.documentVersion && citation.knowledgeBaseId ? ' · ' : ''}
-                      {citation.knowledgeBaseId ? `KB: ${citation.knowledgeBaseId}` : ''}
-                    </p>
-                  )}
-                  <p
-                    className={`citation-snippet${isExpanded ? ' citation-snippet--expanded' : ''}`}
-                  >
-                    {citation.snippet}
-                  </p>
-                </button>
-                <button
-                  className="citation-expand-btn"
-                  type="button"
-                  onClick={() => toggleExpand(index)}
-                  aria-expanded={isExpanded}
-                >
-                  {isExpanded ? (
-                    <>
-                      <ChevronUp size={11} /> Show less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown size={11} /> Show more
-                    </>
-                  )}
-                </button>
-              </li>
-            )
-          })}
+          {citations.map((citation, index) => (
+            <CitationListItem
+              key={`${citation.chunkId ?? citation.source}-${index}`}
+              citation={citation}
+              index={index}
+              isExpanded={expanded.has(index)}
+              isSelected={selectedIndex === index}
+              onSelect={selectCitation}
+              onToggleExpand={toggleExpand}
+            />
+          ))}
         </ul>
       )}
     </section>

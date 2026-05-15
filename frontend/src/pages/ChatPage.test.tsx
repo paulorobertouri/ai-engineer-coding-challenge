@@ -11,6 +11,7 @@ vi.mock('../services/apiClient', () => ({
     ingest: vi.fn(),
     ingestFile: vi.fn(),
     submitFeedback: vi.fn(),
+    getSourceDocument: vi.fn(),
   },
 }))
 
@@ -49,6 +50,20 @@ describe('ChatPage', () => {
       accepted: true,
       message: 'Feedback submitted successfully.',
       submittedAtUtc: '2026-05-15T16:00:00Z',
+    })
+    vi.mocked(apiClient.getSourceDocument).mockResolvedValue({
+      source: 'Grocery_Store_SOP.md',
+      knowledgeBaseId: 'default',
+      chunks: [
+        {
+          chunkId: 'chunk-1',
+          sectionTitle: 'Store Opening',
+          content: 'Open the store at 7am.',
+          startLine: 10,
+          endLine: 12,
+          index: 1,
+        },
+      ],
     })
   })
 
@@ -262,6 +277,46 @@ describe('ChatPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Open the store at 7am.')).toBeInTheDocument()
+    })
+  })
+
+  it('loads source viewer content when a citation is selected', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
+      ...chatOk,
+      citations: [
+        {
+          source: 'Grocery_Store_SOP.md',
+          chunkId: 'chunk-1',
+          snippet: 'Open the store at 7am.',
+          startLine: 10,
+          endLine: 12,
+          knowledgeBaseId: 'default',
+        },
+      ],
+    })
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'What time do we open?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Open the store at 7am.')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Grocery_Store_SOP.md/i }))
+
+    await waitFor(() => {
+      expect(apiClient.getSourceDocument).toHaveBeenCalledWith(
+        'Grocery_Store_SOP.md',
+        'default',
+        expect.any(AbortSignal),
+      )
+      expect(screen.getByRole('heading', { name: /source viewer/i })).toBeInTheDocument()
+      expect(screen.getByText(/Store Opening/)).toBeInTheDocument()
     })
   })
 

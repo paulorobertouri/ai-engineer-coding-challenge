@@ -117,6 +117,22 @@ export interface IngestJobStatusResponse {
   errorMessage?: string | null
 }
 
+export interface SourceDocumentChunk {
+  chunkId: string
+  sectionTitle: string
+  content: string
+  startLine?: number
+  endLine?: number
+  index?: number
+}
+
+export interface SourceDocumentResponse {
+  source: string
+  knowledgeBaseId: string
+  documentVersion?: string
+  chunks: SourceDocumentChunk[]
+}
+
 export interface HealthResponse {
   status: string
   service: string

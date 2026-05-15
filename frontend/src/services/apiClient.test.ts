@@ -1,6 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { apiClient, ApiClientError } from './apiClient'
 
+function mockFetch(data: unknown, ok = true, status = 200) {
+  vi.mocked(fetch).mockResolvedValueOnce({
+    ok,
+    status,
+    json: async () => data,
+  } as Response)
+}
+
+function toUrlString(url: RequestInfo | URL): string {
+  if (typeof url === 'string') {
+    return url
+  }
+
+  if (url instanceof URL) {
+    return url.toString()
+  }
+
+  return url.url
+}
+
 describe('apiClient', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
@@ -10,22 +30,14 @@ describe('apiClient', () => {
     vi.unstubAllGlobals()
   })
 
-  function mockFetch(data: unknown, ok = true, status = 200) {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok,
-      status,
-      json: async () => data,
-    } as Response)
-  }
-
   it('getHealth calls /api/health and returns health data', async () => {
     const health = { status: 'ok', service: 'test', utcTime: '', notes: [] }
     mockFetch(health)
     const result = await apiClient.getHealth()
     expect(result.status).toBe('ok')
     const [url, init] = vi.mocked(fetch).mock.calls[0]
-    expect(String(url)).toContain('/api/v1/health')
-    expect(new Headers((init as RequestInit).headers).get('Content-Type')).toBe('application/json')
+    expect(toUrlString(url)).toContain('/api/v1/health')
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json')
   })
 
   it('ingest sends POST to /api/ingest and returns response', async () => {
@@ -84,6 +96,26 @@ describe('apiClient', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/chat/feedback'),
       expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('getSourceDocument sends GET to /api/v1/sources/document with query params', async () => {
+    mockFetch({
+      source: 'Grocery_Store_SOP.md',
+      knowledgeBaseId: 'default',
+      chunks: [],
+    })
+
+    const result = await apiClient.getSourceDocument('Grocery_Store_SOP.md', 'default')
+
+    expect(result.source).toBe('Grocery_Store_SOP.md')
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '/api/v1/sources/document?source=Grocery_Store_SOP.md&knowledgeBaseId=default',
+      ),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
     )
   })
 
@@ -248,8 +280,9 @@ describe('apiClient', () => {
     const file = new File(['data'], 'doc.txt')
     await apiClient.ingestFile(file)
     const [, init] = vi.mocked(fetch).mock.calls[0]
-    const body = (init as RequestInit).body as FormData
-    expect(body.get('file')).toBe(file)
+    expect(init?.body).toBeInstanceOf(FormData)
+    const formData = init?.body as FormData
+    expect(formData.get('file')).toBe(file)
   })
 
   it('ingestFile throws the error field from a non-ok response', async () => {

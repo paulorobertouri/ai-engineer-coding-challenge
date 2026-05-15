@@ -6,6 +6,7 @@ import type {
   ConfidenceIndicator,
   FeedbackKind,
   IngestResponse,
+  SourceDocumentResponse,
   StatusMessage,
 } from '../types/chat'
 import { AppHeader } from '../components/AppHeader'
@@ -13,6 +14,7 @@ import { ChatComposer } from '../components/ChatComposer'
 import { ChatTranscript } from '../components/ChatTranscript'
 import { CitationsPanel } from '../components/CitationsPanel'
 import { IngestPanel } from '../components/IngestPanel'
+import { SourceDocumentViewer } from '../components/SourceDocumentViewer'
 import { StatusBanner } from '../components/StatusBanner'
 
 import { ChatRequestSchema, IngestRequestSchema, CHAT_MAX_MESSAGES } from '../types/validation'
@@ -174,9 +176,15 @@ export function ChatPage() {
     tone: 'info',
     message: 'Checking backend health…',
   })
+  const [sourceDocument, setSourceDocument] = useState<SourceDocumentResponse | null>(null)
+  const [sourceDocumentError, setSourceDocumentError] = useState<string | null>(null)
+  const [isSourceDocumentLoading, setIsSourceDocumentLoading] = useState(false)
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(() => initialSession?.messages ?? [])
   const chatAbortRef = useRef<AbortController | null>(null)
   const ingestAbortRef = useRef<AbortController | null>(null)
+  const sourceAbortRef = useRef<AbortController | null>(null)
+  const sourceDocumentCacheRef = useRef<Map<string, SourceDocumentResponse>>(new Map())
   const statusBannerRef = useRef<HTMLElement | null>(null)
   // null = health check in progress; false = not yet ingested; true = ingested
   const [isIngested, setIsIngested] = useState<boolean | null>(null)
@@ -195,6 +203,7 @@ export function ChatPage() {
     return () => {
       chatAbortRef.current?.abort()
       ingestAbortRef.current?.abort()
+      sourceAbortRef.current?.abort()
     }
   }, [])
 
@@ -329,6 +338,9 @@ export function ChatPage() {
       const nextMessages = [...requestMessages, streamingAssistantMessage]
 
       setMessages(nextMessages)
+      setSelectedCitation(null)
+      setSourceDocument(null)
+      setSourceDocumentError(null)
       if (clearDraft) {
         setDraft('')
       }
@@ -461,12 +473,65 @@ export function ChatPage() {
     [conversationId],
   )
 
+  const handleSelectCitation = useCallback(async (citation: Citation) => {
+    setSelectedCitation(citation)
+
+    const source = citation.source.trim()
+    if (!source) {
+      setSourceDocument(null)
+      setSourceDocumentError('The selected citation does not include a source name.')
+      return
+    }
+
+    const cacheKey = `${citation.knowledgeBaseId ?? 'default'}::${source}`
+    const cachedDocument = sourceDocumentCacheRef.current.get(cacheKey)
+    if (cachedDocument) {
+      setSourceDocument(cachedDocument)
+      setSourceDocumentError(null)
+      return
+    }
+
+    sourceAbortRef.current?.abort()
+    const abortController = new AbortController()
+    sourceAbortRef.current = abortController
+
+    setIsSourceDocumentLoading(true)
+    setSourceDocumentError(null)
+
+    try {
+      const document = await apiClient.getSourceDocument(
+        source,
+        citation.knowledgeBaseId,
+        abortController.signal,
+      )
+
+      sourceDocumentCacheRef.current.set(cacheKey, document)
+      setSourceDocument(document)
+    } catch (error) {
+      if (!isRequestCancelledError(error)) {
+        setSourceDocument(null)
+        setSourceDocumentError(
+          error instanceof Error ? error.message : 'Failed to load source document.',
+        )
+      }
+    } finally {
+      setIsSourceDocumentLoading(false)
+      if (sourceAbortRef.current === abortController) {
+        sourceAbortRef.current = null
+      }
+    }
+  }, [])
+
   const handleNewChat = useCallback(() => {
     chatAbortRef.current?.abort()
+    sourceAbortRef.current?.abort()
     setConversationId(globalThis.crypto.randomUUID())
     setMessages([])
     setCitations([])
     setConfidence(null)
+    setSelectedCitation(null)
+    setSourceDocument(null)
+    setSourceDocumentError(null)
     setDraft('')
     setLastFailedDraft(null)
     setStatus({ tone: 'success', message: 'Started a new conversation.' })
@@ -522,6 +587,13 @@ export function ChatPage() {
           citations={citations}
           confidence={confidence}
           hasMessages={messages.length > 0}
+          onSelectCitation={handleSelectCitation}
+        />
+        <SourceDocumentViewer
+          document={sourceDocument}
+          activeCitation={selectedCitation}
+          isLoading={isSourceDocumentLoading}
+          errorMessage={sourceDocumentError}
         />
       </aside>
     </main>

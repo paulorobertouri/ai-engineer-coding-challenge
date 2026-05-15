@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CitationsPanel } from './CitationsPanel'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { Citation } from '../types/chat'
 
 describe('CitationsPanel', () => {
@@ -82,6 +82,16 @@ describe('CitationsPanel', () => {
     fireEvent.click(selectButton)
 
     expect(selectButton).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('calls onSelectCitation when a citation is selected', () => {
+    const citations: Citation[] = [{ source: 'SOP.md', snippet: 'selectable text' }]
+    const onSelectCitation = vi.fn()
+    render(<CitationsPanel citations={citations} onSelectCitation={onSelectCitation} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /SOP.md/i }))
+
+    expect(onSelectCitation).toHaveBeenCalledWith(citations[0])
   })
 
   it('supports keyboard selection for citation rows', () => {

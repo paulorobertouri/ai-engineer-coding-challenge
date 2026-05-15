@@ -7,6 +7,7 @@ import type {
   IngestJobStatusResponse,
   IngestRequest,
   IngestResponse,
+  SourceDocumentResponse,
 } from '../types/chat'
 
 interface RuntimeConfig {
@@ -367,6 +368,20 @@ export const apiClient = {
   },
   getIngestJobStatus(jobId: string, signal?: AbortSignal): Promise<IngestJobStatusResponse> {
     return request<IngestJobStatusResponse>(`/api/v1/ingest/jobs/${jobId}`, { signal })
+  },
+  getSourceDocument(
+    source: string,
+    knowledgeBaseId?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceDocumentResponse> {
+    const searchParams = new URLSearchParams({ source })
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    return request<SourceDocumentResponse>(`/api/v1/sources/document?${searchParams.toString()}`, {
+      signal,
+    })
   },
   submitFeedback(
     payload: ConversationFeedbackRequest,

@@ -1075,7 +1075,7 @@ Feedback is useful for improving prompts, retrieval settings, and source documen
 
 ### 50. Add Source Document Viewer
 
-- [ ] Provide a way to inspect SOP content alongside answers.
+- [x] Provide a way to inspect SOP content alongside answers.
 
 **Why**
 
