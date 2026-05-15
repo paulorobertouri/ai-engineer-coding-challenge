@@ -1,8 +1,10 @@
 using Api;
 using Api.Options;
 using Api.Services;
+using Api.Security;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
@@ -86,6 +88,12 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<AuthOptions>()
+    .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
 
@@ -145,6 +153,32 @@ builder.Services.AddSingleton<IVectorStoreService>(sp =>
     };
 });
 
+
+builder.Services.AddAuthentication(LocalApiKeyAuthenticationDefaults.AuthenticationScheme)
+    .AddScheme<AuthenticationSchemeOptions, LocalApiKeyAuthenticationHandler>(
+        LocalApiKeyAuthenticationDefaults.AuthenticationScheme,
+        _ => { });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.ChatUser, policy =>
+    {
+        policy.RequireAssertion(context =>
+            builder.Environment.IsDevelopment() || context.User.HasClaim("scope", AuthorizationPolicies.ChatUser));
+    });
+
+    options.AddPolicy(AuthorizationPolicies.Operator, policy =>
+    {
+        policy.RequireAssertion(context =>
+            builder.Environment.IsDevelopment() || context.User.HasClaim("scope", AuthorizationPolicies.Operator));
+    });
+
+    options.AddPolicy(AuthorizationPolicies.KnowledgeAdmin, policy =>
+    {
+        policy.RequireAssertion(context =>
+            builder.Environment.IsDevelopment() || context.User.HasClaim("scope", AuthorizationPolicies.KnowledgeAdmin));
+    });
+});
 // Rate limiting defaults: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
 builder.Services.AddRateLimiter(options =>
 {
@@ -200,6 +234,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+app.UseAuthentication();
 
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 app.UseSwagger();
@@ -240,3 +275,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 await app.RunAsync();
+
+public partial class Program
+{
+}

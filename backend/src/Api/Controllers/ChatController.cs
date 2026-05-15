@@ -1,7 +1,9 @@
 using Api.Contracts;
 using Api.Options;
 using Api.Services;
+using Api.Security;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -12,6 +14,7 @@ namespace Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
+[Authorize(Policy = AuthorizationPolicies.ChatUser)]
 public sealed class ChatController(
     IRetrievalChatService retrievalChatService,
     IOptions<TimeoutOptions> timeoutOptions) : ControllerBase

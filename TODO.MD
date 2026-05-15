@@ -929,7 +929,7 @@ Chunking quality has a direct effect on answer quality. A preview makes it easie
 
 ### 43. Add Authentication And Authorization
 
-- [ ] Protect admin operations while preserving local no-auth development.
+- [x] Protect admin operations while preserving local no-auth development.
 
 **Why**
 
@@ -950,7 +950,7 @@ Reset, reingest, upload, and future audit views should not be open in production
 
 ### 44. Add User Roles
 
-- [ ] Distinguish regular chat users from operators/admins.
+- [x] Distinguish regular chat users from operators/admins.
 
 **Why**
 

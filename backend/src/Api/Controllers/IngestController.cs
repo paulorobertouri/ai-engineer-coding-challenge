@@ -2,7 +2,9 @@ using Api.Contracts;
 using Api.Models;
 using Api.Options;
 using Api.Services;
+using Api.Security;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -33,6 +35,7 @@ public sealed class IngestController(
     // ── POST /api/v1/ingest  (default SOP from server-side path) ─────────────
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public async Task<ActionResult<IngestResponse>> Post([FromBody] IngestRequest? request, CancellationToken cancellationToken)
     {
         var knowledgeBaseId = KnowledgeBaseScope.Normalize(request?.KnowledgeBaseId);
@@ -146,6 +149,7 @@ public sealed class IngestController(
     // ── POST /api/v1/ingest/upload  (user-supplied file) ─────────────────────
 
     [HttpPost("upload")]
+    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<IngestResponse>> Upload(IFormFile? file, CancellationToken cancellationToken, [FromQuery] string? knowledgeBaseId = null)
     {
@@ -263,6 +267,7 @@ public sealed class IngestController(
     }
 
     [HttpPost("preview")]
+    [Authorize(Policy = AuthorizationPolicies.Operator)]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<IngestPreviewResponse>> Preview(IFormFile? file, CancellationToken cancellationToken)
     {
@@ -357,6 +362,7 @@ public sealed class IngestController(
     }
 
     [HttpDelete("reset")]
+    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public async Task<ActionResult<object>> Reset([FromQuery] string? confirm, CancellationToken cancellationToken)
     {
         if (!env.IsDevelopment())

@@ -45,6 +45,13 @@ Tool-call observability:
 - Empty `query` arguments are logged with the same structured fields
 - Tool calls that produce no relevant matches above threshold are logged with `ConversationId`, `ToolCallId`, `ToolName`, and `Threshold`
 
+Authorization:
+- Local API-key auth uses the `X-Api-Key` header by default and is disabled for anonymous access in non-development environments unless a key is configured
+- `ChatController` requires the `ChatUser` policy
+- `IngestController` preview operations require the `Operator` policy
+- `IngestController` ingest, upload, and reset operations require the `KnowledgeAdmin` policy
+- Development mode keeps protected endpoints accessible without an identity provider so local demos remain frictionless
+
 ## Vector Store
 
 - File: `Data/vector-store.json` (configurable via `Challenge__VectorStorePath`)
@@ -191,6 +198,9 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Upload:MaxUploadBytes` | `10485760` | Maximum upload size in bytes for `/ingest/upload` |
 | Upload formats | `.md`, `.txt`, `.pdf`, `.docx` | Default local extraction formats for `/ingest/upload` |
 | Optional OCR formats | `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` | Require a registered local OCR adapter to enable scanned document extraction |
+| `Auth:ApiKey` | _(empty)_ | Local API key used by the built-in authentication handler when admin endpoints are protected |
+| `Auth:ApiKeyHeaderName` | `X-Api-Key` | Header name read by the local API-key auth handler |
+| `Auth:AllowAnonymousInDevelopment` | `true` | Lets local development access protected admin endpoints without an identity provider |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
 
 ## Local Development
