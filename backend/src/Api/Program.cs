@@ -199,6 +199,7 @@ builder.Services.AddSingleton<IIngestionAuditService, JsonIngestionAuditService>
 builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
 builder.Services.AddSingleton<IUserQueryGuardrailService, RuleBasedUserQueryGuardrailService>();
 builder.Services.AddSingleton<OpenAIUsageTracker>();
+builder.Services.AddSingleton<OpenAIRetrievalChatServiceDependencies>();
 builder.Services.AddSingleton<IVectorStoreService>(sp =>
 {
     var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();

@@ -1012,7 +1012,7 @@ Tracing and metrics make latency and failure analysis much easier as the system 
 
 ### 47. Add Circuit Breaker For OpenAI Calls
 
-- [ ] Stop repeatedly calling OpenAI during provider instability.
+- [x] Stop repeatedly calling OpenAI during provider instability.
 
 **Why**
 
