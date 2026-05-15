@@ -98,9 +98,13 @@ Automated dependency update PRs are configured via `.github/dependabot.yml` for 
 
 ### 1. Document Ingestion
 - `POST /api/v1/ingest` reads the SOP document from the server-side configured path (`Challenge__SourceDocumentPath`). The source path is never accepted from the client (OWASP A01 path-traversal prevention).
+- `POST /api/v1/ingest/upload` accepts local Markdown, text, PDF, and DOCX files and extracts text before chunking.
+- `POST /api/v1/ingest/preview` runs extraction and chunking only, returning chunk diagnostics without persisting vectors.
+- Scanned image formats (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`) are supported through optional local OCR adapters and return a clear validation error when OCR is not configured.
 - `MarkdownChunkingService` splits the document on level-1 (`#`) and level-2 (`##`) headers, producing one semantic chunk per section.
 - Each chunk is embedded with `text-embedding-3-small` and written to `Data/vector-store.json` as a JSON array of `VectorRecord` objects.
 - Path resolution supports absolute paths, paths relative to `ContentRoot`, and a Docker-aware fallback.
+- Ingest detects duplicate documents by SHA-256 checksum before embedding work and returns a clear conflict response with version/checksum details.
 
 ### 2. RAG (Retrieval-Augmented Generation)
 - On every chat turn the latest user message is embedded and the top-3 chunks are retrieved by cosine similarity.

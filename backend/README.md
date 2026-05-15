@@ -10,6 +10,8 @@
 | `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document (`forceReingest=true` enables reingest with embedding reuse by `ContentHash`) |
 | `POST` | `/api/v1/ingest?knowledgeBaseId=<id>` | Ingest into a specific knowledge-base scope (defaults to `default`) |
+| `POST` | `/api/v1/ingest/upload?knowledgeBaseId=<id>` | Upload and ingest `.md`, `.txt`, `.pdf`, and `.docx` files locally (scanned-image OCR is optional) |
+| `POST` | `/api/v1/ingest/preview` | Chunk-only preview (no embeddings or vector-store writes) for configured source or uploaded file |
 | `DELETE` | `/api/v1/ingest/reset?confirm=RESET` | Development-only explicit reset of the vector store to allow reingestion |
 | `POST` | `/api/v1/chat` | RAG-grounded multi-turn chat with tool-calling support |
 | `POST` | `/api/v1/chat/stream` | SSE streaming variant that emits progressive `delta` events and a final `complete` payload |
@@ -19,6 +21,7 @@
 | Interface | Production Implementation | Fallback (no API key) | Description |
 |---|---|---|---|
 | `IChunkingService` | `MarkdownChunkingService` | _(same)_ | Splits markdown on `#` level-1 and `##` level-2 headers into semantic chunks using a source-generated regex |
+| `IDocumentExtractionService` | `LocalDocumentExtractionService` | _(same)_ | Extracts plain text from `.md`, `.txt`, `.pdf`, and `.docx` locally; OCR adapters for scanned images are optional |
 | `IEmbeddingService` | `OpenAIEmbeddingService` | `DeterministicEmbeddingService` | Generates embeddings via `text-embedding-3-small`; fallback uses FNV1a hashing |
 | `IVectorStoreService` | `JsonVectorStoreService` | _(same)_ | Provider contract for load/save/search/delete/filter with startup-validated selection (`VectorStore:Provider`, default `json`) |
 | `IRetrievalChatService` | `OpenAIRetrievalChatService` | `FallbackRetrievalChatService` | RAG pipeline with Polly resilience; fallback uses keyword matching |
@@ -65,6 +68,10 @@ Document versioning:
 - Each ingest computes a SHA-256 checksum for the source document text
 - If no explicit version is supplied, the backend derives a local version label such as `sha256:abcd1234ef56`
 - Citations expose the `documentVersion` and checksum metadata for traceability
+
+Duplicate detection:
+- Before chunking and embedding, ingest computes the source checksum and checks existing records in the same knowledge base
+- If the checksum already exists, ingest returns `409 conflict` with the existing version and checksum in the response detail
 
 Incremental updates and deletes:
 - Forced reingest performs a per-chunk diff inside the selected knowledge base
@@ -182,6 +189,8 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `RateLimiting:Ingest:WindowSeconds` | `60` | Ingest rate-limit window size in seconds |
 | `RateLimiting:Ingest:QueueLimit` | `0` | Queue size for excess ingest requests |
 | `Upload:MaxUploadBytes` | `10485760` | Maximum upload size in bytes for `/ingest/upload` |
+| Upload formats | `.md`, `.txt`, `.pdf`, `.docx` | Default local extraction formats for `/ingest/upload` |
+| Optional OCR formats | `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` | Require a registered local OCR adapter to enable scanned document extraction |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
 
 ## Local Development

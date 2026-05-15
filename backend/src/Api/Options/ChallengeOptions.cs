@@ -13,4 +13,8 @@ public sealed class ChallengeOptions
     [Required]
     [MinLength(1)]
     public string VectorStorePath { get; init; } = "Data/vector-store.json";
+
+    [Required]
+    [MinLength(1)]
+    public string IngestionAuditPath { get; init; } = "Data/ingestion-audit.json";
 }

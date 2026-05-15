@@ -16,8 +16,10 @@ namespace Api.Tests;
 public class IngestControllerTests
 {
     private readonly Mock<IChunkingService> _mockChunking = new();
+    private readonly Mock<IDocumentExtractionService> _mockDocumentExtraction = new();
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
+    private readonly Mock<IIngestionAuditService> _mockAudit = new();
     private readonly Mock<ILogger<IngestController>> _mockLogger = new();
     private readonly Mock<IWebHostEnvironment> _mockEnv = new();
 
@@ -48,6 +50,21 @@ public class IngestControllerTests
                 new TextChunk { Id = "c1", Source = "SOP.md", Index = 0, Content = "## Section\nContent", ContentHash = "hash-1" }
             ]);
 
+        _mockDocumentExtraction
+            .Setup(s => s.IsSupportedExtension(It.IsAny<string>()))
+            .Returns<string>(extension =>
+                new[] { ".md", ".txt", ".pdf", ".docx", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp" }
+                    .Contains(extension, StringComparer.OrdinalIgnoreCase));
+        _mockDocumentExtraction
+            .Setup(s => s.DescribeSupportedFormats())
+            .Returns(".md, .txt, .pdf, .docx (OCR-based scanned files are optional: .png, .jpg, .jpeg, .tif, .tiff, .bmp)");
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("## Section\nContent");
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("## Section\nContent here");
+
         _mockEmbedding
             .Setup(s => s.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[128]);
@@ -59,14 +76,26 @@ public class IngestControllerTests
         _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("## Rel Section\nContent");
+
+        _mockAudit
+            .Setup(a => a.RecordSuccessAsync(It.IsAny<IngestionAuditRecord>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _mockAudit
+            .Setup(a => a.RecordFailureAsync(It.IsAny<IngestionAuditRecord>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         return new IngestController(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
             _mockChunking.Object,
+            _mockDocumentExtraction.Object,
             _mockEmbedding.Object,
             _mockVectorStore.Object,
+            _mockAudit.Object,
             _mockLogger.Object,
             _mockEnv.Object);
     }
@@ -189,10 +218,13 @@ public class IngestControllerTests
         _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("## Fallback Section\nFallback content");
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockEmbedding.Object,
-            _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
+            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockDocumentExtraction.Object,
+            _mockEmbedding.Object, _mockVectorStore.Object, _mockAudit.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
         {
@@ -239,10 +271,13 @@ public class IngestControllerTests
         _mockVectorStore
             .Setup(s => s.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("## Fallback Section\nFallback content");
 
         var controller = new IngestController(
-            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockEmbedding.Object,
-            _mockVectorStore.Object, _mockLogger.Object, _mockEnv.Object);
+            challengeOptions, uploadOptions, timeoutOptions, _mockChunking.Object, _mockDocumentExtraction.Object,
+            _mockEmbedding.Object, _mockVectorStore.Object, _mockAudit.Object, _mockLogger.Object, _mockEnv.Object);
 
         try
         {
@@ -276,6 +311,48 @@ public class IngestControllerTests
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Post_WhenDuplicateChecksumAlreadyIngested_ReturnsConflictWithVersion()
+    {
+        var controller = BuildController();
+        const string duplicateSourceText = "## Duplicate\nExisting content";
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(duplicateSourceText);
+        var checksum = DocumentVersioning.ComputeSourceChecksum(duplicateSourceText);
+
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "existing",
+                    Source = "SOP.md",
+                    ChunkText = "x",
+                    Embedding = [0.25f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        [KnowledgeBaseScope.MetadataKey] = "default",
+                        [DocumentVersioning.SourceChecksumMetadataKey] = checksum,
+                        [DocumentVersioning.DocumentVersionMetadataKey] = "sha256:existing"
+                    }
+                }
+            ]);
+
+        try
+        {
+            var result = await controller.Post(new IngestRequest { ForceReingest = true }, CancellationToken.None);
+            var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(conflict.Value);
+
+            Assert.Equal(ApiErrorFactory.ConflictErrorCode, details.Extensions["code"]);
+            Assert.Contains("already been ingested as version", details.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            _mockVectorStore.Verify(v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEmbedding.Verify(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
         finally { Cleanup(); }
     }
@@ -410,6 +487,45 @@ public class IngestControllerTests
     }
 
     [Fact]
+    public async Task Upload_WhenDuplicateChecksumAlreadyIngested_ReturnsConflictWithVersion()
+    {
+        var controller = BuildController();
+        var checksum = DocumentVersioning.ComputeSourceChecksum("## Section\nContent here");
+
+        _mockVectorStore
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new VectorRecord
+                {
+                    Id = "existing",
+                    Source = "SOP.md",
+                    ChunkText = "x",
+                    Embedding = [0.25f],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        [KnowledgeBaseScope.MetadataKey] = "default",
+                        [DocumentVersioning.SourceChecksumMetadataKey] = checksum,
+                        [DocumentVersioning.DocumentVersionMetadataKey] = "sha256:existing"
+                    }
+                }
+            ]);
+
+        var file = MakeFormFile("## Section\nContent here", "doc.md");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(conflict.Value);
+
+            Assert.Equal(ApiErrorFactory.ConflictErrorCode, details.Extensions["code"]);
+            Assert.Contains("already been ingested as version", details.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            _mockVectorStore.Verify(v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEmbedding.Verify(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
     public async Task Upload_NullFile_ReturnsBadRequest()
     {
         var controller = BuildController();
@@ -440,7 +556,7 @@ public class IngestControllerTests
     public async Task Upload_DisallowedExtension_ReturnsBadRequest()
     {
         var controller = BuildController();
-        var file = MakeFormFile("content", "document.pdf", "application/pdf");
+        var file = MakeFormFile("content", "document.exe", "application/octet-stream");
         try
         {
             var result = await controller.Upload(file, CancellationToken.None);
@@ -464,6 +580,32 @@ public class IngestControllerTests
     }
 
     [Fact]
+    public async Task Upload_PdfExtension_IsAccepted()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("%PDF-1.7", "document.pdf", "application/pdf");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_DocxExtension_IsAccepted()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("docx-content", "document.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(result.Result);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
     public async Task Upload_SavesRecordsToVectorStore()
     {
         var controller = BuildController();
@@ -474,6 +616,46 @@ public class IngestControllerTests
             _mockVectorStore.Verify(
                 v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Preview_UploadFile_ReturnsChunksWithoutPersistingVectorStore()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile("## Section\nContent here", "upload.md");
+
+        try
+        {
+            var result = await controller.Preview(file, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<IngestPreviewResponse>(ok.Value);
+
+            Assert.True(response.Accepted);
+            Assert.True(response.ChunkCount > 0);
+            Assert.NotEmpty(response.Chunks);
+            _mockVectorStore.Verify(v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEmbedding.Verify(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Preview_NoUpload_UsesConfiguredSource()
+    {
+        var controller = BuildController();
+
+        try
+        {
+            var result = await controller.Preview(null, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<IngestPreviewResponse>(ok.Value);
+
+            Assert.True(response.Accepted);
+            Assert.Equal("SOP.md", response.SourceName);
+            Assert.True(response.ChunkCount > 0);
+            _mockVectorStore.Verify(v => v.SaveAsync(It.IsAny<IEnumerable<VectorRecord>>(), It.IsAny<CancellationToken>()), Times.Never);
         }
         finally { Cleanup(); }
     }

@@ -129,6 +129,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
+builder.Services.AddSingleton<IDocumentExtractionService, LocalDocumentExtractionService>();
+builder.Services.AddSingleton<IIngestionAuditService, JsonIngestionAuditService>();
 builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
 builder.Services.AddSingleton<IUserQueryGuardrailService, RuleBasedUserQueryGuardrailService>();
 builder.Services.AddSingleton<OpenAIUsageTracker>();

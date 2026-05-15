@@ -846,7 +846,7 @@ AI features can become expensive. Cost and token observability help tune prompts
 
 ### 39. Add Upload History And Ingestion Audit Records
 
-- [ ] Record what was ingested, when, by whom or what process, and with which outcome.
+- [x] Record what was ingested, when, by whom or what process, and with which outcome.
 
 **Why**
 
@@ -867,7 +867,7 @@ Ingestion changes the knowledge base. Even local tools benefit from an audit tra
 
 ### 40. Support Additional Document Formats
 
-- [ ] Add ingestion support for PDF, DOCX, and scanned documents through optional local processors.
+- [x] Add ingestion support for PDF, DOCX, and scanned documents through optional local processors.
 
 **Why**
 
@@ -889,7 +889,7 @@ SOPs often exist outside Markdown. Supporting common document formats would make
 
 ### 41. Add Duplicate Document Detection
 
-- [ ] Detect when an uploaded or configured document has already been ingested.
+- [x] Detect when an uploaded or configured document has already been ingested.
 
 **Why**
 
@@ -909,7 +909,7 @@ Duplicate ingestion wastes storage, tokens, and reviewer time. It can also clutt
 
 ### 42. Add Ingestion Preview
 
-- [ ] Let users preview chunks before committing ingestion.
+- [x] Let users preview chunks before committing ingestion.
 
 **Why**
 
