@@ -139,6 +139,11 @@ Fixed-window rate limiting applied per client IP:
 
 Exceeding the limit returns `429 Too Many Requests`.
 
+Distributed rate-limit mode:
+- Default mode remains in-process fixed-window limits for local and single-instance deployments.
+- Optional `RateLimiting:Mode=distributed` enables a distributed-store middleware path.
+- Built-in distributed provider is `memory`; `redis` is reserved for an optional adapter and fails clearly if selected without registration.
+
 ### 7. Security Headers
 Backend responses include `Content-Security-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` (plus HSTS in non-development).
 

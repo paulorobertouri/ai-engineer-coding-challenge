@@ -7,10 +7,30 @@ public sealed class RateLimitingOptions
     public const string SectionName = "RateLimiting";
 
     [Required]
+    [RegularExpression("^(inmemory|distributed)$")]
+    public string Mode { get; init; } = RateLimitingMode.InMemory;
+
+    [Required]
     public RateLimitingPolicyOptions Chat { get; init; } = new();
 
     [Required]
     public RateLimitingPolicyOptions Ingest { get; init; } = new() { PermitLimit = 10 };
+
+    [Required]
+    public DistributedRateLimitingOptions Distributed { get; init; } = new();
+}
+
+public static class RateLimitingMode
+{
+    public const string InMemory = "inmemory";
+    public const string Distributed = "distributed";
+}
+
+public sealed class DistributedRateLimitingOptions
+{
+    [Required]
+    [RegularExpression("^(memory|redis)$")]
+    public string Provider { get; init; } = "memory";
 }
 
 public sealed class RateLimitingPolicyOptions

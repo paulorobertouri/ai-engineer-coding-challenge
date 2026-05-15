@@ -1,4 +1,5 @@
 using Api;
+using Api.Middleware;
 using Api.Options;
 using Api.Services;
 using Api.Security;
@@ -101,6 +102,7 @@ var uploadOptions = builder.Configuration.GetSection(UploadOptions.SectionName).
 var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>() ?? new RateLimitingOptions();
 var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
 var vectorStoreOptions = builder.Configuration.GetSection(VectorStoreOptions.SectionName).Get<VectorStoreOptions>() ?? new VectorStoreOptions();
+var isDistributedRateLimiting = DistributedRateLimitingRegistration.IsDistributedEnabled(rateLimitingOptions);
 
 builder.Services.AddControllers();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = uploadOptions.MaxUploadBytes);
@@ -179,30 +181,40 @@ builder.Services.AddAuthorization(options =>
             builder.Environment.IsDevelopment() || context.User.HasClaim("scope", AuthorizationPolicies.KnowledgeAdmin));
     });
 });
+
+if (isDistributedRateLimiting)
+{
+    DistributedRateLimitingRegistration.ConfigureDistributedProvider(builder.Services, rateLimitingOptions);
+    builder.Services.AddSingleton<DistributedRateLimitingMiddleware>();
+}
 // Rate limiting defaults: 30 requests/minute per IP on /api/chat; 10 requests/minute on /api/ingest
 builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("chat", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimitingOptions.Chat.PermitLimit,
-                Window = TimeSpan.FromSeconds(rateLimitingOptions.Chat.WindowSeconds),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = rateLimitingOptions.Chat.QueueLimit
-            }));
+        isDistributedRateLimiting
+            ? RateLimitPartition.GetNoLimiter("chat")
+            : RateLimitPartition.GetFixedWindowLimiter(
+                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = rateLimitingOptions.Chat.PermitLimit,
+                    Window = TimeSpan.FromSeconds(rateLimitingOptions.Chat.WindowSeconds),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitingOptions.Chat.QueueLimit
+                }));
 
     options.AddPolicy("ingest", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimitingOptions.Ingest.PermitLimit,
-                Window = TimeSpan.FromSeconds(rateLimitingOptions.Ingest.WindowSeconds),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = rateLimitingOptions.Ingest.QueueLimit
-            }));
+        isDistributedRateLimiting
+            ? RateLimitPartition.GetNoLimiter("ingest")
+            : RateLimitPartition.GetFixedWindowLimiter(
+                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = rateLimitingOptions.Ingest.PermitLimit,
+                    Window = TimeSpan.FromSeconds(rateLimitingOptions.Ingest.WindowSeconds),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitingOptions.Ingest.QueueLimit
+                }));
 
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, cancellationToken) =>
@@ -270,6 +282,10 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors("LocalFrontend");
+if (isDistributedRateLimiting)
+{
+    app.UseMiddleware<DistributedRateLimitingMiddleware>();
+}
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
@@ -278,4 +294,7 @@ await app.RunAsync();
 
 public partial class Program
 {
+    protected Program()
+    {
+    }
 }

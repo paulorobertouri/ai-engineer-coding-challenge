@@ -970,7 +970,7 @@ Most employees should ask questions, while only specific users should upload, re
 
 ### 45. Add Distributed Rate Limiting Option
 
-- [ ] Support rate limiting across multiple backend instances without requiring it locally.
+- [x] Support rate limiting across multiple backend instances without requiring it locally.
 
 **Why**
 

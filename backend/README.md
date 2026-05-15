@@ -195,6 +195,8 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `RateLimiting:Ingest:PermitLimit` | `10` | Ingest requests allowed per window |
 | `RateLimiting:Ingest:WindowSeconds` | `60` | Ingest rate-limit window size in seconds |
 | `RateLimiting:Ingest:QueueLimit` | `0` | Queue size for excess ingest requests |
+| `RateLimiting:Mode` | `inmemory` | `inmemory` keeps ASP.NET fixed-window limits; `distributed` enables distributed-store middleware |
+| `RateLimiting:Distributed:Provider` | `memory` | Distributed provider key (`memory` built-in, `redis` reserved for optional adapter) |
 | `Upload:MaxUploadBytes` | `10485760` | Maximum upload size in bytes for `/ingest/upload` |
 | Upload formats | `.md`, `.txt`, `.pdf`, `.docx` | Default local extraction formats for `/ingest/upload` |
 | Optional OCR formats | `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` | Require a registered local OCR adapter to enable scanned document extraction |
