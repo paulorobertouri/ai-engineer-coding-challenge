@@ -64,6 +64,7 @@ Frontend API base URL resolution order:
 | `./scripts/format.sh [--fix]` | `.\scripts\format.ps1 [--fix]` | Check / auto-fix formatting and linting |
 | `./scripts/test.sh [all\|backend\|frontend]` | `.\scripts\test.ps1 [all\|backend\|frontend]` | Run unit tests |
 | `./scripts/build.sh [all\|backend\|frontend]` | `.\scripts\build.ps1 [all\|backend\|frontend]` | Build Docker images |
+| `./scripts/generate-api-types.sh` | _n/a_ | Fetch backend Swagger and regenerate frontend OpenAPI/TypeScript contract files |
 | `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | `.\scripts\docker.ps1 <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
 | `./scripts/e2e.sh [test\|evidence]` | `.\scripts\e2e.ps1 [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
 
@@ -80,6 +81,7 @@ The GitHub Actions workflow includes these checks on `push` and `pull_request` t
 
 - Backend: format check, build, tests with coverage artifact upload.
 - Frontend: lint, Prettier check, tests with coverage thresholds and coverage artifact upload, production build.
+- Frontend: OpenAPI contract generation drift check (`npm run check:api-types`) to ensure generated frontend types stay in sync with backend Swagger.
 - Docker: backend and frontend image build validation using `docker compose build`.
 - Dependency security: `.NET` vulnerability scan (`dotnet list package --vulnerable --include-transitive`) and npm audits for both `frontend` and `e2e`.
 - E2E: Playwright run (fallback mode) with failure artifacts.
@@ -124,6 +126,7 @@ When the model returns `finish_reason: tool_calls`, each tool is executed and it
 
 ### 5. Resilience & Observability
 - Polly pipeline: exponential-backoff retry (×3, 2 s base) + 30 s timeout wraps every OpenAI call.
+- OpenAI calls also use a circuit breaker so repeated provider failures open the circuit and fail fast with clear degraded responses.
 - Serilog structured logging with daily rolling file sink (`Logs/api-YYYYMMDD.log`) and console output.
 - `GlobalExceptionHandler` maps unhandled exceptions to RFC 9457 `ProblemDetails` responses.
 - Response compression (Gzip / Brotli) enabled for HTTPS.

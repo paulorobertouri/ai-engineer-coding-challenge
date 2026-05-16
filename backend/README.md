@@ -103,6 +103,7 @@ For local development without Docker volume reset, the API also supports a guard
 `OpenAIRetrievalChatService` wraps every OpenAI call in a Polly pipeline:
 - Exponential backoff retry — 3 attempts, 2 s base delay
 - 30 s timeout
+- Circuit breaker to fail fast when provider instability exceeds configured thresholds
 
 ## OpenTelemetry
 
@@ -185,6 +186,11 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `OpenAI:EnableTools` | `true` | Enables/disables OpenAI tool calling on the server |
 | `OpenAI:ChatModel` | `gpt-4o-mini` | Chat completion model |
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
+| `OpenAI:CircuitBreaker:Enabled` | `true` | Enables OpenAI circuit-breaker behavior |
+| `OpenAI:CircuitBreaker:FailureRatio` | `0.5` | Fraction of handled failures needed to open the circuit |
+| `OpenAI:CircuitBreaker:MinimumThroughput` | `8` | Minimum sampled requests before evaluating failures |
+| `OpenAI:CircuitBreaker:SamplingDurationSeconds` | `30` | Sliding evaluation window for failure ratio |
+| `OpenAI:CircuitBreaker:BreakDurationSeconds` | `30` | Time the circuit remains open before half-open probe |
 | `Retrieval:TopK` | `3` | Maximum number of retrieved chunks considered for response context |
 | `Retrieval:MinSimilarityScore` | `0.3` | Minimum cosine similarity score for a chunk to be considered relevant |
 | `Retrieval:EnableQueryRewriting` | `true` | Rewrites follow-up user messages into standalone retrieval queries |
