@@ -25,6 +25,16 @@ DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+void AddValidatedOptions<TOptions>(string sectionName)
+    where TOptions : class
+{
+    builder.Services
+        .AddOptions<TOptions>()
+        .Bind(builder.Configuration.GetRequiredSection(sectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+}
+
 builder.Host.UseSerilog((ctx, services, config) =>
 {
     var isRunningInContainer = string.Equals(
@@ -45,76 +55,23 @@ builder.Host.UseSerilog((ctx, services, config) =>
 });
 builder.Configuration.AddEnvironmentVariables();
 
-builder.Services
-    .AddOptions<OpenAIOptions>()
-    .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<ChallengeOptions>()
-    .Bind(builder.Configuration.GetSection(ChallengeOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<VectorStoreOptions>()
-    .Bind(builder.Configuration.GetSection(VectorStoreOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+AddValidatedOptions<OpenAIOptions>(OpenAIOptions.SectionName);
+AddValidatedOptions<ChallengeOptions>(ChallengeOptions.SectionName);
+AddValidatedOptions<VectorStoreOptions>(VectorStoreOptions.SectionName);
 builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<VectorStoreOptions>, VectorStoreOptionsValidator>();
-
-builder.Services
-    .AddOptions<RetrievalOptions>()
-    .Bind(builder.Configuration.GetSection(RetrievalOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<GuardrailOptions>()
-    .Bind(builder.Configuration.GetSection(GuardrailOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<RateLimitingOptions>()
-    .Bind(builder.Configuration.GetSection(RateLimitingOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<UploadOptions>()
-    .Bind(builder.Configuration.GetSection(UploadOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<TimeoutOptions>()
-    .Bind(builder.Configuration.GetSection(TimeoutOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<ObservabilityOptions>()
-    .Bind(builder.Configuration.GetSection(ObservabilityOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<DataRetentionOptions>()
-    .Bind(builder.Configuration.GetSection(DataRetentionOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+AddValidatedOptions<RetrievalOptions>(RetrievalOptions.SectionName);
+AddValidatedOptions<GuardrailOptions>(GuardrailOptions.SectionName);
+AddValidatedOptions<RateLimitingOptions>(RateLimitingOptions.SectionName);
+AddValidatedOptions<UploadOptions>(UploadOptions.SectionName);
+AddValidatedOptions<TimeoutOptions>(TimeoutOptions.SectionName);
+AddValidatedOptions<ObservabilityOptions>(ObservabilityOptions.SectionName);
+AddValidatedOptions<DataRetentionOptions>(DataRetentionOptions.SectionName);
 
 builder.Services
     .AddOptions<IngestJobsOptions>()
     .Bind(builder.Configuration.GetSection(IngestJobsOptions.SectionName));
 
-builder.Services
-    .AddOptions<AuthOptions>()
-    .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+AddValidatedOptions<AuthOptions>(AuthOptions.SectionName);
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
@@ -122,7 +79,6 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 var uploadOptions = builder.Configuration.GetSection(UploadOptions.SectionName).Get<UploadOptions>() ?? new UploadOptions();
 var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>() ?? new RateLimitingOptions();
 var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
-var vectorStoreOptions = builder.Configuration.GetSection(VectorStoreOptions.SectionName).Get<VectorStoreOptions>() ?? new VectorStoreOptions();
 var isDistributedRateLimiting = DistributedRateLimitingRegistration.IsDistributedEnabled(rateLimitingOptions);
 var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 
@@ -220,12 +176,13 @@ builder.Services.AddSingleton<IIngestJobDispatcher, IngestJobDispatcher>();
 builder.Services.AddHostedService<IngestJobBackgroundService>();
 builder.Services.AddSingleton<IVectorStoreService>(sp =>
 {
-    var provider = vectorStoreOptions.Provider.Trim().ToLowerInvariant();
+    var options = sp.GetRequiredService<IOptions<VectorStoreOptions>>().Value;
+    var provider = options.Provider.Trim().ToLowerInvariant();
 
     return provider switch
     {
         "json" => ActivatorUtilities.CreateInstance<JsonVectorStoreService>(sp),
-        _ => throw new InvalidOperationException($"Unsupported VectorStore provider '{vectorStoreOptions.Provider}'.")
+        _ => throw new InvalidOperationException($"Unsupported VectorStore provider '{options.Provider}'.")
     };
 });
 

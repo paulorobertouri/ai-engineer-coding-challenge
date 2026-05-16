@@ -1296,7 +1296,7 @@ The project should remain free to run and maintain. Some libraries that were his
 
 ### 60. Review .NET 10 Usage And Modern ASP.NET Core Patterns
 
-- [ ] Audit backend code for idiomatic .NET 10 / ASP.NET Core usage.
+- [x] Audit backend code for idiomatic .NET 10 / ASP.NET Core usage.
 
 **Why**
 
