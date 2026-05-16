@@ -1317,7 +1317,7 @@ The project already uses .NET 10. A focused review can make sure it benefits fro
 
 ### 61. Evaluate Minimal API For Endpoint Design
 
-- [ ] Decide whether controllers should remain or whether selected endpoints should move to Minimal API route groups.
+- [x] Decide whether controllers should remain or whether selected endpoints should move to Minimal API route groups.
 
 **Why**
 

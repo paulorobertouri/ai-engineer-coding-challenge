@@ -99,3 +99,40 @@ We standardized on fully **Asynchronous patterns** (\`async/await\`) across all 
 - **Efficiency:** Better thread utilization in .NET, allowing the server to handle more concurrent users.
 - **Speed:** Reduced payload sizes and faster retrieval times.
 
+---
+
+# ADR 006: Endpoint Style Decision - Keep Controllers (For Now)
+
+## Status
+Accepted
+
+## Context
+The backend currently exposes versioned `health`, `chat`, `ingest`, and `sources` endpoints through MVC controllers. We evaluated whether to migrate selected endpoints to Minimal API route groups.
+
+The project has important constraints:
+- Preserve API versioning and current OpenAPI output.
+- Keep endpoint tests straightforward and maintainable.
+- Avoid adding external endpoint framework packages.
+- Keep local and Docker workflows unchanged.
+
+## Decision
+We will keep controllers as the primary endpoint style for now.
+
+We will not introduce a mixed controller + Minimal API split for existing `chat` and `ingest` flows at this stage.
+
+## Rationale
+- Existing controllers already encode validation, authorization, and response behavior clearly using built-in ASP.NET Core patterns.
+- Current API versioning setup and Swagger generation are stable and well-covered by tests and generated frontend API contracts.
+- `ingest` and `chat` have non-trivial request handling where controller conventions remain readable for this codebase.
+- Migrating only a subset now would add style inconsistency without a clear net readability gain.
+
+## Consequences
+- Endpoint style remains consistent across the backend.
+- No additional dependencies are required.
+- Existing tests and OpenAPI contract checks stay valid without migration churn.
+
+## Revisit Trigger
+Re-evaluate Minimal API route groups when:
+- A new bounded endpoint area is introduced that is naturally small and function-oriented, or
+- Controller orchestration becomes harder to follow than equivalent typed Minimal API handlers.
+

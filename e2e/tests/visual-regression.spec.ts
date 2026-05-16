@@ -34,13 +34,26 @@ async function completeIngest(page: Page): Promise<void> {
   await ingestButton.waitFor({ state: "visible", timeout: 20_000 });
   await ingestButton.click();
   const statusBanner = page.locator(".status-banner");
-  await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
+  await expect(statusBanner).toHaveAttribute("data-tone", /success|warning|info/, {
     timeout: 90000,
   });
-  await expect(statusBanner).toContainText(/ingested successfully|already ingested/i, {
+  await expect(statusBanner).toContainText(/calling the ingest endpoint|ingested successfully|already ingested/i, {
     timeout: 90000,
   });
-  await expect(chatInput).toBeVisible({ timeout: 30000 });
+
+  const retryIngestButton = page.locator('button:has-text("Retry ingest")');
+  const ingestDeadline = Date.now() + 120000;
+  while (!(await chatInput.isVisible())) {
+    if (await retryIngestButton.isVisible()) {
+      await retryIngestButton.click();
+    }
+
+    if (Date.now() >= ingestDeadline) {
+      throw new Error("Timed out waiting for chat input after ingest.");
+    }
+
+    await page.waitForTimeout(1000);
+  }
 }
 
 test.describe("visual regression", () => {

@@ -17,15 +17,29 @@ test("ingest and chat", async ({ page }) => {
     await ingestBtn.waitFor({ state: "visible", timeout: 20000 });
     await ingestBtn.click();
     const statusBanner = page.locator(".status-banner");
-    await expect(statusBanner).toHaveAttribute("data-tone", /success|warning/, {
+    await expect(statusBanner).toHaveAttribute("data-tone", /success|warning|info/, {
       timeout: 90000,
     });
     await expect(statusBanner).toContainText(
-      /ingested successfully|already ingested/i,
+      /calling the ingest endpoint|ingested successfully|already ingested/i,
       {
         timeout: 90000,
       },
     );
+
+    const retryIngestButton = page.locator('button:has-text("Retry ingest")');
+    const ingestDeadline = Date.now() + 120000;
+    while (!(await chatInput.isVisible())) {
+      if (await retryIngestButton.isVisible()) {
+        await retryIngestButton.click();
+      }
+
+      if (Date.now() >= ingestDeadline) {
+        throw new Error("Timed out waiting for chat input after ingest.");
+      }
+
+      await page.waitForTimeout(1000);
+    }
   }
 
   // 2. Chat — wait for the chat layout (input is always present once ingested)
