@@ -48,6 +48,9 @@ Run these before pushing:
 
 - Do not commit secrets in `.env` files.
 - Keep dependencies current; Dependabot PRs are enabled.
+- Follow the dependency policy in [docs/dependency-policy.md](docs/dependency-policy.md) before adding packages.
+- New dependency PRs should state the package purpose, license, and why built-in platform features were not enough.
+- Prefer permissive licenses and avoid paid, source-available-only, or strong-copyleft dependencies for default workflows.
 - Verify no high-severity issues before merge:
   - `npm audit --audit-level=high` (frontend and e2e)
   - `dotnet list backend/AIEngineerCodingChallenge.Backend.slnx package --vulnerable --include-transitive`

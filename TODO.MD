@@ -1274,7 +1274,7 @@ Avoid packages that require paid licenses for commercial use or have unclear lic
 
 ### 59. Add Dependency License Policy
 
-- [ ] Document and enforce allowed dependency licenses for backend, frontend, test, and Docker tooling.
+- [x] Document and enforce allowed dependency licenses for backend, frontend, test, and Docker tooling.
 
 **Why**
 
