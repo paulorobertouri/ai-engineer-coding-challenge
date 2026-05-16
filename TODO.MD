@@ -1178,7 +1178,7 @@ Concurrency and provider errors are where many RAG apps fail in surprising ways.
 
 ### 55. Add Supply Chain Security Checks
 
-- [ ] Add secret scanning, SBOM generation, image vulnerability scanning, and license checks.
+- [x] Add secret scanning, SBOM generation, image vulnerability scanning, and license checks.
 
 **Why**
 

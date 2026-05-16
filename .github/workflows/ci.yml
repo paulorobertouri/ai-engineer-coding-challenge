@@ -146,7 +146,7 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
-    needs: [backend, frontend, docker-build, dependencies-security]
+    needs: [backend, frontend, docker-build, dependencies-security, supply-chain-security]
     steps:
       - uses: actions/checkout@v4
 
@@ -195,3 +195,117 @@ jobs:
             e2e/playwright-report
             e2e/test-results
           if-no-files-found: ignore
+
+  supply-chain-security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Build Backend Image (Tagged)
+        run: docker build -t ai-sop-backend:ci backend/src/Api
+
+      - name: Build Frontend Image (Tagged)
+        run: docker build -t ai-sop-frontend:ci frontend
+
+      - name: Secret Scan (Repository)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Vulnerability Scan (Backend Image)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: image
+          image-ref: ai-sop-backend:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Vulnerability Scan (Frontend Image)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: image
+          image-ref: ai-sop-frontend:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Generate SBOM (Backend Image)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ai-sop-backend:ci
+          format: spdx-json
+          output-file: security-reports/backend-image.spdx.json
+
+      - name: Generate SBOM (Frontend Image)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ai-sop-frontend:ci
+          format: spdx-json
+          output-file: security-reports/frontend-image.spdx.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install E2E Dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: License Check (Frontend)
+        working-directory: frontend
+        run: |
+          npx --yes license-checker@25.0.1 \
+            --production \
+            --failOn "GPL-1.0;GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0;SSPL-1.0" \
+            --summary
+
+      - name: License Check (E2E)
+        working-directory: e2e
+        run: |
+          npx --yes license-checker@25.0.1 \
+            --production \
+            --failOn "GPL-1.0;GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0;SSPL-1.0" \
+            --summary
+
+      - name: License Check (.NET)
+        run: |
+          mkdir -p .tmp-tools security-reports
+          dotnet tool install dotnet-project-licenses --tool-path ./.tmp-tools --version 2.7.1
+          DOTNET_ROLL_FORWARD=Major ./.tmp-tools/dotnet-project-licenses \
+            -i backend/AIEngineerCodingChallenge.Backend.slnx \
+            --forbidden-license-types security/licenses/dotnet-forbidden-licenses.json \
+            --output jsonPretty \
+            --outfile security-reports/dotnet-licenses.json
+
+      - name: Upload Supply Chain Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-reports
+          path: |
+            security-reports/backend-image.spdx.json
+            security-reports/frontend-image.spdx.json
+            security-reports/dotnet-licenses.json
+          if-no-files-found: error
