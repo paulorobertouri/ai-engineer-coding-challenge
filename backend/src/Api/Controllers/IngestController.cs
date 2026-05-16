@@ -32,6 +32,7 @@ public sealed class IngestController(
 {
     private static readonly SemaphoreSlim IngestLock = new(1, 1);
     private const int PreviewSampleLength = 180;
+    private const int MaxUploadedLineLength = 10_000;
 
     private const string ResetConfirmationValue = "RESET";
 
@@ -213,6 +214,17 @@ public sealed class IngestController(
             {
                 await using var uploadStream = file.OpenReadStream();
                 sourceText = await documentExtractionService.ExtractTextAsync(sourceName, uploadStream, operationToken);
+
+                if (!TryValidateUploadedText(sourceText, out var validationMessage))
+                {
+                    await RecordFailureAsync(
+                        action: "upload-ingest",
+                        scopedKnowledgeBaseId,
+                        sourceName,
+                        validationMessage,
+                        cancellationToken);
+                    return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", validationMessage));
+                }
             }
             catch (DocumentExtractionException ex)
             {
@@ -269,6 +281,25 @@ public sealed class IngestController(
                 false,
                 operationToken);
         }, operationToken), cancellationToken);
+    }
+
+    private static bool TryValidateUploadedText(string sourceText, out string message)
+    {
+        if (string.IsNullOrWhiteSpace(sourceText))
+        {
+            message = "The uploaded file did not contain readable text content.";
+            return false;
+        }
+
+        var lines = sourceText.Split('\n');
+        if (lines.Any(line => line.TrimEnd('\r').Length > MaxUploadedLineLength))
+        {
+            message = $"The uploaded file contains lines longer than {MaxUploadedLineLength} characters.";
+            return false;
+        }
+
+        message = string.Empty;
+        return true;
     }
 
     [HttpGet("jobs/{jobId:guid}")]
@@ -341,6 +372,11 @@ public sealed class IngestController(
                 {
                     await using var uploadStream = file.OpenReadStream();
                     sourceText = await documentExtractionService.ExtractTextAsync(sourceName, uploadStream, operationToken);
+
+                    if (!TryValidateUploadedText(sourceText, out var validationMessage))
+                    {
+                        return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", validationMessage));
+                    }
                 }
                 catch (DocumentExtractionException ex)
                 {

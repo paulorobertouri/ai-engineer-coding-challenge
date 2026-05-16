@@ -1200,7 +1200,7 @@ Dependencies and containers are part of the delivered system. Supply-chain check
 
 ### 56. Add Uploaded-File Content Validation
 
-- [ ] Validate uploaded file content, not only filename extensions.
+- [x] Validate uploaded file content, not only filename extensions.
 
 **Why**
 

@@ -7,6 +7,8 @@ namespace Api.Services;
 
 public sealed class LocalDocumentExtractionService(IEnumerable<IDocumentOcrService> ocrServices) : IDocumentExtractionService
 {
+    private const int SignatureProbeLength = 32;
+    private const int TextProbeLength = 4096;
     private static readonly HashSet<string> BaselineExtensions =
         new([".md", ".txt", ".pdf", ".docx"], StringComparer.OrdinalIgnoreCase);
 
@@ -46,6 +48,8 @@ public sealed class LocalDocumentExtractionService(IEnumerable<IDocumentOcrServi
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        await ValidateUploadedContentAsync(fileName, extension, stream, cancellationToken);
 
         return extension.ToLowerInvariant() switch
         {
@@ -140,5 +144,98 @@ public sealed class LocalDocumentExtractionService(IEnumerable<IDocumentOcrServi
         await stream.CopyToAsync(memory, cancellationToken);
         memory.Seek(0, SeekOrigin.Begin);
         return memory;
+    }
+
+    private static async Task ValidateUploadedContentAsync(
+        string fileName,
+        string extension,
+        Stream stream,
+        CancellationToken cancellationToken)
+    {
+        var lowerExtension = extension.ToLowerInvariant();
+
+        switch (lowerExtension)
+        {
+            case ".pdf":
+                await EnsurePdfSignatureAsync(fileName, stream, cancellationToken);
+                return;
+            case ".docx":
+                await EnsureZipSignatureAsync(fileName, stream, cancellationToken);
+                return;
+            case ".md":
+            case ".txt":
+                await EnsureReadableTextAsync(fileName, stream, cancellationToken);
+                return;
+            default:
+                return;
+        }
+    }
+
+    private static async Task EnsurePdfSignatureAsync(string fileName, Stream stream, CancellationToken cancellationToken)
+    {
+        var header = await ReadHeaderAsync(stream, SignatureProbeLength, cancellationToken);
+        var pdfSignature = Encoding.ASCII.GetBytes("%PDF-");
+
+        if (!header.AsSpan().StartsWith(pdfSignature))
+        {
+            throw new DocumentExtractionException(
+                $"The uploaded file '{fileName}' is not a valid PDF document.");
+        }
+    }
+
+    private static async Task EnsureZipSignatureAsync(string fileName, Stream stream, CancellationToken cancellationToken)
+    {
+        var header = await ReadHeaderAsync(stream, SignatureProbeLength, cancellationToken);
+        var isZip = header.Length >= 4
+            && header[0] == 0x50
+            && header[1] == 0x4B
+            && (header[2] == 0x03 || header[2] == 0x05 || header[2] == 0x07)
+            && (header[3] == 0x04 || header[3] == 0x06 || header[3] == 0x08);
+
+        if (!isZip)
+        {
+            throw new DocumentExtractionException(
+                $"The uploaded file '{fileName}' is not a valid DOCX document.");
+        }
+    }
+
+    private static async Task EnsureReadableTextAsync(string fileName, Stream stream, CancellationToken cancellationToken)
+    {
+        var probe = await ReadHeaderAsync(stream, TextProbeLength, cancellationToken);
+        if (probe.Length == 0)
+        {
+            return;
+        }
+
+        if (probe.Any(b => b == 0x00))
+        {
+            throw new DocumentExtractionException(
+                $"The uploaded file '{fileName}' appears to be binary and cannot be ingested as text.");
+        }
+
+        var suspiciousControlBytes = probe.Count(static b => b < 0x09 || (b > 0x0D && b < 0x20));
+        if ((double)suspiciousControlBytes / probe.Length > 0.1)
+        {
+            throw new DocumentExtractionException(
+                $"The uploaded file '{fileName}' appears to contain binary/control-byte content.");
+        }
+    }
+
+    private static async Task<byte[]> ReadHeaderAsync(Stream stream, int maxBytes, CancellationToken cancellationToken)
+    {
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        var buffer = new byte[maxBytes];
+        var read = await stream.ReadAsync(buffer.AsMemory(0, maxBytes), cancellationToken);
+
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        return buffer[..read];
     }
 }

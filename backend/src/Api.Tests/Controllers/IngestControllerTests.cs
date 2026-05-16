@@ -505,6 +505,11 @@ public class IngestControllerTests
     private static IFormFile MakeFormFile(string content, string fileName, string contentType = "text/markdown")
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        return MakeFormFile(bytes, fileName, contentType);
+    }
+
+    private static IFormFile MakeFormFile(byte[] bytes, string fileName, string contentType = "text/markdown")
+    {
         var stream = new MemoryStream(bytes);
         var formFile = new Microsoft.AspNetCore.Http.FormFile(stream, 0, bytes.Length, "file", fileName)
         {
@@ -527,6 +532,45 @@ public class IngestControllerTests
             var response = Assert.IsType<IngestResponse>(ok.Value);
             Assert.True(response.Accepted);
             Assert.Equal(1, response.ChunksCreated);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_RenamedBinaryMarkdown_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile([0x89, 0x50, 0x4E, 0x47, 0x00, 0x01], "renamed.md", "text/markdown");
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DocumentExtractionException("The uploaded file appears to be binary and cannot be ingested as text."));
+
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(bad.Value);
+            Assert.Equal(ApiErrorFactory.BadRequestErrorCode, details.Extensions["code"]);
+        }
+        finally { Cleanup(); }
+    }
+
+    [Fact]
+    public async Task Upload_OverlongLine_ReturnsBadRequest()
+    {
+        var controller = BuildController();
+        var file = MakeFormFile(new string('x', 10_001), "too-long.md", "text/markdown");
+        _mockDocumentExtraction
+            .Setup(s => s.ExtractTextAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new string('x', 10_001));
+
+        try
+        {
+            var result = await controller.Upload(file, CancellationToken.None);
+            var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+            var details = Assert.IsType<ProblemDetails>(bad.Value);
+            Assert.Equal(ApiErrorFactory.BadRequestErrorCode, details.Extensions["code"]);
+            Assert.Contains("lines longer than", details.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
         finally { Cleanup(); }
     }

@@ -43,6 +43,42 @@ public class LocalDocumentExtractionServiceTests
     }
 
     [Fact]
+    public async Task ExtractTextAsync_TextExtensionWithBinaryContent_ThrowsDocumentExtractionException()
+    {
+        var service = new LocalDocumentExtractionService([]);
+        await using var stream = new MemoryStream([0x89, 0x50, 0x4E, 0x47, 0x00, 0x01, 0x02, 0x03]);
+
+        var ex = await Assert.ThrowsAsync<DocumentExtractionException>(() =>
+            service.ExtractTextAsync("renamed-binary.md", stream, CancellationToken.None));
+
+        Assert.Contains("binary", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_PdfExtensionWithoutPdfSignature_ThrowsDocumentExtractionException()
+    {
+        var service = new LocalDocumentExtractionService([]);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("not-a-pdf"));
+
+        var ex = await Assert.ThrowsAsync<DocumentExtractionException>(() =>
+            service.ExtractTextAsync("fake.pdf", stream, CancellationToken.None));
+
+        Assert.Contains("valid PDF", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_DocxExtensionWithoutZipSignature_ThrowsDocumentExtractionException()
+    {
+        var service = new LocalDocumentExtractionService([]);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("not-a-docx"));
+
+        var ex = await Assert.ThrowsAsync<DocumentExtractionException>(() =>
+            service.ExtractTextAsync("fake.docx", stream, CancellationToken.None));
+
+        Assert.Contains("valid DOCX", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void IsSupportedExtension_KnowsBaselineAndOcrFormats()
     {
         var service = new LocalDocumentExtractionService([]);
