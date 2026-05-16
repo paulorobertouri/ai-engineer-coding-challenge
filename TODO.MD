@@ -1339,7 +1339,7 @@ Minimal APIs can reduce ceremony for small services and pair well with typed res
 
 ### 62. Add Mediator-Style Application Layer Without Paid Dependencies
 
-- [ ] Introduce request/handler boundaries where they reduce controller/service coupling.
+- [x] Introduce request/handler boundaries where they reduce controller/service coupling.
 
 **Why**
 

@@ -1,3 +1,5 @@
+using Api.Application.Chat;
+using Api.Application.Feedback;
 using Api.Contracts;
 using Api.Options;
 using Api.Services;
@@ -23,6 +25,8 @@ public sealed class ChatController(
     private const string ValidationErrorTitle = "One or more validation errors occurred.";
     private const int StreamChunkSize = 24;
     private static readonly JsonSerializerOptions SseJsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly SendChatMessageHandler _sendChatMessageHandler = new(retrievalChatService, timeoutOptions);
+    private readonly SubmitConversationFeedbackHandler _submitConversationFeedbackHandler = new(conversationFeedbackService);
 
     [HttpPost]
     [EnableRateLimiting("chat")]
@@ -34,12 +38,9 @@ public sealed class ChatController(
             return validationResult;
         }
 
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutOptions.Value.ChatSeconds));
-
         try
         {
-            var response = await retrievalChatService.GenerateResponseAsync(request, timeoutCts.Token);
+            var response = await _sendChatMessageHandler.HandleAsync(new SendChatMessageCommand(request), cancellationToken);
             return Ok(response);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -62,12 +63,9 @@ public sealed class ChatController(
             return validationResult.Result ?? new ObjectResult(validationResult.Value);
         }
 
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutOptions.Value.ChatSeconds));
-
         try
         {
-            var response = await retrievalChatService.GenerateResponseAsync(request, timeoutCts.Token);
+            var response = await _sendChatMessageHandler.HandleAsync(new SendChatMessageCommand(request), cancellationToken);
 
             Response.StatusCode = StatusCodes.Status200OK;
             Response.ContentType = "text/event-stream";
@@ -76,10 +74,10 @@ public sealed class ChatController(
 
             foreach (var chunk in SplitIntoStreamingChunks(response.AssistantMessage))
             {
-                await WriteSseEventAsync("delta", new { delta = chunk }, timeoutCts.Token);
+                await WriteSseEventAsync("delta", new { delta = chunk }, cancellationToken);
             }
 
-            await WriteSseEventAsync("complete", response, timeoutCts.Token);
+            await WriteSseEventAsync("complete", response, cancellationToken);
             return new EmptyResult();
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -98,25 +96,15 @@ public sealed class ChatController(
         [FromBody] ConversationFeedbackRequest request,
         CancellationToken cancellationToken)
     {
-        var normalizedComment = string.IsNullOrWhiteSpace(request.Comment)
-            ? null
-            : request.Comment.Trim();
+        var response = await _submitConversationFeedbackHandler.HandleAsync(
+            new SubmitConversationFeedbackCommand(
+                request.ConversationId,
+                request.MessageId,
+                request.FeedbackType,
+                request.Comment),
+            cancellationToken);
 
-        await conversationFeedbackService.RecordAsync(new ConversationFeedbackRecord
-        {
-            TimestampUtc = DateTimeOffset.UtcNow,
-            ConversationId = request.ConversationId,
-            MessageId = request.MessageId,
-            FeedbackType = request.FeedbackType,
-            Comment = normalizedComment
-        }, cancellationToken);
-
-        return Ok(new ConversationFeedbackResponse
-        {
-            Accepted = true,
-            Message = "Feedback submitted successfully.",
-            SubmittedAtUtc = DateTimeOffset.UtcNow
-        });
+        return Ok(response);
     }
 
     private ActionResult<ChatResponse>? ValidateRequest(ChatRequest request)

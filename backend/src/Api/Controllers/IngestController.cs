@@ -1,3 +1,4 @@
+using Api.Application.Ingest;
 using Api.Contracts;
 using Api.Models;
 using Api.Observability;
@@ -33,8 +34,8 @@ public sealed class IngestController(
     private static readonly SemaphoreSlim IngestLock = new(1, 1);
     private const int PreviewSampleLength = 180;
     private const int MaxUploadedLineLength = 10_000;
-
-    private const string ResetConfirmationValue = "RESET";
+    private readonly ResetKnowledgeBaseHandler _resetKnowledgeBaseHandler =
+        new(env, vectorStoreService, challengeOptions, logger);
 
     // ── POST /api/v1/ingest  (default SOP from server-side path) ─────────────
 
@@ -439,31 +440,11 @@ public sealed class IngestController(
     [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public async Task<ActionResult<object>> Reset([FromQuery] string? confirm, CancellationToken cancellationToken)
     {
-        if (!env.IsDevelopment())
-            return NotFound(ApiErrorFactory.NotFound(
-                "Reset endpoint unavailable.",
-                "Reset endpoint is only available in Development."));
-
-        if (!string.Equals(confirm, ResetConfirmationValue, StringComparison.Ordinal))
-            return BadRequest(ApiErrorFactory.BadRequest(
-                "Reset confirmation required.",
-                $"Reset requires explicit confirmation. Call with '?confirm={ResetConfirmationValue}'."));
-
-        return await ExecuteExclusiveIngestAsync<object>(async () =>
-        {
-            var existingRecords = await vectorStoreService.LoadAsync(cancellationToken);
-            await vectorStoreService.SaveAsync([], cancellationToken);
-
-            logger.LogWarning("[INGEST] Knowledge base reset executed. Removed {Count} records.", existingRecords.Count);
-
-            return Ok((object)new
-            {
-                accepted = true,
-                message = "Knowledge base reset completed. Reingestion is now allowed.",
-                deletedRecords = existingRecords.Count,
-                vectorStorePath = challengeOptions.Value.VectorStorePath
-            });
-        }, cancellationToken);
+        return await ExecuteExclusiveIngestAsync(
+            () => _resetKnowledgeBaseHandler.HandleAsync(
+                new ResetKnowledgeBaseCommand(confirm),
+                cancellationToken),
+            cancellationToken);
     }
 
     // ── Shared chunk → embed → persist pipeline ───────────────────────────────
