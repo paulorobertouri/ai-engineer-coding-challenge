@@ -1361,7 +1361,7 @@ As features grow, controllers can become orchestration-heavy. A mediator-style a
 
 ### 63. Avoid AutoMapper And Prefer Explicit Mapping
 
-- [ ] Use explicit mapping methods for DTO/domain transformations.
+- [x] Use explicit mapping methods for DTO/domain transformations.
 
 **Why**
 

@@ -79,8 +79,6 @@ public sealed class FallbackRetrievalChatService(
         }
 
         var answer = BuildContextualAnswer(matches);
-        var citedChunkIds = matches.Select(m => m.Record.Id).ToList();
-        var confidence = ConfidenceIndicatorFactory.Create(matches, citedChunkIds);
         stopwatch.Stop();
         AppTelemetry.ChatLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
         activity?.SetTag("chat.total_ms", stopwatch.Elapsed.TotalMilliseconds);
@@ -99,57 +97,38 @@ public sealed class FallbackRetrievalChatService(
             string.Join(",", matches.Select(m => m.Score.ToString("F3"))),
             stopwatch.ElapsedMilliseconds);
 
-        return new ChatResponse
-        {
-            ConversationId = request.ConversationId,
-            Status = "success",
-            IsPlaceholder = true,
-            AssistantMessage = answer,
-            ToolCalls = [],
-            Citations = matches.Select(CitationMapper.FromMatch).ToList(),
-            StructuredOutput = StructuredAnswerFactory.Create(
-                answer,
-                citedChunkIds,
-                matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null),
-            Confidence = confidence,
-            Usage = usageTracker.BuildEstimated(
+        return ChatResponseMapper.FromMatches(
+            conversationId: request.ConversationId,
+            status: "success",
+            isPlaceholder: true,
+            assistantMessage: answer,
+            matches: matches,
+            usage: usageTracker.BuildEstimated(
                 model: "fallback",
                 promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                 completionText: answer,
                 embeddingText: queryText,
                 source: "fallback",
-                isExternalCost: false)
-        };
+                isExternalCost: false),
+            notFoundReason: matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null);
     }
 
     private ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision)
     {
         var refusalReason = $"guardrail_{decision.Category}";
 
-        return new ChatResponse
-        {
-            ConversationId = request.ConversationId,
-            Status = "success",
-            IsPlaceholder = false,
-            AssistantMessage = decision.EscalationMessage,
-            ToolCalls = [],
-            Citations = [],
-            StructuredOutput = StructuredAnswerFactory.Create(
-                decision.EscalationMessage,
-                [],
-                refusalReason),
-            Confidence = new ConfidenceIndicatorDto
-            {
-                Level = ConfidenceIndicatorDto.NotFound,
-                EvidenceCoverage = 0
-            },
-            Usage = usageTracker.BuildEstimated(
+        return ChatResponseMapper.NoContext(
+            conversationId: request.ConversationId,
+            status: "success",
+            isPlaceholder: false,
+            assistantMessage: decision.EscalationMessage,
+            reason: refusalReason,
+            usage: usageTracker.BuildEstimated(
                 model: "fallback",
                 promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                 completionText: decision.EscalationMessage,
                 source: "guardrail",
-                isExternalCost: false)
-        };
+                isExternalCost: false));
     }
 
     private static string BuildContextualAnswer(IReadOnlyList<VectorSearchMatch> matches)

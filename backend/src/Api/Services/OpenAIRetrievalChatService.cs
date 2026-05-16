@@ -145,30 +145,18 @@ public sealed class OpenAIRetrievalChatService(
                 "OpenAI request rejected because circuit breaker is open. ConversationId={ConversationId}",
                 request.ConversationId);
 
-            return new ChatResponse
-            {
-                ConversationId = request.ConversationId,
-                Status = "error",
-                IsPlaceholder = false,
-                AssistantMessage = ProviderUnavailableMessage,
-                ToolCalls = [],
-                Citations = [],
-                StructuredOutput = StructuredAnswerFactory.Create(
-                    ProviderUnavailableMessage,
-                    [],
-                    "provider_circuit_open"),
-                Confidence = new ConfidenceIndicatorDto
-                {
-                    Level = ConfidenceIndicatorDto.NotFound,
-                    EvidenceCoverage = 0
-                },
-                Usage = _dependencies.UsageTracker.BuildEstimated(
+            return ChatResponseMapper.NoContext(
+                conversationId: request.ConversationId,
+                status: "error",
+                isPlaceholder: false,
+                assistantMessage: ProviderUnavailableMessage,
+                reason: "provider_circuit_open",
+                usage: _dependencies.UsageTracker.BuildEstimated(
                     model: _chatModel,
                     promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                     completionText: string.Empty,
                     source: "circuit_breaker",
-                    isExternalCost: false)
-            };
+                    isExternalCost: false));
         }
     }
 
@@ -437,60 +425,36 @@ public sealed class OpenAIRetrievalChatService(
     }
 
     private ChatResponse BuildNotFoundResponse(ChatRequest request, OpenAIUsageTracker usageTracker, string retrievalQuery) =>
-        new()
-        {
-            ConversationId = request.ConversationId,
-            Status = "success",
-            IsPlaceholder = false,
-            AssistantMessage = NoRelevantContextMessage,
-            ToolCalls = [],
-            Citations = [],
-            StructuredOutput = StructuredAnswerFactory.Create(
-                NoRelevantContextMessage,
-                [],
-                StructuredAnswerDto.NotFoundReason),
-            Confidence = new ConfidenceIndicatorDto
-            {
-                Level = ConfidenceIndicatorDto.NotFound,
-                EvidenceCoverage = 0
-            },
-            Usage = usageTracker.BuildEstimated(
+        ChatResponseMapper.NoContext(
+            conversationId: request.ConversationId,
+            status: "success",
+            isPlaceholder: false,
+            assistantMessage: NoRelevantContextMessage,
+            reason: StructuredAnswerDto.NotFoundReason,
+            usage: usageTracker.BuildEstimated(
                 model: _chatModel,
                 promptText: string.Empty,
                 completionText: string.Empty,
                 embeddingText: retrievalQuery,
                 source: OpenAiMode,
-                isExternalCost: true)
-        };
+                isExternalCost: true));
 
     private ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision, OpenAIUsageTracker usageTracker)
     {
         var refusalReason = $"guardrail_{decision.Category}";
 
-        return new ChatResponse
-        {
-            ConversationId = request.ConversationId,
-            Status = "success",
-            IsPlaceholder = false,
-            AssistantMessage = decision.EscalationMessage,
-            ToolCalls = [],
-            Citations = [],
-            StructuredOutput = StructuredAnswerFactory.Create(
-                decision.EscalationMessage,
-                [],
-                refusalReason),
-            Confidence = new ConfidenceIndicatorDto
-            {
-                Level = ConfidenceIndicatorDto.NotFound,
-                EvidenceCoverage = 0
-            },
-            Usage = usageTracker.BuildEstimated(
+        return ChatResponseMapper.NoContext(
+            conversationId: request.ConversationId,
+            status: "success",
+            isPlaceholder: false,
+            assistantMessage: decision.EscalationMessage,
+            reason: refusalReason,
+            usage: usageTracker.BuildEstimated(
                 model: _chatModel,
                 promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                 completionText: decision.EscalationMessage,
                 source: "guardrail",
-                isExternalCost: false)
-        };
+                isExternalCost: false));
     }
 
     private static ChatResponse BuildChatResponse(
@@ -503,21 +467,15 @@ public sealed class OpenAIRetrievalChatService(
     {
         var matchList = matches.ToList();
         var assistantMessage = chatCompletion.Content.Count > 0 ? chatCompletion.Content[0].Text : string.Empty;
-        var citedChunkIds = matchList.Select(m => m.Record.Id).ToList();
-        var confidence = ConfidenceIndicatorFactory.Create(matchList, citedChunkIds);
         var promptText = BuildTelemetryPromptText(request, matchList);
 
-        return new ChatResponse
-        {
-            ConversationId = request.ConversationId,
-            Status = "success",
-            IsPlaceholder = false,
-            AssistantMessage = assistantMessage,
-            Citations = matchList.Select(CitationMapper.FromMatch).ToList(),
-            StructuredOutput = StructuredAnswerFactory.Create(assistantMessage, citedChunkIds),
-            Confidence = confidence,
-            Usage = usageTracker.BuildFromSdkOrEstimate(chatCompletion, model, promptText, assistantMessage, retrievalQuery)
-        };
+        return ChatResponseMapper.FromMatches(
+            conversationId: request.ConversationId,
+            status: "success",
+            isPlaceholder: false,
+            assistantMessage: assistantMessage,
+            matches: matchList,
+            usage: usageTracker.BuildFromSdkOrEstimate(chatCompletion, model, promptText, assistantMessage, retrievalQuery));
     }
 
     private static string BuildTelemetryPromptText(ChatRequest request, IReadOnlyList<VectorSearchMatch> matches)
