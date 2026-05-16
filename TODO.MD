@@ -1242,7 +1242,7 @@ Even internal tools should avoid retaining data forever by accident.
 
 ### 58. Add Challenge Review Notes And Roadmap
 
-- [ ] Add a concise reviewer-facing document explaining tradeoffs and future roadmap.
+- [x] Add a concise reviewer-facing document explaining tradeoffs and future roadmap.
 
 **Why**
 
