@@ -1117,7 +1117,7 @@ Manual frontend types can drift from backend contracts. Generated types make API
 
 ### 52. Add Contract Tests
 
-- [ ] Validate frontend/backend API compatibility beyond unit tests.
+- [x] Validate frontend/backend API compatibility beyond unit tests.
 
 **Why**
 
