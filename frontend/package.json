@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "generate:api-types": "../scripts/generate-api-types.sh",
+    "check:api-types": "../scripts/generate-api-types.sh && git diff --exit-code -- src/generated/openapi.v1.json src/generated/api-types.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -35,6 +37,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "swagger-typescript-api": "^13.9.2",
     "autoprefixer": "^10.5.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",

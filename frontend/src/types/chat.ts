@@ -1,3 +1,19 @@
+import type {
+  ChatMessageDto as ContractChatMessageDto,
+  ChatRequest as ContractChatRequest,
+  ChatResponse as ContractChatResponse,
+  CitationDto as ContractCitationDto,
+  ConfidenceIndicatorDto as ContractConfidenceIndicatorDto,
+  ConversationFeedbackRequest as ContractConversationFeedbackRequest,
+  ConversationFeedbackResponse as ContractConversationFeedbackResponse,
+  HealthResponse as ContractHealthResponse,
+  IngestJobStatusResponse as ContractIngestJobStatusResponse,
+  IngestRequest as ContractIngestRequest,
+  IngestResponse as ContractIngestResponse,
+  SourceDocumentChunkDto as ContractSourceDocumentChunkDto,
+  SourceDocumentResponse as ContractSourceDocumentResponse,
+} from '../generated/api-types'
+
 export type ChatRole = 'user' | 'assistant' | 'system' | 'tool'
 
 export type StatusTone = 'info' | 'success' | 'warning' | 'error'
@@ -113,7 +129,7 @@ export interface IngestJobStatusResponse {
   queuedAtUtc: string
   startedAtUtc?: string | null
   completedAtUtc?: string | null
-  result?: IngestResponse | null
+  result?: IngestResponse
   errorMessage?: string | null
 }
 
@@ -147,3 +163,22 @@ export interface StatusMessage {
   tone: StatusTone
   message: string
 }
+
+type IsAssignable<Source, Target> = [Source] extends [Target] ? true : false
+type Assert<T extends true> = T
+
+export type ApiContractCompatibilityChecks = [
+  Assert<IsAssignable<ChatApiMessage, ContractChatMessageDto>>,
+  Assert<IsAssignable<ChatRequest, ContractChatRequest>>,
+  Assert<IsAssignable<Citation, ContractCitationDto>>,
+  Assert<IsAssignable<ConfidenceIndicator, ContractConfidenceIndicatorDto>>,
+  Assert<IsAssignable<ChatResponse, ContractChatResponse>>,
+  Assert<IsAssignable<ConversationFeedbackRequest, ContractConversationFeedbackRequest>>,
+  Assert<IsAssignable<ConversationFeedbackResponse, ContractConversationFeedbackResponse>>,
+  Assert<IsAssignable<IngestRequest, ContractIngestRequest>>,
+  Assert<IsAssignable<IngestResponse, ContractIngestResponse>>,
+  Assert<IsAssignable<IngestJobStatusResponse, ContractIngestJobStatusResponse>>,
+  Assert<IsAssignable<SourceDocumentChunk, ContractSourceDocumentChunkDto>>,
+  Assert<IsAssignable<SourceDocumentResponse, ContractSourceDocumentResponse>>,
+  Assert<IsAssignable<HealthResponse, ContractHealthResponse>>,
+]

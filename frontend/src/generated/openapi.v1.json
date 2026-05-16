@@ -1,0 +1,1021 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Grocery Store SOP Assistant API",
+    "description": "RAG-powered chatbot API for the Grocery Store Standard Operating Procedures.",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/Chat": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Chat/stream": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Chat/feedback": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationFeedbackRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationFeedbackRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationFeedbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationFeedbackResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationFeedbackResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationFeedbackResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Ingest": {
+      "post": {
+        "tags": [
+          "Ingest"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Ingest/upload": {
+      "post": {
+        "tags": [
+          "Ingest"
+        ],
+        "parameters": [
+          {
+            "name": "knowledgeBaseId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Ingest/jobs/{jobId}": {
+      "get": {
+        "tags": [
+          "Ingest"
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestJobStatusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestJobStatusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestJobStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Ingest/preview": {
+      "post": {
+        "tags": [
+          "Ingest"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestPreviewResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestPreviewResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Ingest/reset": {
+      "delete": {
+        "tags": [
+          "Ingest"
+        ],
+        "parameters": [
+          {
+            "name": "confirm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/Sources/document": {
+      "get": {
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "knowledgeBaseId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceDocumentResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceDocumentResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceDocumentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatMessageDto": {
+        "required": [
+          "content",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "role": {
+            "minLength": 1,
+            "pattern": "^(user|assistant|system)$",
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timestampUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChatRequest": {
+        "required": [
+          "conversationId",
+          "messages"
+        ],
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "messages": {
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageDto"
+            }
+          },
+          "knowledgeBaseId": {
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9._-]*$",
+            "type": "string",
+            "nullable": true
+          },
+          "useTools": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "assistantMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "isPlaceholder": {
+            "type": "boolean"
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CitationDto"
+            },
+            "nullable": true
+          },
+          "structuredOutput": {
+            "$ref": "#/components/schemas/StructuredAnswerDto"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceIndicatorDto"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ChatUsageDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChatUsageDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "isEstimated": {
+            "type": "boolean"
+          },
+          "promptTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completionTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "embeddingTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estimatedCostUsd": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CitationDto": {
+        "type": "object",
+        "properties": {
+          "chunkId": {
+            "type": "string",
+            "nullable": true
+          },
+          "knowledgeBaseId": {
+            "type": "string",
+            "nullable": true
+          },
+          "documentVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceChecksum": {
+            "type": "string",
+            "nullable": true
+          },
+          "ingestedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "sectionTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "snippet": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "startLine": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "endLine": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfidenceIndicatorDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "evidenceCoverage": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConversationFeedbackRequest": {
+        "required": [
+          "conversationId",
+          "feedbackType",
+          "messageId"
+        ],
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "messageId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "feedbackType": {
+            "minLength": 1,
+            "pattern": "^(helpful|unhelpful|wrong-citation)$",
+            "type": "string"
+          },
+          "comment": {
+            "maxLength": 500,
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConversationFeedbackResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "submittedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "service": {
+            "type": "string",
+            "nullable": true
+          },
+          "utcTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "isIngested": {
+            "type": "boolean"
+          },
+          "recordCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "activeKnowledgeBaseIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngestJobStatusResponse": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledgeBaseId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "queuedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "result": {
+            "$ref": "#/components/schemas/IngestResponse"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngestPreviewChunk": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sectionTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "characterCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sampleText": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngestPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "chunkCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chunks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngestPreviewChunk"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngestRequest": {
+        "type": "object",
+        "properties": {
+          "forceReingest": {
+            "type": "boolean"
+          },
+          "knowledgeBaseId": {
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9._-]*$",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngestResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourcePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "chunksCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recordsPersisted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vectorStorePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "knowledgeBaseId": {
+            "type": "string",
+            "nullable": true
+          },
+          "documentVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceChecksum": {
+            "type": "string",
+            "nullable": true
+          },
+          "ingestedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isPlaceholder": {
+            "type": "boolean"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "jobStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "jobStatusUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SourceDocumentChunkDto": {
+        "type": "object",
+        "properties": {
+          "chunkId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sectionTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "content": {
+            "type": "string",
+            "nullable": true
+          },
+          "startLine": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "endLine": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "index": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SourceDocumentResponse": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "knowledgeBaseId": {
+            "type": "string",
+            "nullable": true
+          },
+          "documentVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "chunks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceDocumentChunkDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StructuredAnswerDto": {
+        "type": "object",
+        "properties": {
+          "answerText": {
+            "type": "string",
+            "nullable": true
+          },
+          "citedChunkIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "refusalReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "followUpSuggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Chat"
+    },
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Ingest"
+    },
+    {
+      "name": "Sources"
+    }
+  ]
+}

@@ -1096,7 +1096,7 @@ Operational users may want to verify the surrounding context, not just a citatio
 
 ### 51. Generate TypeScript API Types From OpenAPI
 
-- [ ] Reduce drift between backend DTOs and frontend TypeScript types.
+- [x] Reduce drift between backend DTOs and frontend TypeScript types.
 
 **Why**
 
