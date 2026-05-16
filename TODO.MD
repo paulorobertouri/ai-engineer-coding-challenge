@@ -1221,7 +1221,7 @@ Extensions can be misleading. Content validation reduces accidental or malicious
 
 ### 57. Add Data Retention Controls
 
-- [ ] Define how long logs, uploads, vector records, chat history, feedback, and audit records are retained.
+- [x] Define how long logs, uploads, vector records, chat history, feedback, and audit records are retained.
 
 **Why**
 

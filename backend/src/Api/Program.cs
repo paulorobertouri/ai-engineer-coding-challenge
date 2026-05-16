@@ -101,6 +101,12 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services
+    .AddOptions<DataRetentionOptions>()
+    .Bind(builder.Configuration.GetSection(DataRetentionOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
     .AddOptions<IngestJobsOptions>()
     .Bind(builder.Configuration.GetSection(IngestJobsOptions.SectionName));
 
