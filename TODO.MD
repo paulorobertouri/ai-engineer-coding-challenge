@@ -1137,7 +1137,7 @@ Even with generated types, runtime shapes and error responses need coverage.
 
 ### 53. Add Visual Regression Tests
 
-- [ ] Catch unintended UI changes in the chat, setup, and citation flows.
+- [x] Catch unintended UI changes in the chat, setup, and citation flows.
 
 **Why**
 

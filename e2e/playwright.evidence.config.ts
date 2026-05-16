@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `Cors__AllowedOrigins__0=http://127.0.0.1:49321 dotnet run --project ${root}/backend/src/Api/Api.csproj --urls http://127.0.0.1:5199`,
+      command: `mkdir -p ${root}/e2e/.tmp && rm -f ${root}/e2e/.tmp/vector-store.json && Cors__AllowedOrigins__0=http://127.0.0.1:49321 Challenge__SourceDocumentPath=${root}/knowledge-base/Grocery_Store_SOP.md Challenge__VectorStorePath=${root}/e2e/.tmp/vector-store.json OpenAI__ApiKey= dotnet run --project ${root}/backend/src/Api/Api.csproj --urls http://127.0.0.1:5199`,
       url: "http://127.0.0.1:5199/api/v1/health",
       reuseExistingServer: false,
       timeout: 60_000,
@@ -31,9 +31,6 @@ export default defineConfig({
       name: "google-chrome",
       use: {
         channel: "chrome",
-        launchOptions: {
-          executablePath: "/usr/bin/google-chrome",
-        },
       },
     },
   ],
