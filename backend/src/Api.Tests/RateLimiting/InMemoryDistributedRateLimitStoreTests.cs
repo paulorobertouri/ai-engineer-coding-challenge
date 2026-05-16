@@ -28,4 +28,20 @@ public class InMemoryDistributedRateLimitStoreTests
         Assert.True(first);
         Assert.True(secondPartition);
     }
+
+    [Fact]
+    public async Task TryAcquireAsync_ConcurrentBurst_AllowsOnlyPermitLimit()
+    {
+        var store = new InMemoryDistributedRateLimitStore();
+        var permitLimit = 5;
+
+        var attempts = Enumerable.Range(0, 20)
+            .Select(_ => store.TryAcquireAsync("chat", "127.0.0.1", permitLimit, TimeSpan.FromMinutes(1)).AsTask())
+            .ToArray();
+
+        var results = await Task.WhenAll(attempts);
+
+        Assert.Equal(permitLimit, results.Count(allowed => allowed));
+        Assert.Equal(20 - permitLimit, results.Count(allowed => !allowed));
+    }
 }

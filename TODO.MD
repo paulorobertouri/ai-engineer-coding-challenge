@@ -1157,7 +1157,7 @@ The app is visual and evidence-driven. Screenshots help catch layout regressions
 
 ### 54. Add Load And Resilience Tests
 
-- [ ] Test behavior under concurrent chat, ingest, timeout, and provider-failure scenarios.
+- [x] Test behavior under concurrent chat, ingest, timeout, and provider-failure scenarios.
 
 **Why**
 
