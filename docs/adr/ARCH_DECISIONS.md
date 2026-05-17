@@ -205,3 +205,29 @@ We formalize implementation standards in `docs/engineering-standards.md` with th
 - Logging noise is reduced while preserving diagnostics value.
 - Local debugging remains effective without cloud observability accounts.
 
+---
+
+# ADR 009: Health Strategy With Lightweight Liveness And Conditional Readiness Probes
+
+## Status
+Accepted
+
+## Context
+Operational checks must be meaningful for local runs, Docker health checks, and deployment automation while preserving local-first behavior without mandatory external dependencies.
+
+## Decision
+We split responsibilities clearly:
+
+- Liveness (`GET /api/v1/health`) remains lightweight and process-focused.
+- Readiness (`GET /api/v1/ready`) validates local dependencies (source document + vector-store path) and selected-mode configuration.
+- Optional provider connectivity probing is available via `HealthChecks` options and only runs when OpenAI mode is active and probing is explicitly enabled.
+
+## Rationale
+- Avoids false negatives in offline/fallback mode.
+- Keeps docker health checks aligned with real request-serving readiness.
+- Enables deterministic tests by allowing host/port probe configuration.
+
+## Consequences
+- Readiness output is more operationally useful without leaking secrets.
+- Health checks are testable in CI/local using loopback probe simulation.
+

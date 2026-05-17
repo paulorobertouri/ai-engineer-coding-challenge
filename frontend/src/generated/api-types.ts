@@ -15,14 +15,14 @@ export interface ChatMessageDto {
    * @minLength 1
    * @pattern ^(user|assistant|system)$
    */
-  role: string;
+  role: string
   /**
    * @minLength 1
    * @maxLength 4000
    */
-  content: string;
+  content: string
   /** @format date-time */
-  timestampUtc?: string;
+  timestampUtc?: string
 }
 
 export interface ChatRequest {
@@ -30,70 +30,70 @@ export interface ChatRequest {
    * @minLength 1
    * @maxLength 128
    */
-  conversationId: string;
+  conversationId: string
   /**
    * @maxItems 20
    * @minItems 1
    */
-  messages: ChatMessageDto[];
+  messages: ChatMessageDto[]
   /**
    * @maxLength 64
    * @pattern ^[a-zA-Z0-9._-]*$
    */
-  knowledgeBaseId?: string | null;
-  useTools?: boolean;
+  knowledgeBaseId?: string | null
+  useTools?: boolean
 }
 
 export interface ChatResponse {
-  conversationId?: string | null;
-  assistantMessage?: string | null;
-  status?: string | null;
-  isPlaceholder?: boolean;
-  toolCalls?: string[] | null;
-  citations?: CitationDto[] | null;
-  structuredOutput?: StructuredAnswerDto;
-  confidence?: ConfidenceIndicatorDto;
-  usage?: ChatUsageDto;
+  conversationId?: string | null
+  assistantMessage?: string | null
+  status?: string | null
+  isPlaceholder?: boolean
+  toolCalls?: string[] | null
+  citations?: CitationDto[] | null
+  structuredOutput?: StructuredAnswerDto
+  confidence?: ConfidenceIndicatorDto
+  usage?: ChatUsageDto
 }
 
 export interface ChatUsageDto {
-  model?: string | null;
-  source?: string | null;
-  isEstimated?: boolean;
+  model?: string | null
+  source?: string | null
+  isEstimated?: boolean
   /** @format int32 */
-  promptTokens?: number;
+  promptTokens?: number
   /** @format int32 */
-  completionTokens?: number;
+  completionTokens?: number
   /** @format int32 */
-  embeddingTokens?: number;
+  embeddingTokens?: number
   /** @format int32 */
-  totalTokens?: number;
+  totalTokens?: number
   /** @format double */
-  estimatedCostUsd?: number;
+  estimatedCostUsd?: number
 }
 
 export interface CitationDto {
-  chunkId?: string | null;
-  knowledgeBaseId?: string | null;
-  documentVersion?: string | null;
-  sourceChecksum?: string | null;
+  chunkId?: string | null
+  knowledgeBaseId?: string | null
+  documentVersion?: string | null
+  sourceChecksum?: string | null
   /** @format date-time */
-  ingestedAtUtc?: string | null;
-  source?: string | null;
-  sectionTitle?: string | null;
-  snippet?: string | null;
+  ingestedAtUtc?: string | null
+  source?: string | null
+  sectionTitle?: string | null
+  snippet?: string | null
   /** @format double */
-  score?: number | null;
+  score?: number | null
   /** @format int32 */
-  startLine?: number | null;
+  startLine?: number | null
   /** @format int32 */
-  endLine?: number | null;
+  endLine?: number | null
 }
 
 export interface ConfidenceIndicatorDto {
-  level?: string | null;
+  level?: string | null
   /** @format double */
-  evidenceCoverage?: number;
+  evidenceCoverage?: number
 }
 
 export interface ConversationFeedbackRequest {
@@ -101,175 +101,175 @@ export interface ConversationFeedbackRequest {
    * @minLength 1
    * @maxLength 128
    */
-  conversationId: string;
+  conversationId: string
   /**
    * @minLength 1
    * @maxLength 128
    */
-  messageId: string;
+  messageId: string
   /**
    * @minLength 1
    * @pattern ^(helpful|unhelpful|wrong-citation)$
    */
-  feedbackType: string;
+  feedbackType: string
   /** @maxLength 500 */
-  comment?: string | null;
+  comment?: string | null
 }
 
 export interface ConversationFeedbackResponse {
-  accepted?: boolean;
-  message?: string | null;
+  accepted?: boolean
+  message?: string | null
   /** @format date-time */
-  submittedAtUtc?: string;
+  submittedAtUtc?: string
 }
 
 export interface HealthResponse {
-  status?: string | null;
-  service?: string | null;
+  status?: string | null
+  service?: string | null
   /** @format date-time */
-  utcTime?: string;
-  notes?: string[] | null;
-  isIngested?: boolean;
+  utcTime?: string
+  notes?: string[] | null
+  isIngested?: boolean
   /** @format int32 */
-  recordCount?: number;
-  activeKnowledgeBaseIds?: string[] | null;
+  recordCount?: number
+  activeKnowledgeBaseIds?: string[] | null
 }
 
 export interface IngestJobStatusResponse {
   /** @format uuid */
-  jobId?: string;
-  knowledgeBaseId?: string | null;
-  status?: string | null;
-  message?: string | null;
+  jobId?: string
+  knowledgeBaseId?: string | null
+  status?: string | null
+  message?: string | null
   /** @format date-time */
-  queuedAtUtc?: string;
+  queuedAtUtc?: string
   /** @format date-time */
-  startedAtUtc?: string | null;
+  startedAtUtc?: string | null
   /** @format date-time */
-  completedAtUtc?: string | null;
-  result?: IngestResponse;
-  errorMessage?: string | null;
+  completedAtUtc?: string | null
+  result?: IngestResponse
+  errorMessage?: string | null
 }
 
 export interface IngestPreviewChunk {
-  id?: string | null;
-  sectionTitle?: string | null;
+  id?: string | null
+  sectionTitle?: string | null
   /** @format int32 */
-  characterCount?: number;
-  sampleText?: string | null;
+  characterCount?: number
+  sampleText?: string | null
 }
 
 export interface IngestPreviewResponse {
-  accepted?: boolean;
-  message?: string | null;
-  sourceName?: string | null;
+  accepted?: boolean
+  message?: string | null
+  sourceName?: string | null
   /** @format int32 */
-  chunkCount?: number;
-  chunks?: IngestPreviewChunk[] | null;
+  chunkCount?: number
+  chunks?: IngestPreviewChunk[] | null
 }
 
 export interface IngestRequest {
-  forceReingest?: boolean;
+  forceReingest?: boolean
   /**
    * @maxLength 64
    * @pattern ^[a-zA-Z0-9._-]*$
    */
-  knowledgeBaseId?: string | null;
+  knowledgeBaseId?: string | null
 }
 
 export interface IngestResponse {
-  accepted?: boolean;
-  message?: string | null;
-  sourcePath?: string | null;
+  accepted?: boolean
+  message?: string | null
+  sourcePath?: string | null
   /** @format int32 */
-  chunksCreated?: number;
+  chunksCreated?: number
   /** @format int32 */
-  recordsPersisted?: number;
-  vectorStorePath?: string | null;
-  knowledgeBaseId?: string | null;
-  documentVersion?: string | null;
-  sourceChecksum?: string | null;
+  recordsPersisted?: number
+  vectorStorePath?: string | null
+  knowledgeBaseId?: string | null
+  documentVersion?: string | null
+  sourceChecksum?: string | null
   /** @format date-time */
-  ingestedAtUtc?: string;
-  isPlaceholder?: boolean;
+  ingestedAtUtc?: string
+  isPlaceholder?: boolean
   /** @format uuid */
-  jobId?: string | null;
-  jobStatus?: string | null;
-  jobStatusUrl?: string | null;
+  jobId?: string | null
+  jobStatus?: string | null
+  jobStatusUrl?: string | null
 }
 
 export interface SourceDocumentChunkDto {
-  chunkId?: string | null;
-  sectionTitle?: string | null;
-  content?: string | null;
+  chunkId?: string | null
+  sectionTitle?: string | null
+  content?: string | null
   /** @format int32 */
-  startLine?: number | null;
+  startLine?: number | null
   /** @format int32 */
-  endLine?: number | null;
+  endLine?: number | null
   /** @format int32 */
-  index?: number | null;
+  index?: number | null
 }
 
 export interface SourceDocumentResponse {
-  source?: string | null;
-  knowledgeBaseId?: string | null;
-  documentVersion?: string | null;
-  chunks?: SourceDocumentChunkDto[] | null;
+  source?: string | null
+  knowledgeBaseId?: string | null
+  documentVersion?: string | null
+  chunks?: SourceDocumentChunkDto[] | null
 }
 
 export interface StructuredAnswerDto {
-  answerText?: string | null;
-  citedChunkIds?: string[] | null;
-  refusalReason?: string | null;
-  followUpSuggestions?: string[] | null;
+  answerText?: string | null
+  citedChunkIds?: string[] | null
+  refusalReason?: string | null
+  followUpSuggestions?: string[] | null
 }
 
-export type V1ChatCreateData = ChatResponse;
+export type V1ChatCreateData = ChatResponse
 
-export type V1ChatStreamCreateData = any;
+export type V1ChatStreamCreateData = any
 
-export type V1ChatFeedbackCreateData = ConversationFeedbackResponse;
+export type V1ChatFeedbackCreateData = ConversationFeedbackResponse
 
-export type V1HealthListData = HealthResponse;
+export type V1HealthListData = HealthResponse
 
-export type V1ReadyListData = HealthResponse;
+export type V1ReadyListData = HealthResponse
 
-export type V1IngestCreateData = IngestResponse;
+export type V1IngestCreateData = IngestResponse
 
 export interface V1IngestUploadCreatePayload {
   /** @format binary */
-  file?: File;
+  file?: File
 }
 
 export interface V1IngestUploadCreateParams {
-  knowledgeBaseId?: string;
+  knowledgeBaseId?: string
 }
 
-export type V1IngestUploadCreateData = IngestResponse;
+export type V1IngestUploadCreateData = IngestResponse
 
 export interface V1IngestJobsDetailParams {
   /** @format uuid */
-  jobId: string;
+  jobId: string
 }
 
-export type V1IngestJobsDetailData = IngestJobStatusResponse;
+export type V1IngestJobsDetailData = IngestJobStatusResponse
 
 export interface V1IngestPreviewCreatePayload {
   /** @format binary */
-  file?: File;
+  file?: File
 }
 
-export type V1IngestPreviewCreateData = IngestPreviewResponse;
+export type V1IngestPreviewCreateData = IngestPreviewResponse
 
 export interface V1IngestResetDeleteParams {
-  confirm?: string;
+  confirm?: string
 }
 
-export type V1IngestResetDeleteData = any;
+export type V1IngestResetDeleteData = any
 
 export interface V1SourcesDocumentListParams {
-  source?: string;
-  knowledgeBaseId?: string;
+  source?: string
+  knowledgeBaseId?: string
 }
 
-export type V1SourcesDocumentListData = SourceDocumentResponse;
+export type V1SourcesDocumentListData = SourceDocumentResponse

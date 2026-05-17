@@ -5,6 +5,9 @@ obj/
 # Runtime artefacts
 Logs/
 Data/vector-store.json
+Data/ingestion-audit.json
+Data/conversation-feedback.json
+Data/.ready_probe
 
 # IDE / OS
 .vs/

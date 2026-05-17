@@ -8,9 +8,7 @@
   "paths": {
     "/api/v1/Chat": {
       "post": {
-        "tags": [
-          "Chat"
-        ],
+        "tags": ["Chat"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -56,9 +54,7 @@
     },
     "/api/v1/Chat/stream": {
       "post": {
-        "tags": [
-          "Chat"
-        ],
+        "tags": ["Chat"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -87,9 +83,7 @@
     },
     "/api/v1/Chat/feedback": {
       "post": {
-        "tags": [
-          "Chat"
-        ],
+        "tags": ["Chat"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -135,9 +129,7 @@
     },
     "/api/v1/Health": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "responses": {
           "200": {
             "description": "OK",
@@ -164,9 +156,7 @@
     },
     "/api/v1/ready": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "responses": {
           "200": {
             "description": "OK",
@@ -193,9 +183,7 @@
     },
     "/api/v1/Ingest": {
       "post": {
-        "tags": [
-          "Ingest"
-        ],
+        "tags": ["Ingest"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -241,9 +229,7 @@
     },
     "/api/v1/Ingest/upload": {
       "post": {
-        "tags": [
-          "Ingest"
-        ],
+        "tags": ["Ingest"],
         "parameters": [
           {
             "name": "knowledgeBaseId",
@@ -299,9 +285,7 @@
     },
     "/api/v1/Ingest/jobs/{jobId}": {
       "get": {
-        "tags": [
-          "Ingest"
-        ],
+        "tags": ["Ingest"],
         "parameters": [
           {
             "name": "jobId",
@@ -339,9 +323,7 @@
     },
     "/api/v1/Ingest/preview": {
       "post": {
-        "tags": [
-          "Ingest"
-        ],
+        "tags": ["Ingest"],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -388,9 +370,7 @@
     },
     "/api/v1/Ingest/reset": {
       "delete": {
-        "tags": [
-          "Ingest"
-        ],
+        "tags": ["Ingest"],
         "parameters": [
           {
             "name": "confirm",
@@ -409,9 +389,7 @@
     },
     "/api/v1/Sources/document": {
       "get": {
-        "tags": [
-          "Sources"
-        ],
+        "tags": ["Sources"],
         "parameters": [
           {
             "name": "source",
@@ -456,10 +434,7 @@
   "components": {
     "schemas": {
       "ChatMessageDto": {
-        "required": [
-          "content",
-          "role"
-        ],
+        "required": ["content", "role"],
         "type": "object",
         "properties": {
           "role": {
@@ -480,10 +455,7 @@
         "additionalProperties": false
       },
       "ChatRequest": {
-        "required": [
-          "conversationId",
-          "messages"
-        ],
+        "required": ["conversationId", "messages"],
         "type": "object",
         "properties": {
           "conversationId": {
@@ -661,11 +633,7 @@
         "additionalProperties": false
       },
       "ConversationFeedbackRequest": {
-        "required": [
-          "conversationId",
-          "feedbackType",
-          "messageId"
-        ],
+        "required": ["conversationId", "feedbackType", "messageId"],
         "type": "object",
         "properties": {
           "conversationId": {

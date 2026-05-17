@@ -12,6 +12,9 @@ public sealed class HealthChecksOptions
     [MinLength(1)]
     public string OpenAIProbeHost { get; init; } = "api.openai.com";
 
+    [Range(1, 65535)]
+    public int OpenAIProbePort { get; init; } = 443;
+
     [Range(100, 10000)]
     public int OpenAIProbeTimeoutMilliseconds { get; init; } = 1200;
 }

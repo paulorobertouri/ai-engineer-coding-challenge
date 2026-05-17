@@ -62,6 +62,9 @@ npx swagger-typescript-api generate \
   --extract-response-body \
   --extract-request-params
 
+echo "==> Formatting generated API artifacts..."
+npx prettier --write "src/generated/openapi.v1.json" "src/generated/api-types.ts" >/dev/null
+
 echo "==> API type generation complete."
 echo "OpenAPI: $OPENAPI_OUT"
 echo "Types:   $TYPES_OUT"

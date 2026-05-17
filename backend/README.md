@@ -227,6 +227,7 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Observability:OtlpEndpoint` | _(empty)_ | Optional OTLP endpoint URL (for example `http://localhost:4317`) |
 | `HealthChecks:EnableOpenAIConnectivityProbe` | `false` | Enables optional OpenAI network connectivity probe for readiness when OpenAI mode is active |
 | `HealthChecks:OpenAIProbeHost` | `api.openai.com` | Host used for the optional OpenAI readiness connectivity probe |
+| `HealthChecks:OpenAIProbePort` | `443` | Port used for the optional OpenAI readiness connectivity probe |
 | `HealthChecks:OpenAIProbeTimeoutMilliseconds` | `1200` | Timeout for optional OpenAI connectivity probe |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
 
@@ -266,6 +267,7 @@ Test coverage:
 - `FallbackRetrievalChatServiceTests` — verifies keyword-based response generation plus prompt-injection and out-of-scope grounding behavior
 - `RagEvaluationFixtureTests` — runs fixture-driven retrieval/grounding checks without paid OpenAI calls
 - `RuleBasedUserQueryGuardrailServiceTests` — verifies category matching and escalation behavior
+- `GetReadinessQueryHandlerTests` — verifies readiness behavior for missing dependencies and OpenAI probe disabled/failure/success paths
 - `ChatControllerTests` — verifies chat endpoint request handling and validation
 - `HealthControllerTests` — verifies mode-aware notes in both API-key and fallback modes
 - `IngestControllerTests` — verifies path resolution, ingestion pipeline, and 404 on missing document

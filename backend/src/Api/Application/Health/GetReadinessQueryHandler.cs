@@ -87,7 +87,7 @@ public sealed class GetReadinessQueryHandler(
             using var tcpClient = new TcpClient();
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(options.OpenAIProbeTimeoutMilliseconds);
-            await tcpClient.ConnectAsync(options.OpenAIProbeHost, 443, timeoutCts.Token);
+            await tcpClient.ConnectAsync(options.OpenAIProbeHost, options.OpenAIProbePort, timeoutCts.Token);
             return "OpenAI provider connectivity check passed.";
         }
         catch (Exception)

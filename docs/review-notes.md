@@ -2,7 +2,13 @@
 
 This document is a reviewer-facing summary of architectural intent, explicit tradeoffs, and next-step roadmap.
 
-Detailed backlog items remain in `TODO.MD`.
+Detailed forward-looking backlog items remain in `TODO.MD`.
+
+## Latest implemented changes (2026-05-17)
+
+- Health strategy now separates lightweight liveness from dependency-aware readiness.
+- Optional OpenAI readiness connectivity probe can be enabled without impacting fallback mode.
+- Engineering standards now define backend/frontend layering and logging/observability expectations.
 
 ## Intent and constraints
 

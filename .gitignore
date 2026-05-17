@@ -77,3 +77,7 @@ coverage/
 # Database
 # =========================
 backend/src/Api/Data/vector-store.json
+backend/src/Api/Data/ingestion-audit.json
+backend/src/Api/Data/conversation-feedback.json
+backend/src/Api/Data/.ready_probe
+backend/src/Api/Data/Logs/

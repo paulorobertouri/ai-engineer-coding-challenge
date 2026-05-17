@@ -77,6 +77,9 @@ try {
             --extract-request-body `
             --extract-response-body `
             --extract-request-params
+
+        Write-Host "==> Formatting generated API artifacts..."
+        Invoke-Checked npx prettier --write "src/generated/openapi.v1.json" "src/generated/api-types.ts"
     } finally {
         Pop-Location
     }

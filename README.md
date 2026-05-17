@@ -74,7 +74,17 @@ Frontend API base URL resolution order:
 - Testing guide: `docs/testing.md`
 - Request flow diagrams: `docs/architecture-flows.md`
 - Engineering standards: `docs/engineering-standards.md`
+- Architectural decisions: `docs/adr/ARCH_DECISIONS.md`
 - Reviewer tradeoffs and future work: `docs/reviewer-notes.md`
+
+## Current Version Snapshot (2026-05-17)
+
+Latest delivered platform changes include:
+
+- Distinct liveness/readiness behavior with startup-validated options and dependency-aware readiness checks.
+- Optional OpenAI readiness connectivity probe (`HealthChecks` options) that only runs when OpenAI mode is active and probe is enabled.
+- Formal engineering standards for backend/frontend layering, logging levels, and local observability profile.
+- Updated CI quality gates covering backend/frontend build+test+format, contract drift, docker builds, supply-chain scans, and e2e coverage.
 
 ## CI Quality Gates
 
@@ -88,6 +98,18 @@ The GitHub Actions workflow includes these checks on `push` and `pull_request` t
 - E2E: Playwright run (fallback mode) with failure artifacts.
 
 Automated dependency update PRs are configured via `.github/dependabot.yml` for GitHub Actions, NuGet, and npm workspaces.
+
+Checking GitHub Actions status from local CLI:
+
+```bash
+gh run list -L 5
+```
+
+If `gh auth status` reports no login, authenticate first:
+
+```bash
+gh auth login
+```
 
 ## Container Runtime Notes
 
