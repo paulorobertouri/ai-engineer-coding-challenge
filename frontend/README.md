@@ -17,16 +17,18 @@ When containerized, static assets are served by nginx using `frontend/nginx/defa
 | `MarkdownContent`  | Renders assistant messages as Markdown with safe-link protocol allowlist and external-link indicator                            |
 | `AppErrorBoundary` | React error boundary catching unhandled render errors                                                                           |
 
+Implementation conventions for state boundaries, service-layer usage, and accessibility defaults are documented in `docs/engineering-standards.md`.
+
 ## Services & Types
 
-| File                    | Description                                                                                                                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `services/apiClient.ts` | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback and `ApiClientError` parsing for ProblemDetails/error codes |
-| `services/utils.ts`     | Shared utility helpers                                                                                                                                                                                                     |
-| `generated/openapi.v1.json` | Checked-in OpenAPI snapshot fetched from backend Swagger (`/swagger/v1/swagger.json`)                                                                                                                               |
-| `generated/api-types.ts` | Generated TypeScript API contracts (from OpenAPI)                                                                                                                                                                       |
-| `types/chat.ts`         | UI/domain-level chat types with compile-time compatibility assertions against generated OpenAPI contracts                                                                                                                |
-| `types/validation.ts`   | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                                                                                      |
+| File                        | Description                                                                                                                                                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `services/apiClient.ts`     | Typed HTTP client for `GET /api/v1/health`, `POST /api/v1/ingest`, `POST /api/v1/chat`; base URL from runtime `/config.json` with `VITE_API_BASE_URL` fallback and `ApiClientError` parsing for ProblemDetails/error codes |
+| `services/utils.ts`         | Shared utility helpers                                                                                                                                                                                                     |
+| `generated/openapi.v1.json` | Checked-in OpenAPI snapshot fetched from backend Swagger (`/swagger/v1/swagger.json`)                                                                                                                                      |
+| `generated/api-types.ts`    | Generated TypeScript API contracts (from OpenAPI)                                                                                                                                                                          |
+| `types/chat.ts`             | UI/domain-level chat types with compile-time compatibility assertions against generated OpenAPI contracts                                                                                                                  |
+| `types/validation.ts`       | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                                                                                      |
 
 UX quality-of-life features:
 
@@ -48,15 +50,15 @@ In Docker/nginx deployments, the image now reads backend URL at container startu
 
 ## Available Scripts
 
-| Command          | Description                          |
-| ---------------- | ------------------------------------ |
-| `npm run dev`    | Start Vite dev server                |
-| `npm run build`  | Type-check and bundle for production |
-| `npm test`       | Run unit tests with Vitest           |
-| `npm run lint`   | ESLint check                         |
-| `npm run format` | Prettier auto-format                 |
+| Command                      | Description                                                 |
+| ---------------------------- | ----------------------------------------------------------- |
+| `npm run dev`                | Start Vite dev server                                       |
+| `npm run build`              | Type-check and bundle for production                        |
+| `npm test`                   | Run unit tests with Vitest                                  |
+| `npm run lint`               | ESLint check                                                |
+| `npm run format`             | Prettier auto-format                                        |
 | `npm run generate:api-types` | Regenerate OpenAPI snapshot + TypeScript API contract types |
-| `npm run check:api-types` | Regenerate and fail if checked-in generated files drift |
+| `npm run check:api-types`    | Regenerate and fail if checked-in generated files drift     |
 
 Or use the repo-level scripts from the root:
 

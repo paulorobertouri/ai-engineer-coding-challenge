@@ -42,6 +42,7 @@ Run these before pushing:
 - Scope and motivation are described.
 - Tests were added/updated for behavior changes.
 - Relevant docs were updated (`README.md`, backend/frontend docs, or docs/*).
+- Architectural boundaries and logging behavior follow `docs/engineering-standards.md`.
 - CI is green (backend, frontend, docker checks, security scans, e2e).
 
 ## Security And Dependency Hygiene

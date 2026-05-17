@@ -20,9 +20,13 @@ test("generate evidences", async ({ page }) => {
     await ingestBtn.waitFor({ state: "visible", timeout: 20000 });
     await ingestBtn.click();
     const statusBanner = page.locator(".status-banner");
-    await expect(statusBanner).toHaveAttribute("data-tone", /success|warning|info/, {
-      timeout: 90000,
-    });
+    await expect(statusBanner).toHaveAttribute(
+      "data-tone",
+      /success|warning|info/,
+      {
+        timeout: 90000,
+      },
+    );
     await expect(statusBanner).toContainText(
       /calling the ingest endpoint|ingested successfully|already ingested/i,
       {

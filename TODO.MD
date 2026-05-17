@@ -1425,7 +1425,7 @@ Good observability is not just "more logs." It should answer operational questio
 
 ### 66. Define Health, Readiness, And Startup Checks
 
-- [ ] Formalize operational checks for liveness, readiness, and startup validation.
+- [x] Formalize operational checks for liveness, readiness, and startup validation.
 
 **Why**
 
@@ -1446,7 +1446,7 @@ Health endpoints should be meaningful for humans, Docker, and deployment tools. 
 
 ### 67. Establish Backend Design Patterns
 
-- [ ] Document preferred backend patterns so future changes stay consistent.
+- [x] Document preferred backend patterns so future changes stay consistent.
 
 **Why**
 
@@ -1468,7 +1468,7 @@ The project will be easier to maintain if it has clear boundaries for API contra
 
 ### 68. Establish Frontend Design Patterns
 
-- [ ] Document preferred frontend structure for state, API calls, components, and UX behavior.
+- [x] Document preferred frontend structure for state, API calls, components, and UX behavior.
 
 **Why**
 
@@ -1490,7 +1490,7 @@ React code can become tangled as chat features grow. Clear conventions make it e
 
 ### 69. Define Logging Levels And Message Guidelines
 
-- [ ] Standardize what belongs at debug, information, warning, error, and critical levels.
+- [x] Standardize what belongs at debug, information, warning, error, and critical levels.
 
 **Why**
 
@@ -1511,7 +1511,7 @@ Appropriate logging means important events stand out and normal operation does n
 
 ### 70. Add Local Developer Observability Profile
 
-- [ ] Make local debugging pleasant without external observability tools.
+- [x] Make local debugging pleasant without external observability tools.
 
 **Why**
 

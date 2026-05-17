@@ -2,22 +2,36 @@ using Api.Contracts;
 using Api.Models;
 using Api.Options;
 using Microsoft.Extensions.Options;
+using System.Net.Sockets;
 
 namespace Api.Application.Health;
 
 public sealed class GetReadinessQueryHandler(
     IOptions<OpenAIOptions> openAiOptions,
     IOptions<ChallengeOptions> challengeOptions,
+    IOptions<VectorStoreOptions> vectorStoreOptions,
+    IOptions<HealthChecksOptions> healthChecksOptions,
     IWebHostEnvironment environment)
 {
-    public HealthResponse Handle(GetReadinessQuery query)
+    public async Task<HealthResponse> HandleAsync(GetReadinessQuery query, CancellationToken cancellationToken)
     {
+        _ = query;
+
         var hasApiKey = !string.IsNullOrWhiteSpace(openAiOptions.Value.ApiKey);
+        var provider = vectorStoreOptions.Value.Provider.Trim();
+        var openAiConfigured = !hasApiKey
+            || (!string.IsNullOrWhiteSpace(openAiOptions.Value.ChatModel)
+                && !string.IsNullOrWhiteSpace(openAiOptions.Value.EmbeddingModel));
 
         var sourceDocumentPath = ResolveSourceDocumentPath();
         var sourceDocumentReady = sourceDocumentPath is not null && System.IO.File.Exists(sourceDocumentPath);
 
         var vectorStoreReady = IsVectorStorePathWritable();
+
+        var providerConnectivityResult = await CheckProviderConnectivityAsync(
+            hasApiKey,
+            healthChecksOptions.Value,
+            cancellationToken);
 
         var checks = new List<string>
         {
@@ -27,13 +41,19 @@ public sealed class GetReadinessQueryHandler(
             vectorStoreReady
                 ? "Vector store path is readable/writable."
                 : "Vector store path is not readable/writable.",
+            openAiConfigured
+                ? "Selected AI mode configuration is valid."
+                : "Selected AI mode configuration is invalid.",
             hasApiKey
                 ? "AI mode: OpenAI"
                 : "AI mode: Fallback (no OpenAI API key)",
+            $"Vector store provider: {provider}",
+            providerConnectivityResult,
             $"Default knowledge base: {KnowledgeBaseScope.DefaultKnowledgeBaseId}"
         };
 
-        var isReady = sourceDocumentReady && vectorStoreReady;
+        var connectivityReady = !providerConnectivityResult.StartsWith("OpenAI provider connectivity check failed", StringComparison.Ordinal);
+        var isReady = sourceDocumentReady && vectorStoreReady && openAiConfigured && connectivityReady;
 
         return new HealthResponse
         {
@@ -45,6 +65,35 @@ public sealed class GetReadinessQueryHandler(
             RecordCount = 0,
             ActiveKnowledgeBaseIds = [KnowledgeBaseScope.DefaultKnowledgeBaseId]
         };
+    }
+
+    private static async Task<string> CheckProviderConnectivityAsync(
+        bool hasApiKey,
+        HealthChecksOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (!hasApiKey)
+        {
+            return "OpenAI provider connectivity check skipped (fallback mode).";
+        }
+
+        if (!options.EnableOpenAIConnectivityProbe)
+        {
+            return "OpenAI provider connectivity check skipped (disabled by configuration).";
+        }
+
+        try
+        {
+            using var tcpClient = new TcpClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(options.OpenAIProbeTimeoutMilliseconds);
+            await tcpClient.ConnectAsync(options.OpenAIProbeHost, 443, timeoutCts.Token);
+            return "OpenAI provider connectivity check passed.";
+        }
+        catch (Exception)
+        {
+            return "OpenAI provider connectivity check failed.";
+        }
     }
 
     private string? ResolveSourceDocumentPath()

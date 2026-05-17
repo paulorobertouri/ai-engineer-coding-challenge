@@ -10,7 +10,7 @@ namespace Api.Tests.Application;
 public sealed class GetReadinessQueryHandlerTests
 {
     [Fact]
-    public void Handle_WhenSourceDocumentMissing_ReturnsNotReady()
+    public async Task HandleAsync_WhenSourceDocumentMissing_ReturnsNotReady()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"readiness-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -23,12 +23,22 @@ public sealed class GetReadinessQueryHandlerTests
                 SourceDocumentPath = Path.Combine(tempDir, "missing.md"),
                 VectorStorePath = "Data/vector-store.json"
             });
+            var vectorStoreOptions = Microsoft.Extensions.Options.Options.Create(new VectorStoreOptions
+            {
+                Provider = "json"
+            });
+            var healthChecksOptions = Microsoft.Extensions.Options.Options.Create(new HealthChecksOptions
+            {
+                EnableOpenAIConnectivityProbe = false,
+                OpenAIProbeHost = "api.openai.com",
+                OpenAIProbeTimeoutMilliseconds = 1200
+            });
 
             var env = new Mock<IWebHostEnvironment>();
             env.SetupGet(e => e.ContentRootPath).Returns(tempDir);
 
-            var handler = new GetReadinessQueryHandler(openAiOptions, challengeOptions, env.Object);
-            var response = handler.Handle(new GetReadinessQuery());
+            var handler = new GetReadinessQueryHandler(openAiOptions, challengeOptions, vectorStoreOptions, healthChecksOptions, env.Object);
+            var response = await handler.HandleAsync(new GetReadinessQuery(), CancellationToken.None);
 
             Assert.Equal("not_ready", response.Status);
             Assert.Contains(response.Notes, n => n.Contains("Source document is missing", StringComparison.OrdinalIgnoreCase));

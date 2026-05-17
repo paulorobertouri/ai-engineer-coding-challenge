@@ -2,7 +2,6 @@ using Api.Application.Health;
 using Api.Contracts;
 using Api.Models;
 using Api.Options;
-using Api.Services;
 using Asp.Versioning;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
@@ -15,11 +14,12 @@ namespace Api.Controllers;
 public sealed class HealthController(
     IOptions<OpenAIOptions> openAiOptions,
     IOptions<ChallengeOptions> challengeOptions,
-    IVectorStoreService vectorStoreService,
+    IOptions<VectorStoreOptions> vectorStoreOptions,
+    IOptions<HealthChecksOptions> healthChecksOptions,
     IWebHostEnvironment environment) : ControllerBase
 {
-    private readonly GetHealthQueryHandler _getHealthQueryHandler = new(openAiOptions, vectorStoreService);
-    private readonly GetReadinessQueryHandler _getReadinessQueryHandler = new(openAiOptions, challengeOptions, environment);
+    private readonly GetHealthQueryHandler _getHealthQueryHandler = new(openAiOptions);
+    private readonly GetReadinessQueryHandler _getReadinessQueryHandler = new(openAiOptions, challengeOptions, vectorStoreOptions, healthChecksOptions, environment);
 
     [HttpGet]
     public async Task<ActionResult<HealthResponse>> Get(CancellationToken cancellationToken)
@@ -29,9 +29,9 @@ public sealed class HealthController(
     }
 
     [HttpGet("/api/v{version:apiVersion}/ready")]
-    public ActionResult<HealthResponse> Ready()
+    public async Task<ActionResult<HealthResponse>> Ready(CancellationToken cancellationToken)
     {
-        var response = _getReadinessQueryHandler.Handle(new GetReadinessQuery());
+        var response = await _getReadinessQueryHandler.HandleAsync(new GetReadinessQuery(), cancellationToken);
 
         return string.Equals(response.Status, "ready", StringComparison.Ordinal)
             ? Ok(response)

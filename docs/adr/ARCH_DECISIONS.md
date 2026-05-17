@@ -180,3 +180,28 @@ Re-evaluate SignalR when at least one of these becomes true:
 - Polling overhead becomes materially expensive for active job tracking.
 - Multiple simultaneous live streams/events must be multiplexed per user session.
 
+---
+
+# ADR 008: Engineering Standards For Layering, Logging, And Local Observability
+
+## Status
+Accepted
+
+## Context
+The codebase now spans many vertical slices (ingest, chat, streaming, feedback, source viewer, auth, observability). Without explicit standards, feature growth can blur boundaries between HTTP orchestration, application workflows, provider adapters, and UI state handling.
+
+The project also requires local-first diagnostics without dependency on paid observability platforms.
+
+## Decision
+We formalize implementation standards in `docs/engineering-standards.md` with these defaults:
+
+- Backend layering: thin controllers, workflow handlers in `Application/*`, provider adapters behind interfaces in `Services/*`, explicit mappings, startup options validation.
+- Frontend layering: typed API service modules, reusable presentation components, workflow state in page/hooks, accessibility and reduced-motion behavior as default requirements.
+- Logging levels: clear guidance for debug/information/warning/error/critical usage and correlation fields.
+- Local observability profile: console logs + console OpenTelemetry by default, OTLP optional, readiness/liveness checks documented for local and Docker troubleshooting.
+
+## Consequences
+- New features have predictable placement and lower coupling risk.
+- Logging noise is reduced while preserving diagnostics value.
+- Local debugging remains effective without cloud observability accounts.
+

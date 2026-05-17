@@ -6,8 +6,8 @@
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
-| `GET` | `/api/v1/ready` | Returns readiness status (`ready`/`not_ready`) based on source document and vector-store path checks |
+| `GET` | `/api/v1/health` | Lightweight liveness endpoint for process status and active AI mode summary |
+| `GET` | `/api/v1/ready` | Readiness status (`ready`/`not_ready`) based on source document, vector-store path access, selected mode configuration, and optional OpenAI connectivity probe |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document (`forceReingest=true` enables reingest with embedding reuse by `ContentHash`) |
 | `POST` | `/api/v1/ingest?knowledgeBaseId=<id>` | Ingest into a specific knowledge-base scope (defaults to `default`) |
 | `POST` | `/api/v1/ingest/upload?knowledgeBaseId=<id>` | Upload and ingest `.md`, `.txt`, `.pdf`, and `.docx` files locally (scanned-image OCR is optional) |
@@ -27,6 +27,11 @@
 | `IRetrievalChatService` | `OpenAIRetrievalChatService` | `FallbackRetrievalChatService` | RAG pipeline with Polly resilience; fallback uses keyword matching |
 
 Service registration in `Program.cs` is conditional: when `OpenAI:ApiKey` is present the real OpenAI services (including `OpenAIClient`) are wired; otherwise the deterministic fallbacks are used. The health endpoint dynamically reflects the active mode in its `notes` response field.
+
+Startup validation:
+- All options classes are bound through `AddValidatedOptions<T>()` with `ValidateOnStart()`
+- This fails startup fast for invalid configuration before requests are accepted
+- Readiness adds runtime dependency checks, while liveness stays dependency-light
 
 ## Tool Calling
 
@@ -220,7 +225,12 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `Observability:Enabled` | `true` | Enables OpenTelemetry tracing and metrics wiring |
 | `Observability:EnableConsoleExporter` | `true` | Emits traces/metrics to console without any cloud dependency |
 | `Observability:OtlpEndpoint` | _(empty)_ | Optional OTLP endpoint URL (for example `http://localhost:4317`) |
+| `HealthChecks:EnableOpenAIConnectivityProbe` | `false` | Enables optional OpenAI network connectivity probe for readiness when OpenAI mode is active |
+| `HealthChecks:OpenAIProbeHost` | `api.openai.com` | Host used for the optional OpenAI readiness connectivity probe |
+| `HealthChecks:OpenAIProbeTimeoutMilliseconds` | `1200` | Timeout for optional OpenAI connectivity probe |
 | `Cors:AllowedOrigins` | `["http://localhost:5173"]` | Allowed CORS origins |
+
+For backend/frontend implementation boundaries and logging guidelines, see `docs/engineering-standards.md`.
 
 ## Local Development
 

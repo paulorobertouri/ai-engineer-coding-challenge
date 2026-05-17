@@ -73,6 +73,7 @@ Frontend API base URL resolution order:
 - Contributor guide: `CONTRIBUTING.md`
 - Testing guide: `docs/testing.md`
 - Request flow diagrams: `docs/architecture-flows.md`
+- Engineering standards: `docs/engineering-standards.md`
 - Reviewer tradeoffs and future work: `docs/reviewer-notes.md`
 
 ## CI Quality Gates
@@ -158,7 +159,7 @@ Frontend static responses served by nginx include matching `Content-Security-Pol
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/v1/health` | Returns service name, UTC time, and mode-aware operational notes |
-| `GET` | `/api/v1/ready` | Readiness probe for source-document and vector-store availability |
+| `GET` | `/api/v1/ready` | Readiness probe for source document, vector-store path, selected mode config, and optional provider connectivity |
 | `POST` | `/api/v1/ingest` | Chunk → embed → persist the SOP document |
 | `POST` | `/api/v1/chat` | RAG chat with optional tool-calling |
 

@@ -1,11 +1,8 @@
 using Api.Contracts;
 using Api.Controllers;
-using Api.Models;
 using Api.Options;
-using Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -13,7 +10,7 @@ namespace Api.Tests;
 
 public class HealthControllerTests
 {
-    private static HealthController CreateController(bool hasApiKey = true, int recordCount = 0)
+    private static HealthController CreateController(bool hasApiKey = true)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -30,19 +27,21 @@ public class HealthControllerTests
             SourceDocumentPath = sourcePath,
             VectorStorePath = "Data/vector-store.json"
         });
+        var vectorStoreOptions = Microsoft.Extensions.Options.Options.Create(new VectorStoreOptions
+        {
+            Provider = "json"
+        });
+        var healthChecksOptions = Microsoft.Extensions.Options.Options.Create(new HealthChecksOptions
+        {
+            EnableOpenAIConnectivityProbe = false,
+            OpenAIProbeHost = "api.openai.com",
+            OpenAIProbeTimeoutMilliseconds = 1200
+        });
 
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
 
-        var mockVectorStore = new Mock<IVectorStoreService>();
-        var records = Enumerable.Range(0, recordCount)
-            .Select(i => new VectorRecord { Id = $"r{i}", Source = "SOP.md", ChunkText = "x", Embedding = [] })
-            .ToList();
-        mockVectorStore
-            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(records);
-
-        return new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
+        return new HealthController(openAiOptions, challengeOptions, vectorStoreOptions, healthChecksOptions, mockEnv.Object);
     }
 
     [Fact]
@@ -119,88 +118,41 @@ public class HealthControllerTests
     }
 
     [Fact]
-    public async Task Get_WhenVectorStoreEmpty_IsIngestedIsFalse()
+    public async Task Get_LivenessIsLightweightWithDefaultKnowledgeBase()
     {
-        var result = await CreateController(recordCount: 0).Get(CancellationToken.None);
+        var result = await CreateController().Get(CancellationToken.None);
         var ok = (OkObjectResult)result.Result!;
         var response = (HealthResponse)ok.Value!;
+
         Assert.False(response.IsIngested);
         Assert.Equal(0, response.RecordCount);
+        Assert.Contains("default", response.ActiveKnowledgeBaseIds, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Get_WhenVectorStoreHasRecords_IsIngestedIsTrue()
+    public async Task Get_ReportsReadinessHintInNotes()
     {
-        var result = await CreateController(recordCount: 5).Get(CancellationToken.None);
-        var ok = (OkObjectResult)result.Result!;
-        var response = (HealthResponse)ok.Value!;
-        Assert.True(response.IsIngested);
-        Assert.Equal(5, response.RecordCount);
-    }
-
-    [Fact]
-    public async Task Get_ReportsActiveKnowledgeBases()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-kb-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
-
-        var sourcePath = Path.Combine(tempDir, "SOP.md");
-        File.WriteAllText(sourcePath, "# SOP\ncontent");
-
-        var openAiOptions = Microsoft.Extensions.Options.Options.Create(new OpenAIOptions { ApiKey = "test-key" });
-        var challengeOptions = Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
-        {
-            SourceDocumentPath = sourcePath,
-            VectorStorePath = "Data/vector-store.json"
-        });
-
-        var mockEnv = new Mock<IWebHostEnvironment>();
-        mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
-
-        var mockVectorStore = new Mock<IVectorStoreService>();
-        mockVectorStore
-            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
-                new VectorRecord
-                {
-                    Id = "legacy",
-                    Source = "SOP.md",
-                    ChunkText = "x",
-                    Embedding = []
-                },
-                new VectorRecord
-                {
-                    Id = "hr-1",
-                    Source = "HR.md",
-                    ChunkText = "x",
-                    Embedding = [],
-                    Metadata = new Dictionary<string, string> { ["KnowledgeBaseId"] = "hr" }
-                }
-            ]);
-
-        var controller = new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
-
-        var result = await controller.Get(CancellationToken.None);
+        var result = await CreateController().Get(CancellationToken.None);
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<HealthResponse>(ok.Value);
 
-        Assert.Equal(["default", "hr"], response.ActiveKnowledgeBaseIds);
-        Assert.Contains(response.Notes, note => note.Contains("Active knowledge bases", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(response.Notes, note => note.Contains("/api/v1/ready", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void Ready_WhenDependenciesAvailable_ReturnsOkReady()
+    public async Task Ready_WhenDependenciesAvailable_ReturnsOkReady()
     {
-        var result = CreateController().Ready();
+        var result = await CreateController().Ready(CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<HealthResponse>(ok.Value);
         Assert.Equal("ready", response.Status);
         Assert.Contains("default", response.ActiveKnowledgeBaseIds, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(response.Notes, note => note.Contains("connectivity check skipped", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void Ready_WhenSourceDocumentMissing_ReturnsServiceUnavailable()
+    public async Task Ready_WhenSourceDocumentMissing_ReturnsServiceUnavailable()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-missing-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -214,18 +166,23 @@ public class HealthControllerTests
             SourceDocumentPath = Path.Combine(tempDir, "missing.md"),
             VectorStorePath = "Data/vector-store.json"
         });
+        var vectorStoreOptions = Microsoft.Extensions.Options.Options.Create(new VectorStoreOptions
+        {
+            Provider = "json"
+        });
+        var healthChecksOptions = Microsoft.Extensions.Options.Options.Create(new HealthChecksOptions
+        {
+            EnableOpenAIConnectivityProbe = false,
+            OpenAIProbeHost = "api.openai.com",
+            OpenAIProbeTimeoutMilliseconds = 1200
+        });
 
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.SetupGet(x => x.ContentRootPath).Returns(tempDir);
 
-        var mockVectorStore = new Mock<IVectorStoreService>();
-        mockVectorStore
-            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        var controller = new HealthController(openAiOptions, challengeOptions, vectorStoreOptions, healthChecksOptions, mockEnv.Object);
 
-        var controller = new HealthController(openAiOptions, challengeOptions, mockVectorStore.Object, mockEnv.Object);
-
-        var result = controller.Ready();
+        var result = await controller.Ready(CancellationToken.None);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(503, objectResult.StatusCode);

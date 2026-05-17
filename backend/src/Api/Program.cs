@@ -64,6 +64,7 @@ AddValidatedOptions<GuardrailOptions>(GuardrailOptions.SectionName);
 AddValidatedOptions<RateLimitingOptions>(RateLimitingOptions.SectionName);
 AddValidatedOptions<UploadOptions>(UploadOptions.SectionName);
 AddValidatedOptions<TimeoutOptions>(TimeoutOptions.SectionName);
+AddValidatedOptions<HealthChecksOptions>(HealthChecksOptions.SectionName);
 AddValidatedOptions<ObservabilityOptions>(ObservabilityOptions.SectionName);
 AddValidatedOptions<DataRetentionOptions>(DataRetentionOptions.SectionName);
 
