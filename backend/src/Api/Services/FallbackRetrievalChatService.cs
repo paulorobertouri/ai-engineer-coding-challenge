@@ -4,6 +4,7 @@ using Api.Observability;
 using Api.Options;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Api.Services;
 
@@ -28,6 +29,12 @@ public sealed class FallbackRetrievalChatService(
     {
         var stopwatch = Stopwatch.StartNew();
         var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+        using var logScope = logger.BeginScope(new Dictionary<string, object>
+        {
+            ["ConversationId"] = request.ConversationId,
+            ["KnowledgeBaseId"] = knowledgeBaseId,
+            ["ProviderMode"] = "fallback"
+        });
         using var activity = AppTelemetry.ActivitySource.StartActivity("chat.fallback.generate");
         activity?.SetTag("chat.mode", "fallback");
         activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);

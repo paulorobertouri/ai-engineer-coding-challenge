@@ -492,6 +492,7 @@ public sealed class IngestController(
         string safeSummary,
         CancellationToken cancellationToken)
     {
+        AppTelemetry.IngestFailures.Add(1);
         return ingestionAuditService.RecordFailureAsync(new IngestionAuditRecord
         {
             TimestampUtc = DateTimeOffset.UtcNow,

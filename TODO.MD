@@ -1403,7 +1403,7 @@ SignalR is a built-in ASP.NET Core option for real-time updates. It may help wit
 
 ### 65. Strengthen Observability Plan
 
-- [ ] Make logs, metrics, and traces useful without leaking sensitive content.
+- [x] Make logs, metrics, and traces useful without leaking sensitive content.
 
 **Why**
 

@@ -10,6 +10,7 @@ using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Api.Services;
 
@@ -96,6 +97,12 @@ public sealed class OpenAIRetrievalChatService(
             {
                 var totalStopwatch = Stopwatch.StartNew();
                 var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+                using var logScope = _dependencies.Logger.BeginScope(new Dictionary<string, object>
+                {
+                    ["ConversationId"] = request.ConversationId,
+                    ["KnowledgeBaseId"] = knowledgeBaseId,
+                    ["ProviderMode"] = OpenAiMode
+                });
                 using var activity = AppTelemetry.ActivitySource.StartActivity("chat.openai.generate");
                 activity?.SetTag("chat.mode", OpenAiMode);
                 activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);
@@ -140,6 +147,7 @@ public sealed class OpenAIRetrievalChatService(
         }
         catch (BrokenCircuitException ex)
         {
+            AppTelemetry.ChatFailures.Add(1);
             _dependencies.Logger.LogError(
                 ex,
                 "OpenAI request rejected because circuit breaker is open. ConversationId={ConversationId}",
@@ -244,6 +252,7 @@ public sealed class OpenAIRetrievalChatService(
         var completionStopwatch = Stopwatch.StartNew();
         var response = await client.CompleteChatAsync(messages, options, ct);
         completionStopwatch.Stop();
+        AppTelemetry.OpenAiCallLatencyMs.Record(completionStopwatch.Elapsed.TotalMilliseconds);
         var chatCompletion = response.Value;
 
         if (_enableTools && chatCompletion.FinishReason == ChatFinishReason.ToolCalls)
@@ -258,6 +267,7 @@ public sealed class OpenAIRetrievalChatService(
             completionStopwatch.Restart();
             response = await client.CompleteChatAsync(messages, options, ct);
             completionStopwatch.Stop();
+            AppTelemetry.OpenAiCallLatencyMs.Record(completionStopwatch.Elapsed.TotalMilliseconds);
             chatCompletion = response.Value;
         }
 
@@ -408,11 +418,10 @@ public sealed class OpenAIRetrievalChatService(
         if (toolMatches.Count == 0)
         {
             _dependencies.Logger.LogWarning(
-                "Tool retrieval returned no relevant matches. ConversationId={ConversationId}, ToolCallId={ToolCallId}, ToolName={ToolName}, Query={Query}, Threshold={Threshold}",
+                "Tool retrieval returned no relevant matches. ConversationId={ConversationId}, ToolCallId={ToolCallId}, ToolName={ToolName}, Threshold={Threshold}",
                 conversationId,
                 toolCall.Id,
                 toolCall.FunctionName,
-                query,
                 _minSimilarityScore);
             messages.Add(ChatMessage.CreateToolMessage(toolCall.Id, string.Empty));
             return;

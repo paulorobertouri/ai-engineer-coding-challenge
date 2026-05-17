@@ -1,3 +1,4 @@
+using Api.Observability;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,7 @@ public sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        AppTelemetry.ChatFailures.Add(1);
         logger.LogError(exception, "An unhandled exception occurred: {Message}", exception.Message);
 
         var detail = environment.IsDevelopment()
