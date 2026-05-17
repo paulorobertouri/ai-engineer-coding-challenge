@@ -299,6 +299,13 @@ public sealed class OpenAIRetrievalChatService(
     private static List<ChatMessage> BuildChatMessages(ChatRequest request, IEnumerable<VectorSearchMatch> matches)
     {
         var contextText = string.Join("\n\n", matches.Select(m => $"Source: {m.Record.Source}\nContent: {m.Record.ChunkText}"));
+        var roleInstruction = request.UserRole switch
+        {
+            "manager" => "User role is manager. Emphasize policy rationale, compliance implications, and escalation paths.",
+            "department_lead" => "User role is department_lead. Emphasize team execution details, checklists, and handoff responsibilities.",
+            "cashier" => "User role is cashier. Emphasize practical counter-level steps and immediate actions.",
+            _ => ""
+        };
         var messages = new List<ChatMessage>
         {
             ChatMessage.CreateSystemMessage($"""
@@ -306,6 +313,8 @@ public sealed class OpenAIRetrievalChatService(
                 Answer the user's questions based ONLY on the provided SOP context.
                 If you don't know the answer, say you don't know based on the SOP.
                 Always provide helpful and concise answers.
+
+                {roleInstruction}
 
                 CONTEXT:
                 {contextText}

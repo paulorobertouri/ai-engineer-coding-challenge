@@ -160,6 +160,33 @@ public class FallbackRetrievalChatServiceTests
     }
 
     [Fact]
+    public async Task GenerateResponseAsync_WithManagerRole_PrefixesManagerView()
+    {
+        var record = new VectorRecord
+        {
+            Id = "1",
+            Source = "SOP.md",
+            ChunkText = "## Refund Policy\nEscalate refunds above threshold.",
+            Embedding = new float[1536]
+        };
+
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorSearchMatch { Record = record, Score = 0.9 }]);
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-role",
+            UserRole = "manager",
+            Messages = [new ChatMessageDto { Role = "user", Content = "refund steps" }]
+        };
+
+        var response = await _service.GenerateResponseAsync(request, CancellationToken.None);
+
+        Assert.StartsWith("Manager view:", response.AssistantMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateResponseAsync_PassesKnowledgeBaseFilterToVectorStore()
     {
         _mockVectorStore

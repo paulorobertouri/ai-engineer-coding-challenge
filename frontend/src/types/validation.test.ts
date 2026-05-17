@@ -115,6 +115,26 @@ describe('ChatRequestSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('accepts a valid userRole', () => {
+    const result = ChatRequestSchema.safeParse({
+      conversationId: 'abc',
+      userRole: 'manager',
+      messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an invalid userRole', () => {
+    const result = ChatRequestSchema.safeParse({
+      conversationId: 'abc',
+      userRole: 'intern',
+      messages: [{ role: 'user', content: 'hi', timestampUtc: validTimestamp }],
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('ChatMessageSchema limits', () => {

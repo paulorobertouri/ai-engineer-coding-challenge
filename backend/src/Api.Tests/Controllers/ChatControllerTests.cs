@@ -114,6 +114,23 @@ public class ChatControllerTests
     }
 
     [Fact]
+    public async Task Post_InvalidUserRole_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            UserRole = "intern",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hello" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task Post_ValidRequest_ReturnsOkWithChatResponse()
     {
         var chatResponse = new ChatResponse

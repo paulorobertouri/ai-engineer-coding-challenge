@@ -85,7 +85,7 @@ public sealed class FallbackRetrievalChatService(
                 request.ConversationId);
         }
 
-        var answer = BuildContextualAnswer(matches);
+        var answer = BuildContextualAnswer(matches, request.UserRole);
         stopwatch.Stop();
         AppTelemetry.ChatLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
         activity?.SetTag("chat.total_ms", stopwatch.Elapsed.TotalMilliseconds);
@@ -138,7 +138,7 @@ public sealed class FallbackRetrievalChatService(
                 isExternalCost: false));
     }
 
-    private static string BuildContextualAnswer(IReadOnlyList<VectorSearchMatch> matches)
+    private static string BuildContextualAnswer(IReadOnlyList<VectorSearchMatch> matches, string? userRole)
     {
         if (matches.Count == 0)
         {
@@ -148,6 +148,14 @@ public sealed class FallbackRetrievalChatService(
         var best = matches[0].Record.ChunkText;
         var snippet = best.Length > 500 ? best[..500] + "..." : best;
 
-        return $"Based on the SOP, this is the most relevant guidance:\n\n{snippet}";
+        var rolePrefix = userRole switch
+        {
+            "manager" => "Manager view: ",
+            "department_lead" => "Department lead view: ",
+            "cashier" => "Cashier view: ",
+            _ => string.Empty
+        };
+
+        return $"{rolePrefix}Based on the SOP, this is the most relevant guidance:\n\n{snippet}";
     }
 }

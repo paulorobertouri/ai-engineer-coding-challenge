@@ -83,6 +83,7 @@ Latest delivered platform changes include:
 
 - Distinct liveness/readiness behavior with startup-validated options and dependency-aware readiness checks.
 - Optional OpenAI readiness connectivity probe (`HealthChecks` options) that only runs when OpenAI mode is active and probe is enabled.
+- Role-aware response mode with optional `userRole` hints (`cashier`, `manager`, `department_lead`) for SOP answer emphasis.
 - Formal engineering standards for backend/frontend layering, logging levels, and local observability profile.
 - Updated CI quality gates covering backend/frontend build+test+format, contract drift, docker builds, supply-chain scans, and e2e coverage.
 

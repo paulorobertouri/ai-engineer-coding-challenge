@@ -30,6 +30,8 @@ Implementation conventions for state boundaries, service-layer usage, and access
 | `types/chat.ts`             | UI/domain-level chat types with compile-time compatibility assertions against generated OpenAPI contracts                                                                                                                  |
 | `types/validation.ts`       | Zod schemas (`ChatRequestSchema`, `IngestRequestSchema`) validating outgoing payloads                                                                                                                                      |
 
+`ChatRequest` supports an optional `userRole` (`cashier`, `manager`, `department_lead`) so API clients can request role-specific answer emphasis.
+
 UX quality-of-life features:
 
 - Retry last failed chat request and retry failed ingest attempts

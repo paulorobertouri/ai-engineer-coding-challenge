@@ -208,6 +208,7 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 | `VectorStore:Provider` | `json` | Vector store provider key, validated at startup |
 | `IngestRequest.knowledgeBaseId` | `default` | Optional scope for ingestion; isolates records by SOP set |
 | `ChatRequest.knowledgeBaseId` | `default` | Optional scope for retrieval and citations |
+| `ChatRequest.userRole` | _(empty)_ | Optional role hint (`cashier`, `manager`, `department_lead`) to tailor response emphasis |
 | `RateLimiting:Chat:PermitLimit` | `30` | Chat requests allowed per window |
 | `RateLimiting:Chat:WindowSeconds` | `60` | Chat rate-limit window size in seconds |
 | `RateLimiting:Chat:QueueLimit` | `0` | Queue size for excess chat requests |

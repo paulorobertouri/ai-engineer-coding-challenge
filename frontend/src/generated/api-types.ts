@@ -41,6 +41,11 @@ export interface ChatRequest {
    * @pattern ^[a-zA-Z0-9._-]*$
    */
   knowledgeBaseId?: string | null
+  /**
+   * @maxLength 32
+   * @pattern ^(cashier|manager|department_lead)?$
+   */
+  userRole?: string | null
   useTools?: boolean
 }
 

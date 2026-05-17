@@ -4,7 +4,7 @@ This TODO focuses on next-step product value, reliability, and maintainability.
 
 ## Product Features
 
-- [ ] Add role-aware response mode
+- [x] Add role-aware response mode
   - Tailor answers by role (`cashier`, `manager`, `department lead`) with policy-safe scope boundaries.
 
 - [ ] Add multilingual SOP support

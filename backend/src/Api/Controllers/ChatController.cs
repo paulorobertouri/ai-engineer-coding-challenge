@@ -121,6 +121,14 @@ public sealed class ChatController(
         if (request.Messages.Any(m => m.Content.Length > ChatRequest.MaxMessageContentLength))
             return ValidationError(nameof(ChatRequest.Messages), $"Message content must not exceed {ChatRequest.MaxMessageContentLength} characters.");
 
+        if (!string.IsNullOrWhiteSpace(request.UserRole)
+            && !string.Equals(request.UserRole, "cashier", StringComparison.Ordinal)
+            && !string.Equals(request.UserRole, "manager", StringComparison.Ordinal)
+            && !string.Equals(request.UserRole, "department_lead", StringComparison.Ordinal))
+        {
+            return ValidationError(nameof(ChatRequest.UserRole), "UserRole must be cashier, manager, or department_lead.");
+        }
+
         if (!request.Messages.Any(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase)))
             return ValidationError(nameof(ChatRequest.Messages), "At least one user message is required.");
 

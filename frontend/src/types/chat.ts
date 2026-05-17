@@ -48,6 +48,7 @@ export interface ChatApiMessage {
 export interface ChatRequest {
   conversationId: string
   knowledgeBaseId?: string
+  userRole?: 'cashier' | 'manager' | 'department_lead'
   messages: ChatApiMessage[]
 }
 

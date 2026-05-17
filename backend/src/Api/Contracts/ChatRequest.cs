@@ -8,6 +8,7 @@ public sealed class ChatRequest : IValidatableObject
     public const int MaxConversationIdLength = 128;
     public const int MaxMessageContentLength = 4000;
     public const int MaxKnowledgeBaseIdLength = 64;
+    public const int MaxUserRoleLength = 32;
 
     [Required]
     [MaxLength(MaxConversationIdLength, ErrorMessage = "ConversationId must not exceed 128 characters.")]
@@ -21,6 +22,10 @@ public sealed class ChatRequest : IValidatableObject
     [MaxLength(MaxKnowledgeBaseIdLength, ErrorMessage = "KnowledgeBaseId must not exceed 64 characters.")]
     [RegularExpression("^[a-zA-Z0-9._-]*$", ErrorMessage = "KnowledgeBaseId may only contain letters, digits, '.', '_', or '-'.")]
     public string? KnowledgeBaseId { get; init; }
+
+    [MaxLength(MaxUserRoleLength, ErrorMessage = "UserRole must not exceed 32 characters.")]
+    [RegularExpression("^(cashier|manager|department_lead)?$", ErrorMessage = "UserRole must be cashier, manager, or department_lead.")]
+    public string? UserRole { get; init; }
 
     // Preserved for backward compatibility; server configuration controls tool usage.
     public bool UseTools { get; init; } = true;

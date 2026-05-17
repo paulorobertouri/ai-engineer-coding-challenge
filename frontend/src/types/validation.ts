@@ -21,6 +21,7 @@ export const ChatRequestSchema = z
   .object({
     conversationId: z.string().min(1).max(CHAT_MAX_CONVERSATION_ID_LENGTH),
     knowledgeBaseId: KnowledgeBaseIdSchema.optional(),
+    userRole: z.enum(['cashier', 'manager', 'department_lead']).optional(),
     messages: z.array(ChatMessageSchema).min(1).max(CHAT_MAX_MESSAGES),
   })
   .refine((request) => request.messages.some((message) => message.role === 'user'), {

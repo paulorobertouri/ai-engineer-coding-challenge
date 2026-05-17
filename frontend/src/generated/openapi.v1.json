@@ -477,6 +477,12 @@
             "type": "string",
             "nullable": true
           },
+          "userRole": {
+            "maxLength": 32,
+            "pattern": "^(cashier|manager|department_lead)?$",
+            "type": "string",
+            "nullable": true
+          },
           "useTools": {
             "type": "boolean"
           }

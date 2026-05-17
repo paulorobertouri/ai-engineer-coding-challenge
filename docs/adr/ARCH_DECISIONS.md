@@ -231,3 +231,27 @@ We split responsibilities clearly:
 - Readiness output is more operationally useful without leaking secrets.
 - Health checks are testable in CI/local using loopback probe simulation.
 
+---
+
+# ADR 010: Role-Aware Response Emphasis
+
+## Status
+Accepted
+
+## Context
+Different store roles (for example cashier, manager, department lead) need the same SOP facts with different emphasis. A single generic response style can hide role-relevant action points.
+
+## Decision
+Add optional `ChatRequest.userRole` with allowed values:
+
+- `cashier`
+- `manager`
+- `department_lead`
+
+The role is used as a hint for response emphasis only and does not bypass SOP grounding or authorization.
+
+## Consequences
+- API clients can request role-specific answer framing while preserving consistent source citations.
+- Validation ensures unsupported role values fail fast.
+- Fallback and OpenAI modes share the same role-aware behavior contract.
+
