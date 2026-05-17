@@ -1382,7 +1382,7 @@ Explicit mapping is simple, transparent, easy to debug, and avoids licensing ris
 
 ### 64. Add SignalR Only Where Real-Time UX Justifies It
 
-- [ ] Evaluate SignalR for streaming, job status, and multi-user updates while keeping simpler paths available.
+- [x] Evaluate SignalR for streaming, job status, and multi-user updates while keeping simpler paths available.
 
 **Why**
 

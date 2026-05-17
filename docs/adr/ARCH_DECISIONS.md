@@ -136,3 +136,47 @@ Re-evaluate Minimal API route groups when:
 - A new bounded endpoint area is introduced that is naturally small and function-oriented, or
 - Controller orchestration becomes harder to follow than equivalent typed Minimal API handlers.
 
+---
+
+# ADR 007: Real-Time Transport Strategy - Keep SSE + Polling (For Now)
+
+## Status
+Accepted
+
+## Context
+The product has two real-time-like needs:
+- Chat token streaming from backend to frontend.
+- Ingest job progress/status updates.
+
+We evaluated whether to add SignalR now versus keeping existing built-in HTTP approaches.
+
+Current implementation already provides:
+- Server-Sent Events (SSE) for chat streaming via `/api/v1/chat/stream`.
+- HTTP polling for ingest job status via `/api/v1/ingest/jobs/{jobId}`.
+
+The project constraints require local-first behavior without cloud dependencies and preserving deterministic local/e2e flows.
+
+## Decision
+We will not introduce SignalR at this stage.
+
+We will continue using:
+- SSE for one-way server-to-client chat stream updates.
+- Polling for ingest job status transitions.
+
+## Rationale
+- Current requirements are satisfied without bidirectional connection complexity.
+- Existing e2e and local workflows are already stable with SSE + polling.
+- Avoiding an additional transport abstraction keeps operational behavior simpler for local and Docker runs.
+- No managed service (for example Azure SignalR) is required to deliver current functionality.
+
+## Consequences
+- Real-time behavior remains cloud-independent and easy to run locally.
+- Simpler HTTP fallback paths remain first-class rather than secondary.
+- We defer connection lifecycle concerns (hub scaling/state/reconnect choreography) until there is a clear product need.
+
+## Revisit Trigger
+Re-evaluate SignalR when at least one of these becomes true:
+- Bidirectional real-time workflows are needed (for example collaborative or operator push actions).
+- Polling overhead becomes materially expensive for active job tracking.
+- Multiple simultaneous live streams/events must be multiplexed per user session.
+
