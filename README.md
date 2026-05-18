@@ -84,15 +84,17 @@ Frontend API base URL resolution order:
 - Evidence report: `evidences/evidence.md`
 - Reviewer tradeoffs and future work: `docs/reviewer-notes.md`
 
-## Current Version Snapshot (2026-05-17)
+## Current Version Snapshot (2026-05-18)
 
 Latest delivered platform changes include:
 
-- Distinct liveness/readiness behavior with startup-validated options and dependency-aware readiness checks.
-- Optional OpenAI readiness connectivity probe (`HealthChecks` options) that only runs when OpenAI mode is active and probe is enabled.
-- Role-aware response mode with optional `userRole` hints (`cashier`, `manager`, `department_lead`) for SOP answer emphasis.
-- Formal engineering standards for backend/frontend layering, logging levels, and local observability profile.
-- Updated CI quality gates covering backend/frontend build+test+format, contract drift, docker builds, supply-chain scans, and e2e coverage.
+- Streaming chat support (`POST /api/v1/chat/stream`) and richer frontend UX with transcript/citation improvements, retry actions, and session persistence.
+- Multi-knowledge-base ingestion and retrieval with checksum-based duplicate detection, document version metadata, and incremental reingest behavior.
+- Extended ingest operations for upload and preview flows (`/api/v1/ingest/upload`, `/api/v1/ingest/preview`) while preserving local-first defaults.
+- Stronger resilience and safety posture with OpenAI circuit breaker options, rate-limit modes, guardrails, and hardened response headers.
+- Broader observability with OpenTelemetry traces/metrics, structured response confidence/usage metadata, and updated diagnostics/runbook documentation.
+
+For full release details, see `docs/releases/2026-05-18.md` and the release index at `docs/releases/README.md`.
 
 ## CI Quality Gates
 

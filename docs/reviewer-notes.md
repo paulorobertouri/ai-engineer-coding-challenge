@@ -1,10 +1,10 @@
 # Reviewer Notes: Tradeoffs And Future Work
 
-## Current Version (2026-05-17)
+## Current Version (2026-05-18)
 
-- Liveness/readiness checks are now explicitly separated for operational clarity.
-- Readiness includes optional provider connectivity probing that is disabled by default and only relevant in OpenAI mode.
-- Engineering standards are documented for backend/frontend boundaries, logging levels, and local observability defaults.
+- Chat now supports streaming responses and richer UX patterns (retry actions, improved citation handling, and persisted session state).
+- Ingestion now supports scoped knowledge bases, checksum/version traceability, duplicate detection, and incremental updates.
+- Operational controls now include circuit-breaker configuration, structured confidence/usage metadata, and expanded diagnostics guidance.
 
 Forward-looking enhancement ideas are maintained in `TODO.MD`.
 
@@ -18,7 +18,7 @@ Forward-looking enhancement ideas are maintained in `TODO.MD`.
 ## Known Future Work
 
 - Pluggable vector-store providers (while preserving local JSON fallback).
-- Multi-knowledge-base scoping and document versioning.
-- Incremental chunk updates/deletes for large document sets.
-- Streaming chat responses and structured output contracts.
-- Confidence/evidence coverage indicators in the UI.
+- Production-grade identity integration beyond local API-key auth (OIDC/JWT and policy hardening).
+- Optional malware scanning/OCR hardening for uploaded document pipelines.
+- Benchmark suite for larger corpora and concurrent chat/ingest workloads.
+- Expanded UX explainability for confidence scoring and follow-up suggestion controls.

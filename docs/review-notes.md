@@ -4,11 +4,11 @@ This document is a reviewer-facing summary of architectural intent, explicit tra
 
 Detailed forward-looking backlog items remain in `TODO.MD`.
 
-## Latest implemented changes (2026-05-17)
+## Latest implemented changes (2026-05-18)
 
-- Health strategy now separates lightweight liveness from dependency-aware readiness.
-- Optional OpenAI readiness connectivity probe can be enabled without impacting fallback mode.
-- Engineering standards now define backend/frontend layering and logging/observability expectations.
+- Chat capabilities now include SSE streaming, richer citation metadata, follow-up suggestions, and confidence/usage telemetry.
+- Ingestion now includes upload/preview endpoints, scoped knowledge bases, document versioning, duplicate detection, and incremental updates.
+- Resilience and operations now include circuit-breaker controls, enhanced diagnostics scripts, and expanded observability instrumentation.
 
 ## Intent and constraints
 
