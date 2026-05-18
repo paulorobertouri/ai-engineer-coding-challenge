@@ -1011,9 +1011,19 @@ export function ChatPage() {
         {status.message && (
           <StatusBanner ref={statusBannerRef} status={status} onDismiss={handleDismissStatus} />
         )}
-        <div className="page-action-row">
+        <div className="page-action-row u-mt-1">
           <button type="button" className="page-action-btn" onClick={handleOpenSourcesManager}>
             Manage sources
+          </button>
+          <button type="button" className="page-action-btn" onClick={handleExportConversation}>
+            Export conversation
+          </button>
+          <button
+            type="button"
+            className="page-action-btn"
+            onClick={() => setIsShortcutMapOpen(true)}
+          >
+            Keyboard shortcuts
           </button>
         </div>
         <ChatTranscript
@@ -1040,20 +1050,6 @@ export function ChatPage() {
           <div className="page-action-row">
             <button type="button" className="page-action-btn" onClick={handleRetryChat}>
               Retry last failed message
-            </button>
-          </div>
-        )}
-        {messages.length > 0 && (
-          <div className="page-action-row">
-            <button type="button" className="page-action-btn" onClick={handleExportConversation}>
-              Export conversation
-            </button>
-            <button
-              type="button"
-              className="page-action-btn"
-              onClick={() => setIsShortcutMapOpen(true)}
-            >
-              Keyboard shortcuts
             </button>
           </div>
         )}

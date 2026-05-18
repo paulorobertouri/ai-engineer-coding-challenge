@@ -424,6 +424,10 @@ textarea:focus-visible,
   margin-top: var(--space-2);
 }
 
+.u-mt-1 {
+  margin-top: var(--space-1);
+}
+
 .page-action-btn {
   border: 1px solid rgba(22, 101, 52, 0.18);
   background: rgba(255, 255, 255, 0.9);
