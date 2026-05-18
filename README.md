@@ -293,3 +293,36 @@ Screenshots captured from the running application:
 - **Polly over custom retry logic:** Standardised resilience with observable retry events; easy to extend with circuit-breaker or hedging policies later.
 
 See [docs/adr/ARCH_DECISIONS.md](docs/adr/ARCH_DECISIONS.md) for full architectural decision records.
+
+## Architecture
+
+The project follows a Clean Architecture approach with the following layers:
+- **Domain**: Core business logic and entities.
+- **Application**: Use cases and service interfaces.
+- **Infrastructure**: External integrations (e.g., OpenAI, vector store).
+- **Presentation**: API controllers and frontend.
+
+![Architecture Diagram](docs/architecture-diagram.png)
+
+## Testing Strategy
+
+The project uses the following testing strategies:
+- **Unit Tests**: Validate individual components (backend: xUnit, frontend: Vitest).
+- **Integration Tests**: Test interactions between components.
+- **E2E Tests**: Validate user flows using Playwright.
+
+## Usage Examples
+
+### Backend API
+
+#### Health Check
+```bash
+curl -X GET http://localhost:5181/api/v1/health
+```
+
+#### Chat
+```bash
+curl -X POST http://localhost:5181/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the store hours?"}'
+```

@@ -101,3 +101,21 @@ Local debugging must remain usable without external SaaS.
 - `HealthChecks:EnableOpenAIConnectivityProbe`
 - `HealthChecks:OpenAIProbeHost`
 - `HealthChecks:OpenAIProbeTimeoutMilliseconds`
+
+## Engineering Standards
+
+### Coding Practices
+
+- Follow Clean Code principles: readable, maintainable, and testable code.
+- Adhere to SOLID principles for object-oriented design.
+- Use dependency injection for better testability and modularity.
+
+### Code Reviews
+
+- Ensure all code changes are peer-reviewed.
+- Check for adherence to coding standards and architectural guidelines.
+
+### Documentation
+
+- Update documentation for all new features and changes.
+- Use Markdown linting tools to ensure consistency.

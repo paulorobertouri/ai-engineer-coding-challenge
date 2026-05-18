@@ -283,3 +283,17 @@ We introduced the following architecture changes:
 ## Revisit Trigger
 Re-evaluate when multi-tenant approval delegation, persistent job queues, or external SLO backends are introduced.
 
+---
+
+# ADR 001: Use Polly for Resilience
+- **Context**: The backend requires resilience for external API calls.
+- **Decision**: Use Polly for retries, exponential backoff, and circuit breaking.
+- **Consequences**: Improved reliability and fault tolerance.
+
+---
+
+# ADR 002: Playwright for E2E Testing
+- **Context**: The project needs robust E2E testing for user flows.
+- **Decision**: Use Playwright for its rich API and cross-browser support.
+- **Consequences**: Enhanced test coverage and reliability.
+

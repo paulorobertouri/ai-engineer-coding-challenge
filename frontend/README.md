@@ -89,3 +89,19 @@ PowerShell on Windows:
 | `MarkdownContent.test.tsx`  | Renders Markdown and validates link/HTML safety behavior                        |
 | `StatusBanner.test.tsx`     | Renders all tone variants with correct accessible roles                         |
 | `validation.test.ts`        | Validates `ChatRequestSchema` and `IngestRequestSchema` with valid/invalid data |
+
+## Screenshots
+
+### Chat UI
+
+![Chat UI](docs/screenshots/chat-ui.png)
+
+### Ingest Panel
+
+![Ingest Panel](docs/screenshots/ingest-panel.png)
+
+## Debugging Tips
+
+- **API Errors**: Check the browser console for error messages.
+- **Styling Issues**: Use browser developer tools to inspect and debug CSS.
+- **Component Errors**: Wrap components in `AppErrorBoundary` to catch unhandled errors.

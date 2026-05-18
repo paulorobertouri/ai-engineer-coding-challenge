@@ -56,3 +56,18 @@ Output locations:
 - If e2e fails only in CI, inspect uploaded Playwright traces and screenshots.
 - If Dockerized runs fail, validate compose first:
   - `docker compose config`
+
+## Testing
+
+### Tools
+- **Backend**: xUnit for unit and integration tests.
+- **Frontend**: Vitest for unit tests, Playwright for E2E tests.
+
+### Strategies
+- **Unit Tests**: Test individual components in isolation.
+- **Integration Tests**: Validate interactions between components.
+- **E2E Tests**: Test user flows and system behavior.
+
+### Coverage
+- Aim for 90% test coverage across all layers.
+- Use coverage reports to identify untested code paths.

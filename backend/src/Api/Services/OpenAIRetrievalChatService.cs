@@ -6,11 +6,10 @@ using Api.Options;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
-using Polly;
-using Polly.CircuitBreaker;
-using Polly.Retry;
 using System.Diagnostics;
 using System.Collections.Generic;
+using Polly;
+using Polly.Retry;
 
 namespace Api.Services;
 
@@ -27,147 +26,81 @@ public sealed class OpenAIRetrievalChatService(
     private readonly double _minSimilarityScore = Math.Clamp(retrievalOptions.Value.MinSimilarityScore, 0.0, 1.0);
     private readonly bool _enableQueryRewriting = retrievalOptions.Value.EnableQueryRewriting;
     private readonly bool _enableTools = ToolCallingPolicy.IsEnabled(openAiOptions.Value);
-    private readonly ResiliencePipeline _resiliencePipeline = BuildPipeline(openAiOptions.Value, dependencies.Logger);
+    private readonly ResiliencePipeline _resiliencePipeline = BuildPipeline();
     private readonly OpenAIRetrievalChatServiceDependencies _dependencies = dependencies;
 
     private static readonly string[] jsonSerializable = new[] { "query" };
     private const string NoRelevantContextMessage =
         "I could not find enough relevant information in the SOP to answer that question.";
     private const string OpenAiMode = "openai";
-    private const string ProviderUnavailableMessage = "The AI provider is temporarily unavailable. Please retry shortly.";
-
-    private static ResiliencePipeline BuildPipeline(OpenAIOptions options, ILogger<OpenAIRetrievalChatService> logger)
+    private static ResiliencePipeline BuildPipeline()
     {
-        var builder = new ResiliencePipelineBuilder()
-            .AddRetry(new RetryStrategyOptions
-            {
-                // Do not retry on cancellation — the caller intentionally stopped the request
-                ShouldHandle = new PredicateBuilder().Handle<Exception>(ex => ex is not OperationCanceledException),
-                Delay = TimeSpan.FromSeconds(2),
-                MaxRetryAttempts = 3,
-                BackoffType = DelayBackoffType.Exponential,
-                OnRetry = args =>
-                {
-                    logger.LogWarning("Retrying OpenAI call. Attempt: {AttemptNumber}", args.AttemptNumber);
-                    return default;
-                }
-            })
-            .AddTimeout(TimeSpan.FromSeconds(30));
+        var pipelineBuilder = new ResiliencePipelineBuilder();
 
-        if (options.CircuitBreaker.Enabled)
+        pipelineBuilder.AddRetry(new Polly.Retry.RetryStrategyOptions
         {
-            builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
-            {
-                ShouldHandle = new PredicateBuilder().Handle<Exception>(ex => ex is not OperationCanceledException),
-                FailureRatio = options.CircuitBreaker.FailureRatio,
-                MinimumThroughput = options.CircuitBreaker.MinimumThroughput,
-                SamplingDuration = TimeSpan.FromSeconds(options.CircuitBreaker.SamplingDurationSeconds),
-                BreakDuration = TimeSpan.FromSeconds(options.CircuitBreaker.BreakDurationSeconds),
-                OnOpened = args =>
-                {
-                    logger.LogError(
-                        "OpenAI circuit breaker opened. Failures exceeded threshold. RetryAfterMs={RetryAfterMs}",
-                        args.BreakDuration.TotalMilliseconds);
-                    return default;
-                },
-                OnClosed = args =>
-                {
-                    logger.LogInformation("OpenAI circuit breaker closed. Normal call flow resumed.");
-                    return default;
-                },
-                OnHalfOpened = args =>
-                {
-                    logger.LogWarning("OpenAI circuit breaker half-open. Probing provider availability.");
-                    return default;
-                }
-            });
-        }
+            ShouldHandle = new PredicateBuilder().Handle<Exception>(),
+            Delay = TimeSpan.FromSeconds(2),
+            MaxRetryAttempts = 3,
+            BackoffType = DelayBackoffType.Exponential
+        });
 
-        return builder.Build();
+        return pipelineBuilder.Build();
     }
 
-    public Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default) =>
-        GenerateResponseWithCircuitBreakerAsync(request, cancellationToken);
-
-    private async Task<ChatResponse> GenerateResponseWithCircuitBreakerAsync(ChatRequest request, CancellationToken cancellationToken)
+    public async Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _resiliencePipeline.ExecuteAsync(async ct =>
         {
-            return await _resiliencePipeline.ExecuteAsync(async ct =>
+            var totalStopwatch = Stopwatch.StartNew();
+            var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
+            using var logScope = _dependencies.Logger.BeginScope(new Dictionary<string, object>
             {
-                var totalStopwatch = Stopwatch.StartNew();
-                var knowledgeBaseId = KnowledgeBaseScope.Normalize(request.KnowledgeBaseId);
-                using var logScope = _dependencies.Logger.BeginScope(new Dictionary<string, object>
-                {
-                    ["ConversationId"] = request.ConversationId,
-                    ["KnowledgeBaseId"] = knowledgeBaseId,
-                    ["ProviderMode"] = OpenAiMode
-                });
-                using var activity = AppTelemetry.ActivitySource.StartActivity("chat.openai.generate");
-                activity?.SetTag("chat.mode", OpenAiMode);
-                activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);
-                activity?.SetTag("chat.model", _chatModel);
-                AppTelemetry.ChatRequests.Add(1);
+                ["ConversationId"] = request.ConversationId,
+                ["KnowledgeBaseId"] = knowledgeBaseId,
+                ["ProviderMode"] = OpenAiMode
+            });
+            using var activity = AppTelemetry.ActivitySource.StartActivity("chat.openai.generate");
+            activity?.SetTag("chat.mode", OpenAiMode);
+            activity?.SetTag("chat.knowledge_base_id", knowledgeBaseId);
+            activity?.SetTag("chat.model", _chatModel);
+            AppTelemetry.ChatRequests.Add(1);
 
-                var latestUserMessage = request.Messages
-                    .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
-                var guardrailDecision = _dependencies.GuardrailService.Evaluate(latestUserMessage);
+            var latestUserMessage = request.Messages
+                .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))?.Content ?? string.Empty;
+            var guardrailDecision = _dependencies.GuardrailService.Evaluate(latestUserMessage);
 
-                if (guardrailDecision.IsEscalated)
-                {
-                    _dependencies.Logger.LogWarning(
-                        "Guardrail escalation triggered. ConversationId={ConversationId}, Mode={Mode}, Category={Category}",
-                        request.ConversationId,
-                        OpenAiMode,
-                        guardrailDecision.Category);
+            if (guardrailDecision.IsEscalated)
+            {
+                _dependencies.Logger.LogWarning(
+                    "Guardrail escalation triggered. ConversationId={ConversationId}, Mode={Mode}, Category={Category}",
+                    request.ConversationId,
+                    OpenAiMode,
+                    guardrailDecision.Category);
 
-                    return BuildGuardrailResponse(request, guardrailDecision, _dependencies.UsageTracker);
-                }
+                return BuildGuardrailResponse(request, guardrailDecision, _dependencies.UsageTracker);
+            }
 
-                var (retrievalQuery, matches) = await RetrieveMatchesAsync(
-                    request,
-                    knowledgeBaseId,
-                    latestUserMessage,
-                    ct);
+            var (retrievalQuery, matches) = await RetrieveMatchesAsync(
+                request,
+                knowledgeBaseId,
+                latestUserMessage,
+                ct);
 
-                if (matches.Count == 0)
-                {
-                    return BuildNotFoundResponse(request, _dependencies.UsageTracker, retrievalQuery);
-                }
+            if (matches.Count == 0)
+            {
+                return BuildNotFoundResponse(request, _dependencies.UsageTracker, retrievalQuery);
+            }
 
-                return await GenerateCompletionResponseAsync(
-                    request,
-                    knowledgeBaseId,
-                    retrievalQuery,
-                    matches,
-                    totalStopwatch,
-                    activity,
-                    ct);
-            }, cancellationToken);
-        }
-        catch (BrokenCircuitException ex)
-        {
-            AppTelemetry.ChatFailures.Add(1);
-            _dependencies.Logger.LogError(
-                ex,
-                "OpenAI request rejected because circuit breaker is open. ConversationId={ConversationId}",
-                request.ConversationId);
-
-            return ChatResponseMapper.NoContext(
-                conversationId: request.ConversationId,
-                status: "error",
-                isPlaceholder: false,
-                assistantMessage: ProviderUnavailableMessage,
-                reason: "provider_circuit_open",
-                usage: _dependencies.UsageTracker.BuildEstimated(
-                    model: _chatModel,
-                    promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
-                    completionText: string.Empty,
-                    source: "circuit_breaker",
-                    isExternalCost: false),
-                userRole: request.UserRole,
-                responseLanguage: request.ResponseLanguage);
-        }
+            return await GenerateCompletionResponseAsync(
+                request,
+                knowledgeBaseId,
+                retrievalQuery,
+                matches,
+                totalStopwatch,
+                activity,
+                ct);
+        }, cancellationToken);
     }
 
     private async Task<(string RetrievalQuery, IReadOnlyList<VectorSearchMatch> Matches)> RetrieveMatchesAsync(

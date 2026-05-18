@@ -289,3 +289,36 @@ PowerShell on Windows:
 .\scripts\format.ps1
 .\scripts\format.ps1 --fix
 ```
+
+## Example Requests
+
+### Health Check
+```bash
+curl -X GET http://localhost:5181/api/v1/health
+```
+Response:
+```json
+{
+  "status": "Healthy",
+  "notes": "OpenAI mode: enabled"
+}
+```
+
+### Chat
+```bash
+curl -X POST http://localhost:5181/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the store hours?"}'
+```
+Response:
+```json
+{
+  "answer": "The store is open from 8 AM to 10 PM.",
+  "citations": [
+    {
+      "source": "SOP.pdf",
+      "snippet": "Store hours are 8 AM to 10 PM."
+    }
+  ]
+}
+```
