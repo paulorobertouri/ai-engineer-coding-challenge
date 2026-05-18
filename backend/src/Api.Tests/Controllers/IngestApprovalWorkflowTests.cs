@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Ingest;
 using Api.Models;
 using Api.Options;
 using Api.Services;
@@ -87,7 +87,7 @@ public sealed class IngestApprovalWorkflowTests
             Microsoft.Extensions.Options.Options.Create(new IngestJobsOptions { Mode = "sync" }),
             NullLogger<IngestJobDispatcher>.Instance);
 
-        var controller = new IngestController(
+        var controller = new IngestEndpointsHandler(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
@@ -98,7 +98,7 @@ public sealed class IngestApprovalWorkflowTests
             audit.Object,
             dispatcher,
             ingestJobStatusStore,
-            NullLogger<IngestController>.Instance,
+            NullLogger<IngestEndpointsHandler>.Instance,
             env.Object);
 
         var blockedResult = await controller.Post(null, CancellationToken.None);

@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Ingest;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -11,7 +11,7 @@ public sealed class IngestJobsControllerTests
     [Fact(DisplayName = "Given an unknown job id when querying status then endpoint returns not found")]
     public void GivenUnknownJob_WhenGettingStatus_ThenReturnsNotFound()
     {
-        var controller = new IngestJobsController(
+        var controller = new IngestJobsEndpointsHandler(
             Mock.Of<IIngestJobDispatcher>(),
             new InMemoryIngestJobStatusStore());
 
@@ -35,7 +35,7 @@ public sealed class IngestJobsControllerTests
         };
         store.MarkQueued(jobId, "default", queuedResponse, CreateJobRequest(jobId));
 
-        var controller = new IngestJobsController(Mock.Of<IIngestJobDispatcher>(), store);
+        var controller = new IngestJobsEndpointsHandler(Mock.Of<IIngestJobDispatcher>(), store);
 
         var result = controller.CancelJob(jobId);
 
@@ -61,7 +61,7 @@ public sealed class IngestJobsControllerTests
             .Setup(d => d.RetryFailedAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new IngestJobSubmission(jobId, submissionResponse, true));
 
-        var controller = new IngestJobsController(dispatcher.Object, new InMemoryIngestJobStatusStore());
+        var controller = new IngestJobsEndpointsHandler(dispatcher.Object, new InMemoryIngestJobStatusStore());
 
         var result = await controller.RetryJob(jobId, CancellationToken.None);
 
@@ -85,7 +85,7 @@ public sealed class IngestJobsControllerTests
         };
         store.MarkQueued(jobId, "default", queuedResponse, CreateJobRequest(jobId));
 
-        var controller = new IngestJobsController(Mock.Of<IIngestJobDispatcher>(), store);
+        var controller = new IngestJobsEndpointsHandler(Mock.Of<IIngestJobDispatcher>(), store);
 
         var result = controller.UpdateJobPriority(jobId, new IngestJobPriorityUpdateRequest { Priority = 7 });
 

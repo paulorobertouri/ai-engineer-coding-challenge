@@ -1,4 +1,4 @@
-using Api.Controllers;
+using Api.Application.Health;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 
@@ -10,29 +10,29 @@ internal static class HealthEndpointsModule
     {
         api.MapGet("/health", async (HttpContext httpContext, CancellationToken cancellationToken) =>
         {
-            var controller = EndpointExecution.CreateController<HealthController>(httpContext);
-            var result = await controller.Get(cancellationToken);
+            var handler = ActivatorUtilities.CreateInstance<HealthEndpointsHandler>(httpContext.RequestServices);
+            var result = await handler.Get(cancellationToken);
             await EndpointExecution.ExecuteActionResultAsync(httpContext, result);
         });
 
         api.MapGet("/ready", async (HttpContext httpContext, CancellationToken cancellationToken) =>
         {
-            var controller = EndpointExecution.CreateController<HealthController>(httpContext);
-            var result = await controller.Ready(cancellationToken);
+            var handler = ActivatorUtilities.CreateInstance<HealthEndpointsHandler>(httpContext.RequestServices);
+            var result = await handler.Ready(cancellationToken);
             await EndpointExecution.ExecuteActionResultAsync(httpContext, result);
         });
 
         api.MapGet("/ready/history", async (HttpContext httpContext) =>
         {
-            var controller = EndpointExecution.CreateController<HealthController>(httpContext);
-            var result = controller.ReadyHistory();
+            var handler = ActivatorUtilities.CreateInstance<HealthEndpointsHandler>(httpContext.RequestServices);
+            var result = handler.ReadyHistory();
             await EndpointExecution.ExecuteActionResultAsync(httpContext, result);
         });
 
         api.MapGet("/health/slo", async (HttpContext httpContext, int maxEndpoints = 20) =>
         {
-            var controller = EndpointExecution.CreateController<HealthController>(httpContext);
-            var result = controller.SloSummary(maxEndpoints);
+            var handler = ActivatorUtilities.CreateInstance<HealthEndpointsHandler>(httpContext.RequestServices);
+            var result = handler.SloSummary(maxEndpoints);
             await EndpointExecution.ExecuteActionResultAsync(httpContext, result);
         });
 

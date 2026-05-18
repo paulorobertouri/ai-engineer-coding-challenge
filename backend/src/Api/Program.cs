@@ -1,5 +1,4 @@
 using Api;
-using Api.Controllers;
 using Api.Contracts;
 using Api.Middleware;
 using Api.Modules;

@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Ingest;
 using Api.Models;
 using Api.Options;
 using Api.Services;
@@ -22,13 +22,13 @@ public class IngestControllerTests
     private readonly Mock<IEmbeddingService> _mockEmbedding = new();
     private readonly Mock<IVectorStoreService> _mockVectorStore = new();
     private readonly Mock<IIngestionAuditService> _mockAudit = new();
-    private readonly Mock<ILogger<IngestController>> _mockLogger = new();
+    private readonly Mock<ILogger<IngestEndpointsHandler>> _mockLogger = new();
     private readonly Mock<IWebHostEnvironment> _mockEnv = new();
 
     private string _tempDir = string.Empty;
     private string _sopFile = string.Empty;
 
-    private IngestController BuildController(string? configuredPath = null, bool isDevelopment = true)
+    private IngestEndpointsHandler BuildController(string? configuredPath = null, bool isDevelopment = true)
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"ingest-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
@@ -109,7 +109,7 @@ public class IngestControllerTests
             ingestJobsOptions,
             NullLogger<IngestJobDispatcher>.Instance);
 
-        return new IngestController(
+        return new IngestEndpointsHandler(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
@@ -247,7 +247,7 @@ public class IngestControllerTests
             .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("## Fallback Section\nFallback content");
 
-        var controller = new IngestController(
+        var controller = new IngestEndpointsHandler(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
@@ -323,7 +323,7 @@ public class IngestControllerTests
             .Setup(s => s.ExtractTextFromFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("## Fallback Section\nFallback content");
 
-        var controller = new IngestController(
+        var controller = new IngestEndpointsHandler(
             challengeOptions,
             uploadOptions,
             timeoutOptions,
@@ -1038,7 +1038,7 @@ public class IngestControllerTests
             });
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => controller.Post(null, cts.Token));
     }

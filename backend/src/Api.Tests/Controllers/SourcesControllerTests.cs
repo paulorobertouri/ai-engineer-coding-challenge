@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Sources;
 using Api.Models;
 using Api.Options;
 using Api.Services;
@@ -13,7 +13,7 @@ namespace Api.Tests;
 
 public sealed class SourcesControllerTests
 {
-    private static SourcesController CreateController(
+    private static SourcesEndpointsHandler CreateController(
         Mock<ISourceDocumentViewerService> sourceService,
         Mock<IVectorStoreService>? vectorStoreService = null,
         Mock<IChunkingService>? chunkingService = null,
@@ -55,7 +55,7 @@ public sealed class SourcesControllerTests
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.SetupGet(env => env.ContentRootPath).Returns(resolvedContentRoot);
 
-        return new SourcesController(
+        return new SourcesEndpointsHandler(
             sourceService.Object,
             vectorStoreService.Object,
             chunkingService.Object,

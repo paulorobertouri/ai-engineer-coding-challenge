@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Operators;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -27,8 +27,8 @@ public sealed class RetrievalBenchmarksControllerTests
                 }
             ]);
 
-        var controller = new RetrievalBenchmarksController(service.Object);
-        var result = await controller.Get(20, CancellationToken.None);
+        var handler = new RetrievalBenchmarksEndpointsHandler(service.Object);
+        var result = await handler.Get(20, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var payload = Assert.IsType<RetrievalBenchmarkDashboardResponse>(ok.Value);
@@ -53,8 +53,8 @@ public sealed class RetrievalBenchmarksControllerTests
             .Setup(dependency => dependency.RunAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
-        var controller = new RetrievalBenchmarksController(service.Object);
-        var result = await controller.Run(CancellationToken.None);
+        var handler = new RetrievalBenchmarksEndpointsHandler(service.Object);
+        var result = await handler.Run(CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var payload = Assert.IsType<RetrievalBenchmarkEntryDto>(ok.Value);

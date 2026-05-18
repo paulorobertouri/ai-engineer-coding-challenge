@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Operators;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -56,9 +56,9 @@ public sealed class OperatorAuditControllerTests
                 }
             ]);
 
-        var controller = new OperatorAuditController(feedbackService.Object, ingestionAuditService.Object);
+        var handler = new OperatorAuditEndpointsHandler(feedbackService.Object, ingestionAuditService.Object);
 
-        var result = await controller.GetDashboard("default", null, 24, CancellationToken.None);
+        var result = await handler.GetDashboard("default", null, 24, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var payload = Assert.IsType<OperatorAuditDashboardResponse>(ok.Value);
@@ -97,9 +97,9 @@ public sealed class OperatorAuditControllerTests
             .Setup(service => service.ListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var controller = new OperatorAuditController(feedbackService.Object, ingestionAuditService.Object);
+        var handler = new OperatorAuditEndpointsHandler(feedbackService.Object, ingestionAuditService.Object);
 
-        var result = await controller.GetDashboard(null, "helpful", 24, CancellationToken.None);
+        var result = await handler.GetDashboard(null, "helpful", 24, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var payload = Assert.IsType<OperatorAuditDashboardResponse>(ok.Value);

@@ -1,6 +1,6 @@
 using Api.Contracts;
 using Api.Options;
-using Api.Controllers;
+using Api.Application.Chat;
 using Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,11 +15,11 @@ public class ChatControllerTests
 {
     private readonly Mock<IRetrievalChatService> _mockService = new();
     private readonly Mock<IConversationFeedbackService> _mockFeedbackService = new();
-    private readonly ChatController _controller;
+    private readonly ChatEndpointsHandler _controller;
 
     public ChatControllerTests()
     {
-        _controller = new ChatController(
+        _controller = new ChatEndpointsHandler(
             _mockService.Object,
             _mockFeedbackService.Object,
             Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { ChatSeconds = 30 }));
@@ -293,14 +293,13 @@ public class ChatControllerTests
 
         var httpContext = new DefaultHttpContext();
         httpContext.Response.Body = new MemoryStream();
-        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
         var request = new ChatRequest
         {
             Messages = [new ChatMessageDto { Role = "user", Content = "Hi" }]
         };
 
-        var result = await _controller.Stream(request, CancellationToken.None);
+        var result = await _controller.Stream(request, httpContext.Response, CancellationToken.None);
 
         Assert.IsType<EmptyResult>(result);
         httpContext.Response.Body.Position = 0;

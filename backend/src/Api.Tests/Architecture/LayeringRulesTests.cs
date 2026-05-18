@@ -6,7 +6,7 @@ namespace Api.Tests.Architecture;
 
 public sealed class LayeringRulesTests
 {
-    private static readonly Assembly ApiAssembly = typeof(Api.Controllers.ChatController).Assembly;
+    private static readonly Assembly ApiAssembly = typeof(Api.Contracts.ChatRequest).Assembly;
 
     [Fact]
     public void Controllers_Should_Have_Controller_Suffix()

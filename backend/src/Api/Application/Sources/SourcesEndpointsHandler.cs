@@ -1,32 +1,22 @@
 using Api.Contracts;
 using Api.Models;
 using Api.Options;
-using Api.Security;
 using Api.Services;
-using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 
-namespace Api.Controllers;
+namespace Api.Application.Sources;
 
-[ApiController]
-[ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/[controller]")]
-[Authorize(Policy = AuthorizationPolicies.ChatUser)]
-public sealed class SourcesController(
+public sealed class SourcesEndpointsHandler(
     ISourceDocumentViewerService sourceDocumentViewerService,
     IVectorStoreService vectorStoreService,
     IChunkingService chunkingService,
     IDocumentExtractionService documentExtractionService,
     IOptions<ChallengeOptions> challengeOptions,
-    IWebHostEnvironment environment) : ControllerBase
+    IWebHostEnvironment environment)
 {
-    [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<SourceListItemDto>>> List(
-        [FromQuery] string? knowledgeBaseId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<SourceListItemDto>>> List(string? knowledgeBaseId, CancellationToken cancellationToken)
     {
         var normalizedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
         var records = await vectorStoreService.LoadAsync(cancellationToken);
@@ -62,19 +52,14 @@ public sealed class SourcesController(
             .ThenBy(item => item.Source, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return Ok(sources);
+        return new OkObjectResult(sources);
     }
 
-    [HttpDelete]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
-    public async Task<ActionResult<SourceDeleteResponse>> Delete(
-        [FromQuery] string source,
-        [FromQuery] string? knowledgeBaseId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<SourceDeleteResponse>> Delete(string source, string? knowledgeBaseId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(source))
         {
-            return BadRequest(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
+            return new BadRequestObjectResult(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
         }
 
         var normalizedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
@@ -88,14 +73,14 @@ public sealed class SourcesController(
 
         if (matchedRecords.Count == 0)
         {
-            return NotFound(ApiErrorFactory.NotFound(
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound(
                 "Source document not found.",
                 $"No ingested chunks were found for source '{normalizedSource}'."));
         }
 
         await vectorStoreService.DeleteByIdsAsync(matchedRecords.Select(record => record.Id), cancellationToken);
 
-        return Ok(new SourceDeleteResponse
+        return new OkObjectResult(new SourceDeleteResponse
         {
             Source = normalizedSource,
             KnowledgeBaseId = normalizedKnowledgeBaseId,
@@ -104,39 +89,32 @@ public sealed class SourcesController(
         });
     }
 
-    [HttpGet("document")]
-    public async Task<ActionResult<SourceDocumentResponse>> GetDocument(
-        [FromQuery] string source,
-        [FromQuery] string? knowledgeBaseId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<SourceDocumentResponse>> GetDocument(string source, string? knowledgeBaseId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(source))
         {
-            return BadRequest(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
+            return new BadRequestObjectResult(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
         }
 
         var document = await sourceDocumentViewerService.GetDocumentAsync(source, knowledgeBaseId, cancellationToken);
         if (document is null)
         {
-            return NotFound(ApiErrorFactory.NotFound(
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound(
                 "Source document not found.",
                 $"No ingested chunks were found for source '{Path.GetFileName(source)}'."));
         }
 
-        return Ok(document);
+        return new OkObjectResult(document);
     }
 
-    [HttpGet("update-alert")]
-    public async Task<ActionResult<SourceUpdateAlertResponse>> GetUpdateAlert(
-        [FromQuery] string? knowledgeBaseId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<SourceUpdateAlertResponse>> GetUpdateAlert(string? knowledgeBaseId, CancellationToken cancellationToken)
     {
         var normalizedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
         var resolvedSourcePath = ResolveSourcePath(challengeOptions.Value.SourceDocumentPath, environment.ContentRootPath);
 
         if (!System.IO.File.Exists(resolvedSourcePath))
         {
-            return Ok(new SourceUpdateAlertResponse
+            return new OkObjectResult(new SourceUpdateAlertResponse
             {
                 KnowledgeBaseId = normalizedKnowledgeBaseId,
                 RequiresReingestReview = false,
@@ -162,7 +140,7 @@ public sealed class SourcesController(
         var requiresReview = ingestedChecksum is not null
             && !string.Equals(ingestedChecksum, currentChecksum, StringComparison.OrdinalIgnoreCase);
 
-        return Ok(new SourceUpdateAlertResponse
+        return new OkObjectResult(new SourceUpdateAlertResponse
         {
             KnowledgeBaseId = normalizedKnowledgeBaseId,
             RequiresReingestReview = requiresReview,
@@ -175,19 +153,18 @@ public sealed class SourcesController(
         });
     }
 
-    [HttpGet("compare")]
     public async Task<ActionResult<SourceComparisonResponse>> GetComparison(
-        [FromQuery] string? source,
-        [FromQuery] string? knowledgeBaseId,
-        [FromQuery] string? citationChunkId,
-        [FromQuery] bool includeUnchanged,
+        string? source,
+        string? knowledgeBaseId,
+        string? citationChunkId,
+        bool includeUnchanged,
         CancellationToken cancellationToken)
     {
         var normalizedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
         var resolvedSourcePath = ResolveSourcePath(challengeOptions.Value.SourceDocumentPath, environment.ContentRootPath);
         if (!System.IO.File.Exists(resolvedSourcePath))
         {
-            return NotFound(ApiErrorFactory.NotFound("Source document not found.", "Configured source document does not exist on disk."));
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound("Source document not found.", "Configured source document does not exist on disk."));
         }
 
         var sourceName = string.IsNullOrWhiteSpace(source)
@@ -195,7 +172,7 @@ public sealed class SourcesController(
             : Path.GetFileName(source.Trim());
         if (string.IsNullOrWhiteSpace(sourceName))
         {
-            return BadRequest(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
+            return new BadRequestObjectResult(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
         }
 
         var sourceText = await documentExtractionService.ExtractTextFromFileAsync(resolvedSourcePath, cancellationToken);
@@ -279,7 +256,7 @@ public sealed class SourcesController(
 
         var changedCount = orderedComparisons.Count(item => !string.Equals(item.ChangeType, "unchanged", StringComparison.Ordinal));
 
-        return Ok(new SourceComparisonResponse
+        return new OkObjectResult(new SourceComparisonResponse
         {
             Source = sourceName,
             KnowledgeBaseId = normalizedKnowledgeBaseId,
@@ -293,10 +270,9 @@ public sealed class SourcesController(
         });
     }
 
-    [HttpGet("quality")]
     public async Task<ActionResult<SourceQualityReportResponse>> GetQuality(
-        [FromQuery] string? source,
-        [FromQuery] string? knowledgeBaseId,
+        string? source,
+        string? knowledgeBaseId,
         CancellationToken cancellationToken)
     {
         var normalizedKnowledgeBaseId = KnowledgeBaseScope.Normalize(knowledgeBaseId);
@@ -307,7 +283,7 @@ public sealed class SourcesController(
 
         if (string.IsNullOrWhiteSpace(sourceName))
         {
-            return BadRequest(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
+            return new BadRequestObjectResult(ApiErrorFactory.BadRequest("Source is required.", "Query parameter 'source' is required."));
         }
 
         var allRecords = await vectorStoreService.LoadAsync(cancellationToken);
@@ -339,7 +315,7 @@ public sealed class SourcesController(
             })
             .ToList();
 
-        return Ok(new SourceQualityReportResponse
+        return new OkObjectResult(new SourceQualityReportResponse
         {
             Source = sourceName,
             KnowledgeBaseId = normalizedKnowledgeBaseId,

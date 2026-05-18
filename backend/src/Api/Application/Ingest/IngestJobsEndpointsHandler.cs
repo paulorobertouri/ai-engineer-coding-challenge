@@ -1,67 +1,51 @@
 using Api.Contracts;
 using Api.Services;
-using Api.Security;
-using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
-namespace Api.Controllers;
+namespace Api.Application.Ingest;
 
-[ApiController]
-[ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/Ingest/jobs")]
-[EnableRateLimiting("ingest")]
-public sealed class IngestJobsController(
+public sealed class IngestJobsEndpointsHandler(
     IIngestJobDispatcher ingestJobDispatcher,
-    IIngestJobStatusStore ingestJobStatusStore) : ControllerBase
+    IIngestJobStatusStore ingestJobStatusStore)
 {
-    [HttpGet("{jobId:guid}")]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public ActionResult<IngestJobStatusResponse> GetJobStatus(Guid jobId)
     {
         var job = ingestJobStatusStore.Get(jobId);
         if (job is null)
         {
-            return NotFound(ApiErrorFactory.NotFound(
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound(
                 "Ingest job not found.",
                 $"No ingest job exists for '{jobId}'."));
         }
 
-        return Ok(ToJobStatusResponse(job));
+        return new OkObjectResult(ToJobStatusResponse(job));
     }
 
-    [HttpGet]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
-    public ActionResult<IReadOnlyList<IngestJobStatusResponse>> ListJobs([FromQuery] int limit = 100)
+    public ActionResult<IReadOnlyList<IngestJobStatusResponse>> ListJobs(int limit = 100)
     {
         var jobs = ingestJobStatusStore
             .List(limit)
             .Select(ToJobStatusResponse)
             .ToList();
 
-        return Ok(jobs);
+        return new OkObjectResult(jobs);
     }
 
-    [HttpGet("dead-letter")]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
-    public ActionResult<IReadOnlyList<IngestJobStatusResponse>> ListDeadLetterJobs([FromQuery] int limit = 100)
+    public ActionResult<IReadOnlyList<IngestJobStatusResponse>> ListDeadLetterJobs(int limit = 100)
     {
         var jobs = ingestJobStatusStore
             .GetDeadLetters(limit)
             .Select(ToJobStatusResponse)
             .ToList();
 
-        return Ok(jobs);
+        return new OkObjectResult(jobs);
     }
 
-    [HttpPost("{jobId:guid}/cancel")]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public ActionResult<IngestJobStatusResponse> CancelJob(Guid jobId)
     {
         if (!ingestJobStatusStore.TryCancel(jobId))
         {
-            return Conflict(ApiErrorFactory.Conflict(
+            return new ConflictObjectResult(ApiErrorFactory.Conflict(
                 "Ingest job cannot be canceled.",
                 $"Ingest job '{jobId}' is not in queued state."));
         }
@@ -69,36 +53,32 @@ public sealed class IngestJobsController(
         var job = ingestJobStatusStore.Get(jobId);
         if (job is null)
         {
-            return NotFound(ApiErrorFactory.NotFound(
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound(
                 "Ingest job not found.",
                 $"No ingest job exists for '{jobId}'."));
         }
 
-        return Ok(ToJobStatusResponse(job));
+        return new OkObjectResult(ToJobStatusResponse(job));
     }
 
-    [HttpPost("{jobId:guid}/retry")]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
     public async Task<ActionResult<IngestResponse>> RetryJob(Guid jobId, CancellationToken cancellationToken)
     {
         try
         {
             var submission = await ingestJobDispatcher.RetryFailedAsync(jobId, cancellationToken);
-            return Ok(submission.Response);
+            return new OkObjectResult(submission.Response);
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(ApiErrorFactory.Conflict("Ingest retry rejected.", ex.Message));
+            return new ConflictObjectResult(ApiErrorFactory.Conflict("Ingest retry rejected.", ex.Message));
         }
     }
 
-    [HttpPost("{jobId:guid}/priority")]
-    [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
-    public ActionResult<IngestJobStatusResponse> UpdateJobPriority(Guid jobId, [FromBody] IngestJobPriorityUpdateRequest request)
+    public ActionResult<IngestJobStatusResponse> UpdateJobPriority(Guid jobId, IngestJobPriorityUpdateRequest request)
     {
         if (!ingestJobStatusStore.TryUpdatePriority(jobId, request.Priority))
         {
-            return Conflict(ApiErrorFactory.Conflict(
+            return new ConflictObjectResult(ApiErrorFactory.Conflict(
                 "Ingest priority update rejected.",
                 $"Ingest job '{jobId}' is not in queued state."));
         }
@@ -106,12 +86,12 @@ public sealed class IngestJobsController(
         var job = ingestJobStatusStore.Get(jobId);
         if (job is null)
         {
-            return NotFound(ApiErrorFactory.NotFound(
+            return new NotFoundObjectResult(ApiErrorFactory.NotFound(
                 "Ingest job not found.",
                 $"No ingest job exists for '{jobId}'."));
         }
 
-        return Ok(ToJobStatusResponse(job));
+        return new OkObjectResult(ToJobStatusResponse(job));
     }
 
     private static IngestJobStatusResponse ToJobStatusResponse(IngestJobStatus job)

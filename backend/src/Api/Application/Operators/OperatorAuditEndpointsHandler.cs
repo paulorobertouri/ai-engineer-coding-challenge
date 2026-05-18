@@ -1,25 +1,17 @@
 using Api.Contracts;
 using Api.Services;
-using Api.Security;
-using Asp.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Api.Controllers;
+namespace Api.Application.Operators;
 
-[ApiController]
-[ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/operators/audit")]
-[Authorize(Policy = AuthorizationPolicies.Operator)]
-public sealed class OperatorAuditController(
+public sealed class OperatorAuditEndpointsHandler(
     IConversationFeedbackService conversationFeedbackService,
-    IIngestionAuditService ingestionAuditService) : ControllerBase
+    IIngestionAuditService ingestionAuditService)
 {
-    [HttpGet]
     public async Task<ActionResult<OperatorAuditDashboardResponse>> GetDashboard(
-        [FromQuery] string? knowledgeBaseId,
-        [FromQuery] string? feedbackType,
-        [FromQuery] int lookbackHours = 168,
+        string? knowledgeBaseId,
+        string? feedbackType,
+        int lookbackHours = 168,
         CancellationToken cancellationToken = default)
     {
         var normalizedLookbackHours = Math.Clamp(lookbackHours, 1, 24 * 30);
@@ -54,7 +46,7 @@ public sealed class OperatorAuditController(
                 || string.Equals(entry.FeedbackType, "wrong-citation", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        return Ok(new OperatorAuditDashboardResponse
+        return new OkObjectResult(new OperatorAuditDashboardResponse
         {
             GeneratedAtUtc = toUtc,
             FromUtc = fromUtc,

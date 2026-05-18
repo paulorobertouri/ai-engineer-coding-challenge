@@ -1,5 +1,5 @@
 using Api.Contracts;
-using Api.Controllers;
+using Api.Application.Health;
 using Api.Models;
 using Api.Options;
 using Api.Services;
@@ -12,7 +12,7 @@ namespace Api.Tests;
 
 public class HealthControllerTests
 {
-    private static HealthController CreateController(bool hasApiKey = true)
+    private static HealthEndpointsHandler CreateController(bool hasApiKey = true)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"health-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -47,7 +47,7 @@ public class HealthControllerTests
             .Setup(service => service.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<VectorRecord>());
 
-        return new HealthController(
+        return new HealthEndpointsHandler(
             openAiOptions,
             challengeOptions,
             vectorStoreOptions,
@@ -197,7 +197,7 @@ public class HealthControllerTests
             .Setup(service => service.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<VectorRecord>());
 
-        var controller = new HealthController(
+        var controller = new HealthEndpointsHandler(
             openAiOptions,
             challengeOptions,
             vectorStoreOptions,
@@ -262,7 +262,7 @@ public class HealthControllerTests
             .Setup(service => service.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<VectorRecord>());
 
-        var notReadyController = new HealthController(
+        var notReadyController = new HealthEndpointsHandler(
             openAiOptions,
             challengeOptions,
             vectorStoreOptions,
@@ -291,7 +291,7 @@ public class HealthControllerTests
         var sourcePath = Path.Combine(tempDir, "SOP.md");
         File.WriteAllText(sourcePath, "# SOP\ncontent");
 
-        var controller = new HealthController(
+        var controller = new HealthEndpointsHandler(
             Microsoft.Extensions.Options.Options.Create(new OpenAIOptions { ApiKey = "test-key" }),
             Microsoft.Extensions.Options.Options.Create(new ChallengeOptions
             {
