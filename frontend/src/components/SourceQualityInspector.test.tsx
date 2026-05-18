@@ -19,9 +19,7 @@ describe('SourceQualityInspector', () => {
     )
     expect(screen.getByText(/unable to inspect quality/i)).toBeInTheDocument()
 
-    rerender(
-      <SourceQualityInspector report={null} isLoading={false} errorMessage={null} />,
-    )
+    rerender(<SourceQualityInspector report={null} isLoading={false} errorMessage={null} />)
     expect(
       screen.getByText(/select a citation to inspect source quality metrics/i),
     ).toBeInTheDocument()
@@ -52,9 +50,7 @@ describe('SourceQualityInspector', () => {
       ],
     }
 
-    render(
-      <SourceQualityInspector report={report} isLoading={false} errorMessage={null} />,
-    )
+    render(<SourceQualityInspector report={report} isLoading={false} errorMessage={null} />)
 
     expect(screen.getByText(/SOP.md · chunks 12/i)).toBeInTheDocument()
     expect(screen.getByText(/duplicate sections: 1/i)).toBeInTheDocument()

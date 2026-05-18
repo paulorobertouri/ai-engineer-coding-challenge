@@ -23,8 +23,8 @@ export function RetrievalBenchmarkPanel({
   return (
     <section className="sidebar-card" aria-labelledby="retrieval-benchmark-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#dcfce7' }}>
-          <GaugeCircle size={15} color="#166534" />
+        <div className="sidebar-card-icon sidebar-card-icon--success-soft">
+          <GaugeCircle size={15} />
         </div>
         <h2 id="retrieval-benchmark-heading">Retrieval Benchmarks</h2>
       </div>
@@ -33,7 +33,13 @@ export function RetrievalBenchmarkPanel({
         Run benchmark
       </button>
 
-      {isLoading && <p className="empty-state">Loading retrieval metrics…</p>}
+      {isLoading && (
+        <div className="empty-state" aria-live="polite" aria-busy="true">
+          <span className="visually-hidden">Loading retrieval metrics…</span>
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
       {!isLoading && errorMessage && <p className="empty-state">{errorMessage}</p>}
       {!isLoading && !errorMessage && !latest && (
         <p className="empty-state">No benchmark runs yet.</p>

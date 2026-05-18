@@ -148,8 +148,8 @@ export function CitationsPanel({
   return (
     <section className="sidebar-card citations-panel" aria-labelledby="citations-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#eff6ff' }}>
-          <BookOpen size={15} color="#1d4ed8" />
+        <div className="sidebar-card-icon sidebar-card-icon--info">
+          <BookOpen size={15} />
         </div>
         <h2 id="citations-heading">Sources</h2>
         {confidence && (

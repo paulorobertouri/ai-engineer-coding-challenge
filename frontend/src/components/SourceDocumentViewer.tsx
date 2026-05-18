@@ -76,13 +76,20 @@ export function SourceDocumentViewer({
   return (
     <section className="sidebar-card source-viewer-panel" aria-labelledby="source-viewer-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#eef2ff' }}>
-          <FileSearch size={15} color="#4338ca" />
+        <div className="sidebar-card-icon sidebar-card-icon--indigo">
+          <FileSearch size={15} />
         </div>
         <h2 id="source-viewer-heading">Source Viewer</h2>
       </div>
 
-      {isLoading && <p className="empty-state">Loading source document…</p>}
+      {isLoading && (
+        <div className="empty-state" aria-live="polite" aria-busy="true">
+          <span className="visually-hidden">Loading source document…</span>
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
       {!isLoading && errorMessage && <p className="empty-state">{errorMessage}</p>}
       {!isLoading && !errorMessage && !document && (
         <p className="empty-state">Select a citation to inspect its source content.</p>

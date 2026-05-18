@@ -31,8 +31,8 @@ export function IngestPanel({ onIngest, isBusy }: Readonly<IngestPanelProps>) {
   return (
     <section className="sidebar-card" aria-labelledby="ingest-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#f0fdf4' }}>
-          <Database size={15} color="#166534" />
+        <div className="sidebar-card-icon sidebar-card-icon--success">
+          <Database size={15} />
         </div>
         <h2 id="ingest-heading">Knowledge Base</h2>
       </div>
@@ -110,7 +110,7 @@ export function IngestPanel({ onIngest, isBusy }: Readonly<IngestPanelProps>) {
           type="button"
           onClick={handleUploadIngest}
           disabled={isBusy}
-          style={{ marginTop: '0.5rem' }}
+          data-spacing-top="sm"
         >
           {isBusy ? (
             <>

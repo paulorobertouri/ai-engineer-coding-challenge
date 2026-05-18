@@ -23,13 +23,19 @@ export function SourceQualityInspector({
   return (
     <section className="sidebar-card" aria-labelledby="source-quality-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#fef3c7' }}>
-          <Activity size={15} color="#92400e" />
+        <div className="sidebar-card-icon sidebar-card-icon--warning">
+          <Activity size={15} />
         </div>
         <h2 id="source-quality-heading">Source Quality Inspector</h2>
       </div>
 
-      {isLoading && <p className="empty-state">Evaluating source quality…</p>}
+      {isLoading && (
+        <div className="empty-state" aria-live="polite" aria-busy="true">
+          <span className="visually-hidden">Evaluating source quality…</span>
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
       {!isLoading && errorMessage && <p className="empty-state">{errorMessage}</p>}
       {!isLoading && !errorMessage && !report && (
         <p className="empty-state">Select a citation to inspect source quality metrics.</p>

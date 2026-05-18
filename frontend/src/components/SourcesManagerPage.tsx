@@ -44,15 +44,15 @@ export function SourcesManagerPage({
 
       <section className="sidebar-card" aria-labelledby="sources-heading">
         <div className="sidebar-card-header">
-          <div className="sidebar-card-icon" style={{ background: '#ecfeff' }}>
-            <FileText size={15} color="#0f766e" />
+          <div className="sidebar-card-icon sidebar-card-icon--teal">
+            <FileText size={15} />
           </div>
           <h2 id="sources-heading">Indexed Sources</h2>
         </div>
 
         <p className="description">List and remove ingested documents from the vector store.</p>
 
-        <div className="page-action-row" style={{ marginTop: '0.5rem' }}>
+        <div className="page-action-row page-action-row--compact">
           <button
             type="button"
             className="page-action-btn"
@@ -79,9 +79,7 @@ export function SourcesManagerPage({
         </div>
 
         {sources.length === 0 ? (
-          <p className="description" style={{ marginTop: '0.8rem' }}>
-            No documents are currently indexed.
-          </p>
+          <p className="description description--spaced">No documents are currently indexed.</p>
         ) : (
           <ul className="sources-manager-list">
             {sources.map((source) => {

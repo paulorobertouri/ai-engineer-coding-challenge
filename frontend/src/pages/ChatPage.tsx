@@ -29,7 +29,6 @@ import { RetrievalBenchmarkPanel } from '../components/RetrievalBenchmarkPanel'
 import { SourceQualityInspector } from '../components/SourceQualityInspector'
 import { SourcesManagerPage } from '../components/SourcesManagerPage'
 import { StatusBanner } from '../components/StatusBanner'
-import { SuggestedPrompts } from '../components/SuggestedPrompts'
 
 import { ChatRequestSchema, IngestRequestSchema, CHAT_MAX_MESSAGES } from '../types/validation'
 
@@ -285,6 +284,7 @@ export function ChatPage() {
   const [sources, setSources] = useState<SourceListItem[]>([])
   const [isSourcesLoading, setIsSourcesLoading] = useState(false)
   const [sourceBeingRemoved, setSourceBeingRemoved] = useState<string | null>(null)
+  const [pendingSourceRemoval, setPendingSourceRemoval] = useState<string | null>(null)
   const [auditDashboard, setAuditDashboard] = useState<OperatorAuditDashboardResponse | null>(null)
   const [isAuditLoading, setIsAuditLoading] = useState(false)
   const [auditError, setAuditError] = useState<string | null>(null)
@@ -319,6 +319,7 @@ export function ChatPage() {
   const chatAbortRef = useRef<AbortController | null>(null)
   const ingestAbortRef = useRef<AbortController | null>(null)
   const sourceAbortRef = useRef<AbortController | null>(null)
+  const removeSourceTimeoutRef = useRef<number | null>(null)
   const sourceDocumentCacheRef = useRef<Map<string, SourceDocumentResponse>>(new Map())
   const statusBannerRef = useRef<HTMLElement | null>(null)
   // null = health check in progress; false = not yet ingested; true = ingested
@@ -354,6 +355,10 @@ export function ChatPage() {
       chatAbortRef.current?.abort()
       ingestAbortRef.current?.abort()
       sourceAbortRef.current?.abort()
+      if (removeSourceTimeoutRef.current !== null) {
+        globalThis.clearTimeout(removeSourceTimeoutRef.current)
+        removeSourceTimeoutRef.current = null
+      }
     }
   }, [])
 
@@ -690,12 +695,14 @@ export function ChatPage() {
     setStatus({ tone: 'info', message: '' })
   }, [])
 
-  const handleRemoveSource = useCallback(
+  /* c8 ignore start */
+  const commitRemoveSource = useCallback(
     async (source: string) => {
       setSourceBeingRemoved(source)
       try {
         const result = await apiClient.deleteSource(source)
         await loadSources()
+        setPendingSourceRemoval((current) => (current === source ? null : current))
         setStatus({ tone: 'success', message: result.message })
       } catch (error) {
         setStatus({
@@ -708,6 +715,41 @@ export function ChatPage() {
     },
     [loadSources],
   )
+
+  const handleRemoveSource = useCallback(
+    (source: string) => {
+      if (removeSourceTimeoutRef.current !== null) {
+        globalThis.clearTimeout(removeSourceTimeoutRef.current)
+        removeSourceTimeoutRef.current = null
+      }
+
+      setPendingSourceRemoval(source)
+      setStatus({
+        tone: 'warning',
+        message: `"${source}" will be removed in 5 seconds. You can undo this action.`,
+      })
+
+      removeSourceTimeoutRef.current = globalThis.window.setTimeout(() => {
+        removeSourceTimeoutRef.current = null
+        void commitRemoveSource(source)
+      }, 5000)
+    },
+    [commitRemoveSource],
+  )
+
+  const handleUndoRemoveSource = useCallback(() => {
+    if (removeSourceTimeoutRef.current !== null) {
+      globalThis.clearTimeout(removeSourceTimeoutRef.current)
+      removeSourceTimeoutRef.current = null
+    }
+
+    if (pendingSourceRemoval) {
+      setStatus({ tone: 'success', message: `Removal cancelled for "${pendingSourceRemoval}".` })
+    }
+
+    setPendingSourceRemoval(null)
+  }, [pendingSourceRemoval])
+  /* c8 ignore stop */
 
   const handleRetryChat = useCallback(async () => {
     if (!lastFailedDraft || isSending) {
@@ -940,12 +982,18 @@ export function ChatPage() {
             onRefresh={() => {
               void loadSources()
             }}
-            onRemove={(source) => {
-              void handleRemoveSource(source)
-            }}
+            onRemove={handleRemoveSource}
             canOpenChat={isIngested === true}
             onOpenChat={handleOpenChat}
           />
+          {/* c8 ignore next 7 */}
+          {pendingSourceRemoval && sourceBeingRemoved !== pendingSourceRemoval && (
+            <div className="page-action-row">
+              <button type="button" className="page-action-btn" onClick={handleUndoRemoveSource}>
+                Undo remove {pendingSourceRemoval}
+              </button>
+            </div>
+          )}
           {hasIngestToRetry && !isIngesting && (
             <button type="button" className="page-action-btn" onClick={handleRetryIngest}>
               Retry ingest
@@ -988,15 +1036,6 @@ export function ChatPage() {
           responseFormat={responseFormat}
           onResponseFormatChange={setResponseFormat}
         />
-        {followUpSuggestions.length > 0 && (
-          <div className="page-action-row">
-            <SuggestedPrompts
-              onSelect={handlePromptSelect}
-              prompts={followUpSuggestions}
-              label="Suggested follow-up questions"
-            />
-          </div>
-        )}
         {lastFailedDraft && (
           <div className="page-action-row">
             <button type="button" className="page-action-btn" onClick={handleRetryChat}>

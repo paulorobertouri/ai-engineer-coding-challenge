@@ -172,7 +172,7 @@ describe('ChatPage', () => {
         expect.objectContaining({ lookbackHours: 168 }),
       )
     })
-    expect(screen.getByRole('heading', { name: /operator audit/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /operator audit/i })).toBeInTheDocument()
   })
 
   it('loads retrieval benchmark dashboard after health check', async () => {
@@ -181,7 +181,9 @@ describe('ChatPage', () => {
     await waitFor(() => {
       expect(apiClient.getRetrievalBenchmarkDashboard).toHaveBeenCalledWith(20)
     })
-    expect(screen.getByRole('heading', { name: /retrieval benchmarks/i })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: /retrieval benchmarks/i }),
+    ).toBeInTheDocument()
   })
 
   it('shows initial checking health status before the request completes', async () => {
@@ -463,7 +465,7 @@ describe('ChatPage', () => {
     })
   })
 
-  it('renders dynamic follow-up suggestions from structured output and lets users select one', async () => {
+  it('does not render follow-up suggestions below the composer', async () => {
     vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
       ...chatOk,
       structuredOutput: {
@@ -485,20 +487,10 @@ describe('ChatPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /send message/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/Suggested follow-up questions/i)).toBeInTheDocument()
+      expect(screen.queryByText(/Suggested follow-up questions/i)).not.toBeInTheDocument()
       expect(
-        screen.getByText(/Can you summarize the cited opening checklist points/i),
-      ).toBeInTheDocument()
-    })
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /What common opening mistakes should I avoid/i }),
-    )
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/ask about the grocery store sop/i)).toHaveValue(
-        'What common opening mistakes should I avoid?',
-      )
+        screen.queryByText(/Can you summarize the cited opening checklist points/i),
+      ).not.toBeInTheDocument()
     })
   })
 

@@ -26,8 +26,8 @@ export function OperatorAuditPanel({
   return (
     <section className="sidebar-card" aria-labelledby="operator-audit-heading">
       <div className="sidebar-card-header">
-        <div className="sidebar-card-icon" style={{ background: '#fee2e2' }}>
-          <ShieldAlert size={15} color="#991b1b" />
+        <div className="sidebar-card-icon sidebar-card-icon--danger">
+          <ShieldAlert size={15} />
         </div>
         <h2 id="operator-audit-heading">Operator Audit</h2>
       </div>
@@ -54,7 +54,14 @@ export function OperatorAuditPanel({
         </button>
       </div>
 
-      {isLoading && <p className="empty-state">Loading audit dashboard…</p>}
+      {isLoading && (
+        <div className="empty-state" aria-live="polite" aria-busy="true">
+          <span className="visually-hidden">Loading audit dashboard…</span>
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
       {!isLoading && errorMessage && <p className="empty-state">{errorMessage}</p>}
       {!isLoading && !errorMessage && !dashboard && (
         <p className="empty-state">Audit data is not available yet.</p>

@@ -15,7 +15,7 @@ export function AppHeader({
     <header className="app-header">
       <div className="app-header-inner">
         <div className="app-header-icon">
-          <ShoppingCart size={15} color="white" strokeWidth={2.5} />
+          <ShoppingCart size={15} strokeWidth={2.5} />
         </div>
         <div className="app-header-text">
           <h1>SOP Assistant</h1>
