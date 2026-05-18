@@ -7,7 +7,15 @@ import type {
   IngestJobStatusResponse,
   IngestRequest,
   IngestResponse,
+  SourceDeleteResponse,
+  SourceListItem,
   SourceDocumentResponse,
+  SourceComparisonResponse,
+  SourceUpdateAlertResponse,
+  SourceQualityReportResponse,
+  OperatorAuditDashboardResponse,
+  RetrievalBenchmarkDashboardResponse,
+  RetrievalBenchmarkEntry,
 } from '../types/chat'
 
 interface RuntimeConfig {
@@ -155,11 +163,22 @@ async function parseError(response: Response): Promise<ApiClientError> {
       resolveErrorCode(response.status, errorBody),
     )
   } catch {
-    return new ApiClientError(
-      `Request failed with status ${response.status}. The backend may be offline or returned non-JSON content.`,
-      response.status,
-      'offline',
-    )
+    let plainErrorBody = ''
+    try {
+      plainErrorBody = (await response.text()).trim()
+    } catch {
+      // Ignore secondary parsing failures and return status-only message.
+    }
+
+    const plainErrorPreview =
+      plainErrorBody.length > 160 ? `${plainErrorBody.slice(0, 160)}...` : plainErrorBody
+
+    const message =
+      plainErrorPreview.length > 0
+        ? `Request failed with status ${response.status}: ${plainErrorPreview}`
+        : `Request failed with status ${response.status}`
+
+    return new ApiClientError(message, response.status, resolveErrorCode(response.status, null))
   }
 }
 
@@ -380,6 +399,122 @@ export const apiClient = {
     }
 
     return request<SourceDocumentResponse>(`/api/v1/sources/document?${searchParams.toString()}`, {
+      signal,
+    })
+  },
+  getSourceUpdateAlert(
+    knowledgeBaseId?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceUpdateAlertResponse> {
+    const searchParams = new URLSearchParams()
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    const suffix = searchParams.toString()
+    const path = suffix ? `/api/v1/sources/update-alert?${suffix}` : '/api/v1/sources/update-alert'
+    return request<SourceUpdateAlertResponse>(path, { signal })
+  },
+  listSources(knowledgeBaseId?: string, signal?: AbortSignal): Promise<SourceListItem[]> {
+    const searchParams = new URLSearchParams()
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    const suffix = searchParams.toString()
+    const path = suffix ? `/api/v1/sources?${suffix}` : '/api/v1/sources'
+    return request<SourceListItem[]>(path, { signal })
+  },
+  deleteSource(
+    source: string,
+    knowledgeBaseId?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceDeleteResponse> {
+    const searchParams = new URLSearchParams({ source })
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    return request<SourceDeleteResponse>(`/api/v1/sources?${searchParams.toString()}`, {
+      method: 'DELETE',
+      signal,
+    })
+  },
+  getSourceComparison(
+    source: string,
+    knowledgeBaseId?: string,
+    citationChunkId?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceComparisonResponse> {
+    const searchParams = new URLSearchParams({ source })
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    if (citationChunkId) {
+      searchParams.set('citationChunkId', citationChunkId)
+    }
+
+    return request<SourceComparisonResponse>(`/api/v1/sources/compare?${searchParams.toString()}`, {
+      signal,
+    })
+  },
+  getSourceQuality(
+    source: string,
+    knowledgeBaseId?: string,
+    signal?: AbortSignal,
+  ): Promise<SourceQualityReportResponse> {
+    const searchParams = new URLSearchParams({ source })
+    if (knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', knowledgeBaseId)
+    }
+
+    return request<SourceQualityReportResponse>(
+      `/api/v1/sources/quality?${searchParams.toString()}`,
+      {
+        signal,
+      },
+    )
+  },
+  getOperatorAuditDashboard(
+    options?: {
+      knowledgeBaseId?: string
+      feedbackType?: 'helpful' | 'unhelpful' | 'wrong-citation'
+      lookbackHours?: number
+    },
+    signal?: AbortSignal,
+  ): Promise<OperatorAuditDashboardResponse> {
+    const searchParams = new URLSearchParams()
+    if (options?.knowledgeBaseId) {
+      searchParams.set('knowledgeBaseId', options.knowledgeBaseId)
+    }
+
+    if (options?.feedbackType) {
+      searchParams.set('feedbackType', options.feedbackType)
+    }
+
+    if (typeof options?.lookbackHours === 'number') {
+      searchParams.set('lookbackHours', String(options.lookbackHours))
+    }
+
+    const suffix = searchParams.toString()
+    const path = suffix ? `/api/v1/operators/audit?${suffix}` : '/api/v1/operators/audit'
+    return request<OperatorAuditDashboardResponse>(path, { signal })
+  },
+  getRetrievalBenchmarkDashboard(
+    limit = 20,
+    signal?: AbortSignal,
+  ): Promise<RetrievalBenchmarkDashboardResponse> {
+    return request<RetrievalBenchmarkDashboardResponse>(
+      `/api/v1/operators/retrieval-benchmarks?limit=${limit}`,
+      {
+        signal,
+      },
+    )
+  },
+  runRetrievalBenchmark(signal?: AbortSignal): Promise<RetrievalBenchmarkEntry> {
+    return request<RetrievalBenchmarkEntry>('/api/v1/operators/retrieval-benchmarks/run', {
+      method: 'POST',
       signal,
     })
   },

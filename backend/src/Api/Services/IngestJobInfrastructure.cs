@@ -17,7 +17,9 @@ public sealed record IngestJobRequest(
     IReadOnlyList<VectorRecord> AllExistingRecords,
     IReadOnlyList<VectorRecord> ExistingRecords,
     string? PrecomputedSourceChecksum,
-    bool ForceReingest);
+    bool ForceReingest,
+    int Priority = 0,
+    Guid? RetryOfJobId = null);
 
 public sealed record IngestJobSubmission(
     Guid JobId,
@@ -29,7 +31,8 @@ public enum IngestJobState
     Queued,
     Running,
     Succeeded,
-    Failed
+    Failed,
+    Canceled
 }
 
 public sealed class IngestJobStatus
@@ -49,6 +52,8 @@ public sealed class IngestJobStatus
     public IngestResponse? Response { get; set; }
 
     public string? ErrorMessage { get; set; }
+
+    public int Priority { get; set; }
 }
 
 public interface IIngestJobStatusStore
@@ -57,13 +62,23 @@ public interface IIngestJobStatusStore
 
     IngestJobStatus? Get(Guid jobId);
 
-    void MarkQueued(Guid jobId, string knowledgeBaseId, IngestResponse response);
+    IReadOnlyList<IngestJobStatus> List(int limit = 100);
+
+    IReadOnlyList<IngestJobStatus> GetDeadLetters(int limit = 100);
+
+    IngestJobRequest? GetRequestSnapshot(Guid jobId);
+
+    void MarkQueued(Guid jobId, string knowledgeBaseId, IngestResponse response, IngestJobRequest request);
 
     void MarkRunning(Guid jobId);
 
     void MarkSucceeded(Guid jobId, IngestResponse response);
 
     void MarkFailed(Guid jobId, string errorMessage);
+
+    bool TryCancel(Guid jobId);
+
+    bool TryUpdatePriority(Guid jobId, int priority);
 
     void ClearActiveJob(string knowledgeBaseId, Guid jobId);
 }
@@ -72,12 +87,37 @@ public sealed class InMemoryIngestJobStatusStore : IIngestJobStatusStore
 {
     private readonly ConcurrentDictionary<Guid, IngestJobStatus> _jobs = new();
     private readonly ConcurrentDictionary<string, Guid> _activeJobsByKnowledgeBase = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<Guid, IngestJobRequest> _requests = new();
 
     public bool HasActiveJob(string knowledgeBaseId) => _activeJobsByKnowledgeBase.ContainsKey(knowledgeBaseId);
 
     public IngestJobStatus? Get(Guid jobId) => _jobs.TryGetValue(jobId, out var job) ? job : null;
 
-    public void MarkQueued(Guid jobId, string knowledgeBaseId, IngestResponse response)
+    public IReadOnlyList<IngestJobStatus> List(int limit = 100)
+    {
+        var normalizedLimit = Math.Clamp(limit, 1, 500);
+        return _jobs.Values
+            .OrderByDescending(job => job.QueuedAtUtc)
+            .Take(normalizedLimit)
+            .ToList();
+    }
+
+    public IReadOnlyList<IngestJobStatus> GetDeadLetters(int limit = 100)
+    {
+        var normalizedLimit = Math.Clamp(limit, 1, 500);
+        return _jobs.Values
+            .Where(job => job.State == IngestJobState.Failed)
+            .OrderByDescending(job => job.CompletedAtUtc ?? job.QueuedAtUtc)
+            .Take(normalizedLimit)
+            .ToList();
+    }
+
+    public IngestJobRequest? GetRequestSnapshot(Guid jobId)
+    {
+        return _requests.TryGetValue(jobId, out var request) ? request : null;
+    }
+
+    public void MarkQueued(Guid jobId, string knowledgeBaseId, IngestResponse response, IngestJobRequest request)
     {
         var job = new IngestJobStatus
         {
@@ -85,10 +125,12 @@ public sealed class InMemoryIngestJobStatusStore : IIngestJobStatusStore
             KnowledgeBaseId = knowledgeBaseId,
             State = IngestJobState.Queued,
             QueuedAtUtc = DateTimeOffset.UtcNow,
-            Response = response
+            Response = response,
+            Priority = request.Priority
         };
 
         _jobs[jobId] = job;
+        _requests[jobId] = request;
         _activeJobsByKnowledgeBase[knowledgeBaseId] = jobId;
     }
 
@@ -123,6 +165,31 @@ public sealed class InMemoryIngestJobStatusStore : IIngestJobStatusStore
         }
     }
 
+    public bool TryCancel(Guid jobId)
+    {
+        if (_jobs.TryGetValue(jobId, out var job) && job.State == IngestJobState.Queued)
+        {
+            job.State = IngestJobState.Canceled;
+            job.CompletedAtUtc = DateTimeOffset.UtcNow;
+            job.ErrorMessage = "job canceled by operator";
+            _activeJobsByKnowledgeBase.TryRemove(job.KnowledgeBaseId, out _);
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool TryUpdatePriority(Guid jobId, int priority)
+    {
+        if (_jobs.TryGetValue(jobId, out var job) && job.State == IngestJobState.Queued)
+        {
+            job.Priority = Math.Clamp(priority, -10, 10);
+            return true;
+        }
+
+        return false;
+    }
+
     public void ClearActiveJob(string knowledgeBaseId, Guid jobId)
     {
         _activeJobsByKnowledgeBase.TryRemove(knowledgeBaseId, out _);
@@ -132,6 +199,8 @@ public sealed class InMemoryIngestJobStatusStore : IIngestJobStatusStore
 public interface IIngestJobDispatcher
 {
     Task<IngestJobSubmission> SubmitAsync(IngestJobRequest request, CancellationToken cancellationToken);
+
+    Task<IngestJobSubmission> RetryFailedAsync(Guid failedJobId, CancellationToken cancellationToken);
 }
 
 public interface IIngestProcessingService
@@ -160,8 +229,8 @@ public sealed class IngestJobDispatcher(
 
             var jobId = request.JobId == Guid.Empty ? Guid.NewGuid() : request.JobId;
             var queuedResponse = BuildQueuedResponse(request, jobId);
-            jobStatusStore.MarkQueued(jobId, request.KnowledgeBaseId, queuedResponse);
             var submittedRequest = request with { JobId = jobId };
+            jobStatusStore.MarkQueued(jobId, request.KnowledgeBaseId, queuedResponse, submittedRequest);
 
             if (!ingestJobsOptions.Value.IsBackground)
             {
@@ -190,6 +259,29 @@ public sealed class IngestJobDispatcher(
         }
     }
 
+    public async Task<IngestJobSubmission> RetryFailedAsync(Guid failedJobId, CancellationToken cancellationToken)
+    {
+        var failedJob = jobStatusStore.Get(failedJobId);
+        if (failedJob is null || failedJob.State != IngestJobState.Failed)
+        {
+            throw new InvalidOperationException($"Ingest job '{failedJobId}' is not eligible for retry.");
+        }
+
+        var snapshot = jobStatusStore.GetRequestSnapshot(failedJobId);
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException($"No retry payload found for ingest job '{failedJobId}'.");
+        }
+
+        var retryRequest = snapshot with
+        {
+            JobId = Guid.Empty,
+            RetryOfJobId = failedJobId
+        };
+
+        return await SubmitAsync(retryRequest, cancellationToken);
+    }
+
     private static IngestResponse BuildQueuedResponse(IngestJobRequest request, Guid jobId) => new()
     {
         Accepted = true,
@@ -216,6 +308,12 @@ public sealed class IngestJobBackgroundService(
     {
         await foreach (var job in channel.Reader.ReadAllAsync(stoppingToken))
         {
+            var status = jobStatusStore.Get(job.JobId);
+            if (status?.State == IngestJobState.Canceled)
+            {
+                continue;
+            }
+
             jobStatusStore.MarkRunning(job.JobId);
 
             try

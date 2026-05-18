@@ -22,6 +22,10 @@ export const ChatRequestSchema = z
     conversationId: z.string().min(1).max(CHAT_MAX_CONVERSATION_ID_LENGTH),
     knowledgeBaseId: KnowledgeBaseIdSchema.optional(),
     userRole: z.enum(['cashier', 'manager', 'department_lead']).optional(),
+    responseLanguage: z.enum(['en', 'es', 'pt-BR', 'fr']).optional(),
+    responseTone: z.enum(['neutral', 'formal', 'friendly']).optional(),
+    responseLength: z.enum(['short', 'medium', 'long']).optional(),
+    responseFormat: z.enum(['paragraph', 'bullets', 'checklist']).optional(),
     messages: z.array(ChatMessageSchema).min(1).max(CHAT_MAX_MESSAGES),
   })
   .refine((request) => request.messages.some((message) => message.role === 'user'), {

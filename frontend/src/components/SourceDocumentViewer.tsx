@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { FileSearch } from 'lucide-react'
 import { MarkdownContent } from './MarkdownContent'
-import type { Citation, SourceDocumentChunk, SourceDocumentResponse } from '../types/chat'
+import type {
+  Citation,
+  SourceComparisonResponse,
+  SourceDocumentChunk,
+  SourceDocumentResponse,
+} from '../types/chat'
 
 interface SourceDocumentViewerProps {
   document: SourceDocumentResponse | null
+  comparison: SourceComparisonResponse | null
   activeCitation: Citation | null
   isLoading: boolean
   errorMessage: string | null
@@ -44,6 +50,7 @@ function findSelectedChunk(
 
 export function SourceDocumentViewer({
   document,
+  comparison,
   activeCitation,
   isLoading,
   errorMessage,
@@ -117,6 +124,47 @@ export function SourceDocumentViewer({
               )
             })}
           </ul>
+
+          {comparison && comparison.chunks.length > 0 && (
+            <div className="source-comparison-panel" aria-label="Policy comparison view">
+              <p className="source-viewer-meta">
+                Policy comparison: {comparison.ingestedDocumentVersion ?? 'ingested'} vs{' '}
+                {comparison.currentDocumentVersion}
+              </p>
+              <p className="source-viewer-meta">
+                Changed chunks: {comparison.changedChunkCount} / {comparison.totalComparedChunks}
+              </p>
+              <ul className="source-viewer-list">
+                {comparison.chunks.map((chunk) => (
+                  <li
+                    key={`${chunk.index ?? 'na'}-${chunk.ingestedChunkId ?? chunk.currentChunkId ?? 'unknown'}`}
+                    className={`source-viewer-item${chunk.isImpactedCitation ? ' source-viewer-item--selected' : ''}`}
+                  >
+                    <div className="source-viewer-item-header">
+                      <strong>{chunk.sectionTitle || 'Untitled section'}</strong>
+                      <span>{chunk.changeType}</span>
+                    </div>
+                    <div className="source-comparison-columns">
+                      <div>
+                        <h3>Ingested</h3>
+                        <MarkdownContent
+                          content={chunk.ingestedContent || '_No ingested content_'}
+                          className="source-viewer-markdown"
+                        />
+                      </div>
+                      <div>
+                        <h3>Current</h3>
+                        <MarkdownContent
+                          content={chunk.currentContent || '_No current content_'}
+                          className="source-viewer-markdown"
+                        />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </section>

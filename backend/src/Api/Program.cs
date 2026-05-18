@@ -1,5 +1,8 @@
 using Api;
+using Api.Controllers;
+using Api.Contracts;
 using Api.Middleware;
+using Api.Modules;
 using Api.Observability;
 using Api.Options;
 using Api.Services;
@@ -9,6 +12,7 @@ using Asp.Versioning.ApiExplorer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
@@ -67,6 +71,8 @@ AddValidatedOptions<TimeoutOptions>(TimeoutOptions.SectionName);
 AddValidatedOptions<HealthChecksOptions>(HealthChecksOptions.SectionName);
 AddValidatedOptions<ObservabilityOptions>(ObservabilityOptions.SectionName);
 AddValidatedOptions<DataRetentionOptions>(DataRetentionOptions.SectionName);
+AddValidatedOptions<ChaosOptions>(ChaosOptions.SectionName);
+AddValidatedOptions<RetrievalBenchmarkOptions>(RetrievalBenchmarkOptions.SectionName);
 
 builder.Services
     .AddOptions<IngestJobsOptions>()
@@ -82,8 +88,8 @@ var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.S
 var openAiOptions = builder.Configuration.GetSection(OpenAIOptions.SectionName).Get<OpenAIOptions>() ?? new OpenAIOptions();
 var isDistributedRateLimiting = DistributedRateLimitingRegistration.IsDistributedEnabled(rateLimitingOptions);
 var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
+var chaosOptions = builder.Configuration.GetSection(ChaosOptions.SectionName).Get<ChaosOptions>() ?? new ChaosOptions();
 
-builder.Services.AddControllers();
 builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = uploadOptions.MaxUploadBytes);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddApiVersioning(options =>
@@ -163,12 +169,15 @@ if (observabilityOptions.Enabled)
 
 builder.Services.AddSingleton<IChunkingService, HybridChunkingService>();
 builder.Services.AddSingleton<IDocumentExtractionService, LocalDocumentExtractionService>();
+builder.Services.AddSingleton<IRetrievalBenchmarkService, RetrievalBenchmarkService>();
+builder.Services.AddSingleton<ISopMutationApprovalService, InMemorySopMutationApprovalService>();
 builder.Services.AddSingleton<IIngestionAuditService, JsonIngestionAuditService>();
 builder.Services.AddSingleton<IConversationFeedbackService, JsonConversationFeedbackService>();
 builder.Services.AddSingleton<ISourceDocumentViewerService, VectorStoreSourceDocumentViewerService>();
 builder.Services.AddSingleton<IRetrievalReranker, LexicalRetrievalReranker>();
 builder.Services.AddSingleton<IUserQueryGuardrailService, RuleBasedUserQueryGuardrailService>();
 builder.Services.AddSingleton<OpenAIUsageTracker>();
+builder.Services.AddSingleton<IEndpointSloTracker, InMemoryEndpointSloTracker>();
 builder.Services.AddSingleton<OpenAIRetrievalChatServiceDependencies>();
 builder.Services.AddSingleton<IIngestJobStatusStore, InMemoryIngestJobStatusStore>();
 builder.Services.AddSingleton(Channel.CreateUnbounded<IngestJobRequest>());
@@ -279,6 +288,11 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+if (chaosOptions.Enabled)
+{
+    app.UseMiddleware<ChaosInjectionMiddleware>();
+}
+app.UseMiddleware<EndpointSloTrackingMiddleware>();
 app.UseAuthentication();
 
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
@@ -321,7 +335,14 @@ if (isDistributedRateLimiting)
 }
 app.UseRateLimiter();
 app.UseAuthorization();
-app.MapControllers();
+
+var api = app.MapGroup("/api/v{version}");
+
+api.MapChatEndpoints();
+api.MapHealthEndpoints();
+api.MapIngestionEndpoints();
+api.MapSourcesEndpoints();
+api.MapOperatorEndpoints();
 
 await app.RunAsync();
 

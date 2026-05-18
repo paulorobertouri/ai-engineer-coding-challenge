@@ -129,6 +129,35 @@ public sealed class ChatController(
             return ValidationError(nameof(ChatRequest.UserRole), "UserRole must be cashier, manager, or department_lead.");
         }
 
+        if (!ChatRequest.IsValidResponseLanguage(request.ResponseLanguage))
+            return ValidationError(
+                nameof(ChatRequest.ResponseLanguage),
+                "ResponseLanguage must be a language tag like 'en', 'es', or 'pt-BR'.");
+
+        if (!string.IsNullOrWhiteSpace(request.ResponseTone)
+            && !string.Equals(request.ResponseTone, "neutral", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseTone, "formal", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseTone, "friendly", StringComparison.Ordinal))
+        {
+            return ValidationError(nameof(ChatRequest.ResponseTone), "ResponseTone must be neutral, formal, or friendly.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ResponseLength)
+            && !string.Equals(request.ResponseLength, "short", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseLength, "medium", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseLength, "long", StringComparison.Ordinal))
+        {
+            return ValidationError(nameof(ChatRequest.ResponseLength), "ResponseLength must be short, medium, or long.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ResponseFormat)
+            && !string.Equals(request.ResponseFormat, "paragraph", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseFormat, "bullets", StringComparison.Ordinal)
+            && !string.Equals(request.ResponseFormat, "checklist", StringComparison.Ordinal))
+        {
+            return ValidationError(nameof(ChatRequest.ResponseFormat), "ResponseFormat must be paragraph, bullets, or checklist.");
+        }
+
         if (!request.Messages.Any(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase)))
             return ValidationError(nameof(ChatRequest.Messages), "At least one user message is required.");
 

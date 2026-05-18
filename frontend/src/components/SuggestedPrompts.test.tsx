@@ -1,34 +1,36 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { SuggestedPrompts } from './SuggestedPrompts'
 import { describe, it, expect, vi } from 'vitest'
+import { SuggestedPrompts } from './SuggestedPrompts'
 
 describe('SuggestedPrompts', () => {
-  it('renders all prompt chips', () => {
+  it('renders default prompt chips', () => {
     render(<SuggestedPrompts onSelect={vi.fn()} />)
-    expect(screen.getAllByRole('button').length).toBeGreaterThan(0)
+
+    expect(screen.getByText(/Try asking:/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /opening procedures/i })).toBeInTheDocument()
   })
 
-  it('calls onSelect with the prompt text when a chip is clicked', () => {
+  it('calls onSelect when a chip is clicked', () => {
     const onSelect = vi.fn()
     render(<SuggestedPrompts onSelect={onSelect} />)
-    const buttons = screen.getAllByRole('button')
-    fireEvent.click(buttons[0])
-    expect(onSelect).toHaveBeenCalledOnce()
-    expect(onSelect).toHaveBeenCalledWith(expect.any(String))
+
+    fireEvent.click(screen.getByRole('button', { name: /closing checklist/i }))
+
+    expect(onSelect).toHaveBeenCalledWith('What is the closing checklist?')
   })
 
-  it('calls onSelect with the correct prompt for each chip', () => {
+  it('renders custom prompts and label', () => {
     const onSelect = vi.fn()
-    render(<SuggestedPrompts onSelect={onSelect} />)
-    const buttons = screen.getAllByRole('button')
-    buttons.forEach((btn, i) => {
-      fireEvent.click(btn)
-      expect(onSelect).toHaveBeenNthCalledWith(i + 1, btn.textContent)
-    })
-  })
+    render(
+      <SuggestedPrompts
+        onSelect={onSelect}
+        label="Suggested follow-up questions"
+        prompts={['Follow-up one', 'Follow-up two']}
+      />,
+    )
 
-  it('renders the "Try asking:" label', () => {
-    render(<SuggestedPrompts onSelect={vi.fn()} />)
-    expect(screen.getByText(/try asking/i)).toBeInTheDocument()
+    expect(screen.getByText(/Suggested follow-up questions/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Follow-up one' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Follow-up two' })).toBeInTheDocument()
   })
 })

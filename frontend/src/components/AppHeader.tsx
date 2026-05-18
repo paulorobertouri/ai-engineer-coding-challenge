@@ -7,7 +7,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({
-  badge = 'GPT-4o-mini',
+  badge = 'GPT-5.4-mini',
   badgeClassName,
   onNewChat,
 }: Readonly<AppHeaderProps>) {

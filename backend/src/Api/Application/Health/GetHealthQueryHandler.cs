@@ -1,19 +1,25 @@
 using Api.Contracts;
 using Api.Models;
 using Api.Options;
+using Api.Services;
 using Microsoft.Extensions.Options;
 
 namespace Api.Application.Health;
 
 public sealed class GetHealthQueryHandler(
-    IOptions<OpenAIOptions> openAiOptions)
+    IOptions<OpenAIOptions> openAiOptions,
+    IVectorStoreService vectorStoreService)
 {
-    public Task<HealthResponse> HandleAsync(GetHealthQuery query, CancellationToken cancellationToken)
+    public async Task<HealthResponse> HandleAsync(GetHealthQuery query, CancellationToken cancellationToken)
     {
         _ = query;
-        _ = cancellationToken;
 
         var hasApiKey = !string.IsNullOrWhiteSpace(openAiOptions.Value.ApiKey);
+        var records = await vectorStoreService.LoadAsync(cancellationToken);
+        var normalizedKnowledgeBaseId = KnowledgeBaseScope.DefaultKnowledgeBaseId;
+        var knowledgeBaseRecords = records
+            .Where(record => KnowledgeBaseScope.BelongsToKnowledgeBase(record, normalizedKnowledgeBaseId))
+            .ToList();
 
         var notes = hasApiKey
             ? new List<string>
@@ -31,15 +37,15 @@ public sealed class GetHealthQueryHandler(
 
         var activeKnowledgeBases = new List<string> { KnowledgeBaseScope.DefaultKnowledgeBaseId };
 
-        return Task.FromResult(new HealthResponse
+        return new HealthResponse
         {
             Status = "ok",
             Service = "grocery-store-sop-assistant-api",
             UtcTime = DateTimeOffset.UtcNow,
             Notes = notes,
-            IsIngested = false,
-            RecordCount = 0,
+            IsIngested = knowledgeBaseRecords.Count > 0,
+            RecordCount = knowledgeBaseRecords.Count,
             ActiveKnowledgeBaseIds = activeKnowledgeBases
-        });
+        };
     }
 }

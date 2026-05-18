@@ -116,6 +116,7 @@ public class IngestControllerTests
             _mockChunking.Object,
             _mockDocumentExtraction.Object,
             _mockVectorStore.Object,
+            new InMemorySopMutationApprovalService(),
             _mockAudit.Object,
             ingestJobDispatcher,
             ingestJobStatusStore,
@@ -227,6 +228,7 @@ public class IngestControllerTests
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
         var timeoutOptions = Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { IngestSeconds = 120 });
         _mockEnv.Setup(e => e.ContentRootPath).Returns(_tempDir);
+        _mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
 
         _mockChunking
             .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -252,6 +254,7 @@ public class IngestControllerTests
             _mockChunking.Object,
             _mockDocumentExtraction.Object,
             _mockVectorStore.Object,
+            new InMemorySopMutationApprovalService(),
             _mockAudit.Object,
             new IngestJobDispatcher(
                 Channel.CreateUnbounded<IngestJobRequest>(),
@@ -301,6 +304,7 @@ public class IngestControllerTests
         var uploadOptions = Microsoft.Extensions.Options.Options.Create(new UploadOptions());
         var timeoutOptions = Microsoft.Extensions.Options.Options.Create(new TimeoutOptions { IngestSeconds = 120 });
         _mockEnv.Setup(e => e.ContentRootPath).Returns(deepRoot);
+        _mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
 
         _mockChunking
             .Setup(s => s.ChunkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -326,6 +330,7 @@ public class IngestControllerTests
             _mockChunking.Object,
             _mockDocumentExtraction.Object,
             _mockVectorStore.Object,
+            new InMemorySopMutationApprovalService(),
             _mockAudit.Object,
             new IngestJobDispatcher(
                 Channel.CreateUnbounded<IngestJobRequest>(),

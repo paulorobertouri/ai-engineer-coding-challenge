@@ -1,0 +1,431 @@
+
+> grocery-store-sop-chatbot-frontend@0.0.0 test
+> vitest run ChatPage.test.tsx
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/frontend[39m
+
+[90mstderr[2m | src/pages/ChatPage.test.tsx[2m > [22m[2mChatPage[2m > [22m[2mrenders the page header
+[22m[39mAn update to ChatPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ChatPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [31m❯[39m src/pages/ChatPage.test.tsx [2m([22m[2m37 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2464[2mms[22m[39m
+     [32m✓[39m renders the page header[32m 100[2mms[22m[39m
+     [32m✓[39m shows initial checking health status before the request completes[32m 6[2mms[22m[39m
+     [32m✓[39m shows success status after health check succeeds[32m 30[2mms[22m[39m
+     [32m✓[39m shows warning status when health check fails with a server error[32m 12[2mms[22m[39m
+     [32m✓[39m shows retry info message when health check fails with Failed to fetch[32m 9[2mms[22m[39m
+     [32m✓[39m shows the empty transcript state when ingested[32m 18[2mms[22m[39m
+     [32m✓[39m shows the ingest panel when not yet ingested[32m 8[2mms[22m[39m
+     [32m✓[39m appends the user message to the transcript after sending[32m 86[2mms[22m[39m
+     [32m✓[39m appends the assistant response to the transcript after sending[32m 61[2mms[22m[39m
+     [32m✓[39m sends selected response language in chat payload[32m 48[2mms[22m[39m
+     [32m✓[39m sends selected tone, length, and format in chat payload[32m 56[2mms[22m[39m
+     [32m✓[39m submits helpful feedback for an assistant message[32m 68[2mms[22m[39m
+     [32m✓[39m clears the draft after sending[32m 42[2mms[22m[39m
+     [32m✓[39m shows "Sending chat request…" status while the request is in flight[32m 46[2mms[22m[39m
+     [32m✓[39m shows a chat error status when the chat request fails[32m 44[2mms[22m[39m
+     [32m✓[39m adds a fallback assistant message in the transcript when the chat request fails[32m 43[2mms[22m[39m
+     [32m✓[39m shows citations in the panel after a chat response with citations[32m 40[2mms[22m[39m
+     [32m✓[39m renders dynamic follow-up suggestions from structured output and lets users select one[32m 62[2mms[22m[39m
+[31m     [31m×[31m loads source viewer content when a citation is selected[39m[33m 1048[2mms[22m[39m
+     [32m✓[39m updates status to success after ingest completes[32m 23[2mms[22m[39m
+     [32m✓[39m shows error status when ingest fails[32m 18[2mms[22m[39m
+     [32m✓[39m shows "Calling the ingest endpoint…" status while ingesting[32m 23[2mms[22m[39m
+     [32m✓[39m uploads a file and transitions to the chat layout on success[32m 23[2mms[22m[39m
+     [32m✓[39m shows uploading status message while uploading a file[32m 20[2mms[22m[39m
+     [32m✓[39m shows warning tone when ingest response is a placeholder[32m 30[2mms[22m[39m
+     [32m✓[39m handles "already been ingested" ingest error by marking as ingested[32m 31[2mms[22m[39m
+     [32m✓[39m dismisses the status banner when the dismiss button is clicked[32m 31[2mms[22m[39m
+     [32m✓[39m fills the draft when a suggested prompt chip is clicked[32m 60[2mms[22m[39m
+     [32m✓[39m shows warning tone when chat response is a placeholder[32m 41[2mms[22m[39m
+     [32m✓[39m shows proactive SOP update alert when checksum drift is detected[32m 14[2mms[22m[39m
+     [32m✓[39m shows error message string from non-Error chat failure[32m 46[2mms[22m[39m
+     [32m✓[39m shows offline badge when backend reports fallback mode[32m 11[2mms[22m[39m
+     [32m✓[39m retries the last failed chat without retyping[32m 97[2mms[22m[39m
+     [32m✓[39m starts a fresh conversation when New chat is clicked[32m 53[2mms[22m[39m
+     [32m✓[39m exports the conversation transcript as a markdown download[32m 52[2mms[22m[39m
+     [32m✓[39m cancels an in-flight chat request when a new send starts[32m 45[2mms[22m[39m
+     [32m✓[39m opens keyboard shortcut map when pressing question mark[32m 18[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/ChatPage.test.tsx[2m > [22mChatPage[2m > [22mloads source viewer content when a citation is selected
+[31m[1mTestingLibraryElementError[22m[39m: Found multiple elements with the text: /Store Opening/
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<strong>[39m
+  [0mStore Opening[0m
+[36m</strong>[39m
+
+Ignored nodes: comments, script, style
+[36m<strong>[39m
+  [0mStore Opening[0m
+[36m</strong>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<main[39m
+      [33mclass[39m=[32m"app-shell"[39m
+    [36m>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"chat-layout"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"app-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"app-header-inner"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-icon"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-shopping-cart"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"white"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2.5"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"8"[39m
+                  [33mcy[39m=[32m"21"[39m
+                  [33mr[39m=[32m"1"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"19"[39m
+                  [33mcy[39m=[32m"21"[39m
+                  [33mr[39m=[32m"1"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-text"[39m
+            [36m>[39m
+              [36m<h1>[39m
+                [0mSOP Assistant[0m
+              [36m</h1>[39m
+              [36m<p>[39m
+                [0mGrocery Store Operating Procedures · Powered by AI[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"app-header-action-btn"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mNew chat[0m
+              [36m</button>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"app-header-badge"[39m
+              [36m>[39m
+                [0mGPT-5.4-mini[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</header>[39m
+        [36m<section[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"status-banner"[39m
+          [33mdata-tone[39m=[32m"success"[39m
+          [33mrole[39m=[32m"status"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-circle-check"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"12"[39m
+              [33mcy[39m=[32m"12"[39m
+              [33mr[39m=[32m"10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m9 12 2 2 4-4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<span[39m
+            [33mdata-tone[39m=[32m"success"[39m
+          [36m>[39m
+            [0mChat response received with status 'ok'.[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Dismiss"[39m
+            [33mclass[39m=[32m"status-banner__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"12"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"12"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Conversation history"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"transcript flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-200 dark:scrollbar-thumb-slate-700"[39m
+        [36m>[39m
+          [36m<article[39m
+            [33mclass[39m=[32m"message-card message-card--user ml-auto flex-row-reverse"[39m
+            [33mdata-role[39m=[32m"user"[39m
+            [33mstyle[39m=[32m"opacity: 1; transform: none;"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"message-avatar"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-user"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  ...
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<main[39m
+        [33mclass[39m=[32m"app-shell"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"chat-layout"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"app-header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-inner"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"app-header-icon"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-shopping-cart"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"15"[39m
+                  [33mstroke[39m=[32m"white"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2.5"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"15"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"8"[39m
+                    [33mcy[39m=[32m"21"[39m
+                    [33mr[39m=[32m"1"[39m
+                  [36m/>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"19"[39m
+                    [33mcy[39m=[32m"21"[39m
+                    [33mr[39m=[32m"1"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"app-header-text"[39m
+              [36m>[39m
+                [36m<h1>[39m
+                  [0mSOP Assistant[0m
+                [36m</h1>[39m
+                [36m<p>[39m
+                  [0mGrocery Store Operating Procedures · Powered by AI[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"app-header-actions"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"app-header-action-btn"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mNew chat[0m
+                [36m</button>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"app-header-badge"[39m
+                [36m>[39m
+                  [0mGPT-5.4-mini[0m
+                [36m</span>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</header>[39m
+          [36m<section[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"status-banner"[39m
+            [33mdata-tone[39m=[32m"success"[39m
+            [33mrole[39m=[32m"status"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-circle-check"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"12"[39m
+                [33mcy[39m=[32m"12"[39m
+                [33mr[39m=[32m"10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m9 12 2 2 4-4"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<span[39m
+              [33mdata-tone[39m=[32m"success"[39m
+            [36m>[39m
+              [0mChat response received with status 'ok'.[0m
+            [36m</span>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Dismiss"[39m
+              [33mclass[39m=[32m"status-banner__close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"12"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"12"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Conversation history"[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"transcript flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-emerald-200 dark:scrollbar-thumb-slate-700"[39m
+          [36m>[39m
+            [36m<article[39m
+              [33mclass[39m=[32m"message-card message-card--user ml-auto flex-row-reverse"[39m
+              [33mdata-role[39m=[32m"user"[39m
+              [33mstyle[39m=[32m"opacity: 1; transform: none;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"message-avatar"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-user"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"15"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24...
+[90m [2m❯[22m Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[36m [2m❯[22m src/pages/ChatPage.test.tsx:[2m443:11[22m[39m
+    [90m441|[39m     fireEvent[33m.[39m[34mclick[39m(screen[33m.[39m[34mgetByText[39m([32m'Open the store at 7am.'[39m))
+    [90m442|[39m
+    [90m443|[39m     [35mawait[39m [34mwaitFor[39m(() [33m=>[39m {
+    [90m   |[39m           [31m^[39m
+    [90m444|[39m       [34mexpect[39m(apiClient[33m.[39mgetSourceDocument)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m445|[39m         [32m'Grocery_Store_SOP.md'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m36 passed[39m[22m[90m (37)[39m
+[2m   Start at [22m 12:34:51
+[2m   Duration [22m 3.99s[2m (transform 137ms, setup 42ms, import 966ms, tests 2.46s, environment 438ms)[22m
+

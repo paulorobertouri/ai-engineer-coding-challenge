@@ -6,16 +6,30 @@ import type {
   ConfidenceIndicator,
   FeedbackKind,
   IngestResponse,
+  ResponseFormat,
+  ResponseLength,
+  ResponseLanguage,
+  ResponseTone,
+  OperatorAuditDashboardResponse,
+  RetrievalBenchmarkDashboardResponse,
+  SourceComparisonResponse,
+  SourceListItem,
   SourceDocumentResponse,
+  SourceQualityReportResponse,
   StatusMessage,
 } from '../types/chat'
 import { AppHeader } from '../components/AppHeader'
 import { ChatComposer } from '../components/ChatComposer'
 import { ChatTranscript } from '../components/ChatTranscript'
 import { CitationsPanel } from '../components/CitationsPanel'
-import { IngestPanel } from '../components/IngestPanel'
+import { KeyboardShortcutMap } from '../components/KeyboardShortcutMap'
 import { SourceDocumentViewer } from '../components/SourceDocumentViewer'
+import { OperatorAuditPanel } from '../components/OperatorAuditPanel'
+import { RetrievalBenchmarkPanel } from '../components/RetrievalBenchmarkPanel'
+import { SourceQualityInspector } from '../components/SourceQualityInspector'
+import { SourcesManagerPage } from '../components/SourcesManagerPage'
 import { StatusBanner } from '../components/StatusBanner'
+import { SuggestedPrompts } from '../components/SuggestedPrompts'
 
 import { ChatRequestSchema, IngestRequestSchema, CHAT_MAX_MESSAGES } from '../types/validation'
 
@@ -26,6 +40,11 @@ interface StoredChatSession {
   messages: ChatMessage[]
   citations: Citation[]
   confidence: ConfidenceIndicator | null
+  responseLanguage?: ResponseLanguage
+  responseTone?: ResponseTone
+  responseLength?: ResponseLength
+  responseFormat?: ResponseFormat
+  followUpSuggestions?: string[]
 }
 
 function loadStoredChatSession(): StoredChatSession | null {
@@ -47,6 +66,29 @@ function loadStoredChatSession(): StoredChatSession | null {
         typeof stored.confidence === 'object' && stored.confidence !== null
           ? stored.confidence
           : null,
+      responseLanguage:
+        stored.responseLanguage === 'es' ||
+        stored.responseLanguage === 'pt-BR' ||
+        stored.responseLanguage === 'fr'
+          ? stored.responseLanguage
+          : 'en',
+      responseTone:
+        stored.responseTone === 'formal' || stored.responseTone === 'friendly'
+          ? stored.responseTone
+          : 'neutral',
+      responseLength:
+        stored.responseLength === 'short' || stored.responseLength === 'long'
+          ? stored.responseLength
+          : 'medium',
+      responseFormat:
+        stored.responseFormat === 'bullets' || stored.responseFormat === 'checklist'
+          ? stored.responseFormat
+          : 'paragraph',
+      followUpSuggestions: Array.isArray(stored.followUpSuggestions)
+        ? stored.followUpSuggestions.filter(
+            (value) => typeof value === 'string' && value.trim().length > 0,
+          )
+        : [],
     }
   } catch {
     sessionStorage.removeItem(CHAT_SESSION_KEY)
@@ -136,6 +178,44 @@ function normalizeOptionalComment(comment: string | null | undefined): string | 
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+function buildConversationExport(
+  conversationId: string,
+  messages: ChatMessage[],
+  citations: Citation[],
+): string {
+  const header = [
+    '# SOP Assistant Conversation Export',
+    '',
+    `Conversation ID: ${conversationId}`,
+    `Exported At (UTC): ${new Date().toISOString()}`,
+    '',
+    '## Transcript',
+    '',
+  ]
+
+  const transcript = messages.flatMap((message) => [
+    `### ${message.role.toUpperCase()} · ${message.timestamp}`,
+    '',
+    message.content,
+    '',
+  ])
+
+  const evidenceHeader = ['## Cited Evidence', '']
+  const evidence = citations.length
+    ? citations.flatMap((citation, index) => [
+        `### Citation ${index + 1}`,
+        `- Source: ${citation.source}`,
+        `- Chunk ID: ${citation.chunkId ?? 'n/a'}`,
+        `- Lines: ${citation.startLine ?? 'n/a'}-${citation.endLine ?? 'n/a'}`,
+        `- Score: ${citation.score ?? 'n/a'}`,
+        `- Snippet: ${citation.snippet}`,
+        '',
+      ])
+    : ['No citations captured in this session.', '']
+
+  return [...header, ...transcript, ...evidenceHeader, ...evidence].join('\n')
+}
+
 function replaceStreamingMessage(
   currentMessages: ChatMessage[],
   assistantMessageId: string,
@@ -154,6 +234,27 @@ function replaceStreamingFailure(
     ...currentMessages.filter((message) => message.id !== assistantMessageId),
     createMessage('assistant', 'The chat request failed. Start the backend and try again.'),
   ]
+}
+
+function shouldRetryHealthCheck(error: unknown): boolean {
+  return error instanceof Error && error.message === 'Failed to fetch'
+}
+
+function buildHealthFailureStatus(error: unknown): StatusMessage {
+  if (shouldRetryHealthCheck(error)) {
+    return {
+      tone: 'info',
+      message: 'Backend health check failed: Failed to fetch. Retrying in 5s…',
+    }
+  }
+
+  return {
+    tone: 'warning',
+    message:
+      error instanceof Error
+        ? `Backend health check failed: ${error.message}`
+        : 'Backend health check failed.',
+  }
 }
 
 export function ChatPage() {
@@ -177,10 +278,44 @@ export function ChatPage() {
     message: 'Checking backend health…',
   })
   const [sourceDocument, setSourceDocument] = useState<SourceDocumentResponse | null>(null)
+  const [sourceComparison, setSourceComparison] = useState<SourceComparisonResponse | null>(null)
+  const [sourceQuality, setSourceQuality] = useState<SourceQualityReportResponse | null>(null)
+  const [isShortcutMapOpen, setIsShortcutMapOpen] = useState(false)
+  const [isSourcesManagerOpen, setIsSourcesManagerOpen] = useState(false)
+  const [sources, setSources] = useState<SourceListItem[]>([])
+  const [isSourcesLoading, setIsSourcesLoading] = useState(false)
+  const [sourceBeingRemoved, setSourceBeingRemoved] = useState<string | null>(null)
+  const [auditDashboard, setAuditDashboard] = useState<OperatorAuditDashboardResponse | null>(null)
+  const [isAuditLoading, setIsAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
+  const [benchmarkDashboard, setBenchmarkDashboard] =
+    useState<RetrievalBenchmarkDashboardResponse | null>(null)
+  const [isBenchmarkLoading, setIsBenchmarkLoading] = useState(false)
+  const [benchmarkError, setBenchmarkError] = useState<string | null>(null)
+  const [auditFeedbackFilter, setAuditFeedbackFilter] = useState<
+    '' | 'helpful' | 'unhelpful' | 'wrong-citation'
+  >('')
   const [sourceDocumentError, setSourceDocumentError] = useState<string | null>(null)
+  const [sourceQualityError, setSourceQualityError] = useState<string | null>(null)
   const [isSourceDocumentLoading, setIsSourceDocumentLoading] = useState(false)
+  const [isSourceQualityLoading, setIsSourceQualityLoading] = useState(false)
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(() => initialSession?.messages ?? [])
+  const [followUpSuggestions, setFollowUpSuggestions] = useState<string[]>(
+    () => initialSession?.followUpSuggestions ?? [],
+  )
+  const [responseLanguage, setResponseLanguage] = useState<ResponseLanguage>(
+    () => initialSession?.responseLanguage ?? 'en',
+  )
+  const [responseTone, setResponseTone] = useState<ResponseTone>(
+    () => initialSession?.responseTone ?? 'neutral',
+  )
+  const [responseLength, setResponseLength] = useState<ResponseLength>(
+    () => initialSession?.responseLength ?? 'medium',
+  )
+  const [responseFormat, setResponseFormat] = useState<ResponseFormat>(
+    () => initialSession?.responseFormat ?? 'paragraph',
+  )
   const chatAbortRef = useRef<AbortController | null>(null)
   const ingestAbortRef = useRef<AbortController | null>(null)
   const sourceAbortRef = useRef<AbortController | null>(null)
@@ -195,9 +330,24 @@ export function ChatPage() {
       messages,
       citations,
       confidence,
+      responseLanguage,
+      responseTone,
+      responseLength,
+      responseFormat,
+      followUpSuggestions,
     }
     sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(snapshot))
-  }, [conversationId, messages, citations, confidence])
+  }, [
+    conversationId,
+    messages,
+    citations,
+    confidence,
+    responseLanguage,
+    responseTone,
+    responseLength,
+    responseFormat,
+    followUpSuggestions,
+  ])
 
   useEffect(() => {
     return () => {
@@ -224,6 +374,21 @@ export function ChatPage() {
     }
   }, [status])
 
+  const loadSources = useCallback(async () => {
+    setIsSourcesLoading(true)
+    try {
+      const sourceItems = await apiClient.listSources()
+      setSources(sourceItems)
+      if (sourceItems.length > 0) {
+        setIsIngested(true)
+      }
+    } catch {
+      setSources([])
+    } finally {
+      setIsSourcesLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     let isCancelled = false
 
@@ -235,96 +400,182 @@ export function ChatPage() {
           const isFallbackMode = health.notes.some((note) =>
             /fallback|no openai api key/i.test(note),
           )
+          const hasIndexedSources = health.isIngested || health.recordCount > 0
           setIsOfflineMode(isFallbackMode)
-          setIsIngested(health.isIngested)
+          setIsIngested(hasIndexedSources)
+
+          let statusTone: StatusMessage['tone'] = isFallbackMode ? 'warning' : 'success'
+          let statusMessage = `${health.service} is running. ${health.notes[0] ?? ''}`.trim()
+
+          try {
+            const updateAlert = await apiClient.getSourceUpdateAlert()
+            if (!isCancelled && updateAlert.requiresReingestReview) {
+              statusTone = 'warning'
+              statusMessage = `${health.service} is running. ${updateAlert.message}`
+            }
+          } catch {
+            // Update alerts can be permission-gated; do not treat this as backend health failure.
+          }
+
           setStatus({
-            tone: isFallbackMode ? 'warning' : 'success',
-            message: `${health.service} is running. ${health.notes[0] ?? ''}`.trim(),
+            tone: statusTone,
+            message: statusMessage,
           })
         }
       } catch (error) {
         if (!isCancelled) {
-          if (error instanceof Error && error.message === 'Failed to fetch') {
-            setStatus({
-              tone: 'info',
-              message: 'Backend health check failed: Failed to fetch. Retrying in 5s…',
-            })
+          setStatus(buildHealthFailureStatus(error))
+
+          if (shouldRetryHealthCheck(error)) {
             setTimeout(() => {
-              if (!isCancelled) void loadHealth()
+              if (!isCancelled) {
+                void loadHealth()
+              }
             }, 5000)
-          } else {
-            setStatus({
-              tone: 'warning',
-              message:
-                error instanceof Error
-                  ? `Backend health check failed: ${error.message}`
-                  : 'Backend health check failed.',
-            })
           }
         }
       }
     }
 
-    void loadHealth()
+    const initialLoadTimer = globalThis.setTimeout(() => {
+      void loadHealth()
+      void loadSources()
+    }, 0)
 
     return () => {
       isCancelled = true
+      globalThis.clearTimeout(initialLoadTimer)
     }
-  }, [])
+  }, [loadSources])
 
-  const handleIngest = useCallback(async (file?: File) => {
-    ingestAbortRef.current?.abort()
-    const abortController = new AbortController()
-    ingestAbortRef.current = abortController
-
-    setIsIngesting(true)
-    setHasIngestToRetry(true)
-    setLastIngestFile(file)
-    setStatus({
-      tone: 'info',
-      message: file ? `Uploading "${file.name}"…` : 'Calling the ingest endpoint…',
-    })
+  const loadOperatorAudit = useCallback(async () => {
+    setIsAuditLoading(true)
+    setAuditError(null)
 
     try {
-      const initialResponse = await submitIngestRequest(file, abortController.signal)
-      let response = initialResponse
-      if (initialResponse.jobId && initialResponse.jobStatusUrl) {
-        setStatus({
-          tone: 'info',
-          message: `${initialResponse.message} Waiting for the job to finish…`,
-        })
-        response = await waitForIngestJobCompletion(initialResponse.jobId, abortController.signal)
-      }
-
-      setIsIngested(true)
-      setHasIngestToRetry(false)
-      setLastIngestFile(undefined)
-      setStatus({
-        tone: response.isPlaceholder ? 'warning' : 'success',
-        message: `${response.message} Vector store: ${response.vectorStorePath}`,
+      const dashboard = await apiClient.getOperatorAuditDashboard({
+        feedbackType: auditFeedbackFilter || undefined,
+        lookbackHours: 24 * 7,
       })
+      setAuditDashboard(dashboard)
     } catch (error) {
-      if (isRequestCancelledError(error)) {
-        setStatus({ tone: 'info', message: 'Ingest request cancelled.' })
-        return
-      }
-
-      if (error instanceof Error && error.message.includes('already been ingested')) {
-        setIsIngested(true)
-        setStatus({ tone: 'success', message: 'Knowledge base is already ingested.' })
-      } else {
-        setStatus({
-          tone: 'error',
-          message: error instanceof Error ? error.message : 'Ingest request failed.',
-        })
-      }
+      setAuditDashboard(null)
+      setAuditError(error instanceof Error ? error.message : 'Failed to load operator audit data.')
     } finally {
-      setIsIngesting(false)
-      if (ingestAbortRef.current === abortController) {
-        ingestAbortRef.current = null
-      }
+      setIsAuditLoading(false)
+    }
+  }, [auditFeedbackFilter])
+
+  useEffect(() => {
+    const timer = globalThis.setTimeout(() => {
+      void loadOperatorAudit()
+    }, 0)
+
+    return () => {
+      globalThis.clearTimeout(timer)
+    }
+  }, [loadOperatorAudit])
+
+  const loadRetrievalBenchmarks = useCallback(async () => {
+    setIsBenchmarkLoading(true)
+    setBenchmarkError(null)
+    try {
+      const dashboard = await apiClient.getRetrievalBenchmarkDashboard(20)
+      setBenchmarkDashboard(dashboard)
+    } catch (error) {
+      setBenchmarkDashboard(null)
+      setBenchmarkError(
+        error instanceof Error ? error.message : 'Failed to load retrieval benchmarks.',
+      )
+    } finally {
+      setIsBenchmarkLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const timer = globalThis.setTimeout(() => {
+      void loadRetrievalBenchmarks()
+    }, 0)
+
+    return () => {
+      globalThis.clearTimeout(timer)
+    }
+  }, [loadRetrievalBenchmarks])
+
+  const handleRunRetrievalBenchmark = useCallback(async () => {
+    setIsBenchmarkLoading(true)
+    setBenchmarkError(null)
+    try {
+      await apiClient.runRetrievalBenchmark()
+      await loadRetrievalBenchmarks()
+      setStatus({ tone: 'success', message: 'Retrieval benchmark run completed.' })
+    } catch (error) {
+      setBenchmarkError(
+        error instanceof Error ? error.message : 'Failed to run retrieval benchmark.',
+      )
+    } finally {
+      setIsBenchmarkLoading(false)
+    }
+  }, [loadRetrievalBenchmarks])
+
+  const handleIngest = useCallback(
+    async (file?: File) => {
+      ingestAbortRef.current?.abort()
+      const abortController = new AbortController()
+      ingestAbortRef.current = abortController
+
+      setIsIngesting(true)
+      setHasIngestToRetry(true)
+      setLastIngestFile(file)
+      setStatus({
+        tone: 'info',
+        message: file ? `Uploading "${file.name}"…` : 'Calling the ingest endpoint…',
+      })
+
+      try {
+        const initialResponse = await submitIngestRequest(file, abortController.signal)
+        let response = initialResponse
+        if (initialResponse.jobId && initialResponse.jobStatusUrl) {
+          setStatus({
+            tone: 'info',
+            message: `${initialResponse.message} Waiting for the job to finish…`,
+          })
+          response = await waitForIngestJobCompletion(initialResponse.jobId, abortController.signal)
+        }
+
+        setIsIngested(true)
+        setHasIngestToRetry(false)
+        setLastIngestFile(undefined)
+        void loadSources()
+        setStatus({
+          tone: response.isPlaceholder ? 'warning' : 'success',
+          message: `${response.message} Vector store: ${response.vectorStorePath}`,
+        })
+      } catch (error) {
+        if (isRequestCancelledError(error)) {
+          setStatus({ tone: 'info', message: 'Ingest request cancelled.' })
+          return
+        }
+
+        if (error instanceof Error && error.message.includes('already been ingested')) {
+          setIsIngested(true)
+          void loadSources()
+          setStatus({ tone: 'success', message: 'Knowledge base is already ingested.' })
+        } else {
+          setStatus({
+            tone: 'error',
+            message: error instanceof Error ? error.message : 'Ingest request failed.',
+          })
+        }
+      } finally {
+        setIsIngesting(false)
+        if (ingestAbortRef.current === abortController) {
+          ingestAbortRef.current = null
+        }
+      }
+    },
+    [loadSources],
+  )
 
   const submitChat = useCallback(
     async (messageText: string, clearDraft: boolean) => {
@@ -340,7 +591,10 @@ export function ChatPage() {
       setMessages(nextMessages)
       setSelectedCitation(null)
       setSourceDocument(null)
+      setSourceComparison(null)
+      setSourceQuality(null)
       setSourceDocumentError(null)
+      setSourceQualityError(null)
       if (clearDraft) {
         setDraft('')
       }
@@ -353,6 +607,10 @@ export function ChatPage() {
 
         const payload = ChatRequestSchema.parse({
           conversationId,
+          responseLanguage,
+          responseTone,
+          responseLength,
+          responseFormat,
           messages: historyWindow.map((message) => ({
             role: message.role,
             content: message.content,
@@ -385,6 +643,7 @@ export function ChatPage() {
         setLastFailedDraft(null)
         setCitations(response.citations)
         setConfidence(response.confidence ?? null)
+        setFollowUpSuggestions(response.structuredOutput?.followUpSuggestions ?? [])
         setStatus({
           tone: response.isPlaceholder ? 'warning' : 'success',
           message: `Chat response received with status '${response.status}'.`,
@@ -403,6 +662,7 @@ export function ChatPage() {
           tone: 'error',
           message: error instanceof Error ? error.message : 'Chat request failed.',
         })
+        setFollowUpSuggestions([])
       } finally {
         setIsSending(false)
         if (chatAbortRef.current === abortController) {
@@ -410,7 +670,7 @@ export function ChatPage() {
         }
       }
     },
-    [conversationId, messages],
+    [conversationId, messages, responseFormat, responseLanguage, responseLength, responseTone],
   )
 
   const handleSend = useCallback(async () => {
@@ -429,6 +689,25 @@ export function ChatPage() {
   const handleDismissStatus = useCallback(() => {
     setStatus({ tone: 'info', message: '' })
   }, [])
+
+  const handleRemoveSource = useCallback(
+    async (source: string) => {
+      setSourceBeingRemoved(source)
+      try {
+        const result = await apiClient.deleteSource(source)
+        await loadSources()
+        setStatus({ tone: 'success', message: result.message })
+      } catch (error) {
+        setStatus({
+          tone: 'error',
+          message: error instanceof Error ? error.message : 'Failed to remove source.',
+        })
+      } finally {
+        setSourceBeingRemoved(null)
+      }
+    },
+    [loadSources],
+  )
 
   const handleRetryChat = useCallback(async () => {
     if (!lastFailedDraft || isSending) {
@@ -459,6 +738,8 @@ export function ChatPage() {
           comment,
         })
 
+        void loadOperatorAudit()
+
         setStatus({
           tone: 'success',
           message: 'Feedback submitted. Thank you.',
@@ -470,7 +751,7 @@ export function ChatPage() {
         })
       }
     },
-    [conversationId],
+    [conversationId, loadOperatorAudit],
   )
 
   const handleSelectCitation = useCallback(async (citation: Citation) => {
@@ -479,7 +760,10 @@ export function ChatPage() {
     const source = citation.source.trim()
     if (!source) {
       setSourceDocument(null)
+      setSourceComparison(null)
+      setSourceQuality(null)
       setSourceDocumentError('The selected citation does not include a source name.')
+      setSourceQualityError(null)
       return
     }
 
@@ -488,7 +772,6 @@ export function ChatPage() {
     if (cachedDocument) {
       setSourceDocument(cachedDocument)
       setSourceDocumentError(null)
-      return
     }
 
     sourceAbortRef.current?.abort()
@@ -496,26 +779,43 @@ export function ChatPage() {
     sourceAbortRef.current = abortController
 
     setIsSourceDocumentLoading(true)
+    setIsSourceQualityLoading(true)
     setSourceDocumentError(null)
+    setSourceQualityError(null)
 
     try {
-      const document = await apiClient.getSourceDocument(
-        source,
-        citation.knowledgeBaseId,
-        abortController.signal,
-      )
+      const [document, comparison, quality] = await Promise.all([
+        cachedDocument
+          ? Promise.resolve(cachedDocument)
+          : apiClient.getSourceDocument(source, citation.knowledgeBaseId, abortController.signal),
+        apiClient.getSourceComparison(
+          source,
+          citation.knowledgeBaseId,
+          citation.chunkId,
+          abortController.signal,
+        ),
+        apiClient.getSourceQuality(source, citation.knowledgeBaseId, abortController.signal),
+      ])
 
-      sourceDocumentCacheRef.current.set(cacheKey, document)
+      if (!cachedDocument) {
+        sourceDocumentCacheRef.current.set(cacheKey, document)
+      }
+
       setSourceDocument(document)
+      setSourceComparison(comparison)
+      setSourceQuality(quality)
     } catch (error) {
       if (!isRequestCancelledError(error)) {
         setSourceDocument(null)
-        setSourceDocumentError(
-          error instanceof Error ? error.message : 'Failed to load source document.',
-        )
+        setSourceComparison(null)
+        setSourceQuality(null)
+        const message = error instanceof Error ? error.message : 'Failed to load source data.'
+        setSourceDocumentError(message)
+        setSourceQualityError(message)
       }
     } finally {
       setIsSourceDocumentLoading(false)
+      setIsSourceQualityLoading(false)
       if (sourceAbortRef.current === abortController) {
         sourceAbortRef.current = null
       }
@@ -529,26 +829,123 @@ export function ChatPage() {
     setMessages([])
     setCitations([])
     setConfidence(null)
+    setFollowUpSuggestions([])
     setSelectedCitation(null)
     setSourceDocument(null)
+    setSourceComparison(null)
+    setSourceQuality(null)
     setSourceDocumentError(null)
+    setSourceQualityError(null)
     setDraft('')
     setLastFailedDraft(null)
+    setResponseLanguage('en')
+    setResponseTone('neutral')
+    setResponseLength('medium')
+    setResponseFormat('paragraph')
     setStatus({ tone: 'success', message: 'Started a new conversation.' })
   }, [])
 
-  const badge = isOfflineMode ? 'Offline Mode' : 'GPT-4o-mini'
+  const handleOpenSourcesManager = useCallback(() => {
+    setIsSourcesManagerOpen(true)
+  }, [])
+
+  const handleOpenChat = useCallback(() => {
+    setIsSourcesManagerOpen(false)
+  }, [])
+
+  const handleExportConversation = useCallback(() => {
+    if (messages.length === 0) {
+      setStatus({ tone: 'warning', message: 'No transcript is available to export yet.' })
+      return
+    }
+
+    const exportText = buildConversationExport(conversationId, messages, citations)
+    const blob = new Blob([exportText], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `conversation-${conversationId}.md`
+    anchor.click()
+    URL.revokeObjectURL(url)
+
+    setStatus({ tone: 'success', message: 'Conversation export downloaded.' })
+  }, [citations, conversationId, messages])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isTypingTarget =
+        target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+
+      if (event.key === '?' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault()
+        setIsShortcutMapOpen(true)
+        return
+      }
+
+      if (event.key === 'Escape' && isShortcutMapOpen) {
+        event.preventDefault()
+        setIsShortcutMapOpen(false)
+        return
+      }
+
+      if (isTypingTarget) {
+        return
+      }
+
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault()
+        const input = document.getElementById('chat-input') as HTMLTextAreaElement | null
+        input?.focus()
+        return
+      }
+
+      if (event.altKey && (event.key === 'n' || event.key === 'N')) {
+        event.preventDefault()
+        handleNewChat()
+        return
+      }
+
+      if (event.altKey && (event.key === 'e' || event.key === 'E')) {
+        event.preventDefault()
+        handleExportConversation()
+      }
+    }
+
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => globalThis.removeEventListener('keydown', onKeyDown)
+  }, [handleExportConversation, handleNewChat, isShortcutMapOpen])
+
+  const badge = isOfflineMode ? 'Offline Mode' : 'GPT-5.4-mini'
   const badgeClassName = isOfflineMode ? 'app-header-badge--offline' : undefined
 
-  if (!isIngested) {
+  if (!isIngested || isSourcesManagerOpen) {
     return (
       <main className="app-shell app-shell--setup">
         <div className="setup-layout">
-          <AppHeader badge={badge} badgeClassName={badgeClassName} />
+          <AppHeader
+            badge={badge}
+            badgeClassName={badgeClassName}
+            onNewChat={isIngested ? handleOpenChat : undefined}
+          />
           {status.message && (
             <StatusBanner ref={statusBannerRef} status={status} onDismiss={handleDismissStatus} />
           )}
-          <IngestPanel onIngest={handleIngest} isBusy={isIngesting || isIngested === null} />
+          <SourcesManagerPage
+            sources={sources}
+            isLoadingSources={isSourcesLoading}
+            sourceBeingRemoved={sourceBeingRemoved}
+            isIngesting={isIngesting || isIngested === null}
+            onIngest={handleIngest}
+            onRefresh={() => {
+              void loadSources()
+            }}
+            onRemove={(source) => {
+              void handleRemoveSource(source)
+            }}
+            canOpenChat={isIngested === true}
+            onOpenChat={handleOpenChat}
+          />
           {hasIngestToRetry && !isIngesting && (
             <button type="button" className="page-action-btn" onClick={handleRetryIngest}>
               Retry ingest
@@ -566,17 +963,58 @@ export function ChatPage() {
         {status.message && (
           <StatusBanner ref={statusBannerRef} status={status} onDismiss={handleDismissStatus} />
         )}
+        <div className="page-action-row">
+          <button type="button" className="page-action-btn" onClick={handleOpenSourcesManager}>
+            Manage sources
+          </button>
+        </div>
         <ChatTranscript
           messages={messages}
           isSending={isSending}
           onPromptSelect={handlePromptSelect}
           onFeedbackSubmit={handleSubmitFeedback}
         />
-        <ChatComposer value={draft} onChange={setDraft} onSubmit={handleSend} isBusy={isSending} />
+        <ChatComposer
+          value={draft}
+          onChange={setDraft}
+          onSubmit={handleSend}
+          isBusy={isSending}
+          responseLanguage={responseLanguage}
+          onResponseLanguageChange={setResponseLanguage}
+          responseTone={responseTone}
+          onResponseToneChange={setResponseTone}
+          responseLength={responseLength}
+          onResponseLengthChange={setResponseLength}
+          responseFormat={responseFormat}
+          onResponseFormatChange={setResponseFormat}
+        />
+        {followUpSuggestions.length > 0 && (
+          <div className="page-action-row">
+            <SuggestedPrompts
+              onSelect={handlePromptSelect}
+              prompts={followUpSuggestions}
+              label="Suggested follow-up questions"
+            />
+          </div>
+        )}
         {lastFailedDraft && (
           <div className="page-action-row">
             <button type="button" className="page-action-btn" onClick={handleRetryChat}>
               Retry last failed message
+            </button>
+          </div>
+        )}
+        {messages.length > 0 && (
+          <div className="page-action-row">
+            <button type="button" className="page-action-btn" onClick={handleExportConversation}>
+              Export conversation
+            </button>
+            <button
+              type="button"
+              className="page-action-btn"
+              onClick={() => setIsShortcutMapOpen(true)}
+            >
+              Keyboard shortcuts
             </button>
           </div>
         )}
@@ -591,11 +1029,37 @@ export function ChatPage() {
         />
         <SourceDocumentViewer
           document={sourceDocument}
+          comparison={sourceComparison}
           activeCitation={selectedCitation}
           isLoading={isSourceDocumentLoading}
           errorMessage={sourceDocumentError}
         />
+        <SourceQualityInspector
+          report={sourceQuality}
+          isLoading={isSourceQualityLoading}
+          errorMessage={sourceQualityError}
+        />
+        <OperatorAuditPanel
+          dashboard={auditDashboard}
+          isLoading={isAuditLoading}
+          errorMessage={auditError}
+          feedbackFilter={auditFeedbackFilter}
+          onFeedbackFilterChange={setAuditFeedbackFilter}
+          onRefresh={() => {
+            void loadOperatorAudit()
+          }}
+        />
+        <RetrievalBenchmarkPanel
+          dashboard={benchmarkDashboard}
+          isLoading={isBenchmarkLoading}
+          errorMessage={benchmarkError}
+          onRun={() => {
+            void handleRunRetrievalBenchmark()
+          }}
+        />
       </aside>
+
+      {isShortcutMapOpen && <KeyboardShortcutMap onClose={() => setIsShortcutMapOpen(false)} />}
     </main>
   )
 }

@@ -164,7 +164,9 @@ public sealed class OpenAIRetrievalChatService(
                     promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                     completionText: string.Empty,
                     source: "circuit_breaker",
-                    isExternalCost: false));
+                    isExternalCost: false),
+                userRole: request.UserRole,
+                responseLanguage: request.ResponseLanguage);
         }
     }
 
@@ -186,21 +188,23 @@ public sealed class OpenAIRetrievalChatService(
             retrievalQuery.Length);
 
         var queryEmbedding = await _dependencies.EmbeddingService.EmbedAsync(retrievalQuery, ct);
-        var candidateTopK = _enableReranking ? _retrievalTopK * _rerankCandidateMultiplier : _retrievalTopK;
+        var effectiveTopK = ResolveEffectiveTopK(request, retrievalQuery);
+        var candidateTopK = _enableReranking ? effectiveTopK * _rerankCandidateMultiplier : effectiveTopK;
         var rawMatches = await _dependencies.VectorStoreService.SearchAsync(
             queryEmbedding,
             topK: candidateTopK,
             KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
             ct);
         var scoredMatches = _enableReranking
-            ? _dependencies.Reranker.Rerank(retrievalQuery, rawMatches, _retrievalTopK)
-            : rawMatches.Take(_retrievalTopK).ToList();
+            ? _dependencies.Reranker.Rerank(retrievalQuery, rawMatches, effectiveTopK)
+            : rawMatches.Take(effectiveTopK).ToList();
         var matches = FilterMatches(scoredMatches);
 
         _dependencies.Logger.LogInformation(
-            "RAG retrieval completed. KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
+            "RAG retrieval completed. KnowledgeBaseId={KnowledgeBaseId}, BaseTopK={BaseTopK}, EffectiveTopK={EffectiveTopK}, Threshold={Threshold}, RawCount={RawCount}, FilteredCount={FilteredCount}, Scores={Scores}",
             knowledgeBaseId,
             _retrievalTopK,
+            effectiveTopK,
             _minSimilarityScore,
             rawMatches.Count,
             matches.Count,
@@ -296,9 +300,30 @@ public sealed class OpenAIRetrievalChatService(
     private IReadOnlyList<VectorSearchMatch> FilterMatches(IReadOnlyList<VectorSearchMatch> matches) =>
         matches.Where(m => m.Score >= _minSimilarityScore).ToList();
 
+    private int ResolveEffectiveTopK(ChatRequest request, string retrievalQuery)
+    {
+        var userTurnCount = request.Messages.Count(message =>
+            string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase));
+
+        var complexityBoost = 0;
+        if (retrievalQuery.Length >= 160)
+        {
+            complexityBoost += 1;
+        }
+
+        if (userTurnCount >= 3)
+        {
+            complexityBoost += 1;
+        }
+
+        return Math.Clamp(_retrievalTopK + complexityBoost, 1, _retrievalTopK + 2);
+    }
+
     private static List<ChatMessage> BuildChatMessages(ChatRequest request, IEnumerable<VectorSearchMatch> matches)
     {
         var contextText = string.Join("\n\n", matches.Select(m => $"Source: {m.Record.Source}\nContent: {m.Record.ChunkText}"));
+        var responseLanguage = NormalizeResponseLanguage(request.ResponseLanguage);
+        var styleInstruction = BuildStyleInstruction(request);
         var roleInstruction = request.UserRole switch
         {
             "manager" => "User role is manager. Emphasize policy rationale, compliance implications, and escalation paths.",
@@ -306,6 +331,9 @@ public sealed class OpenAIRetrievalChatService(
             "cashier" => "User role is cashier. Emphasize practical counter-level steps and immediate actions.",
             _ => ""
         };
+        var languageInstruction = responseLanguage == "en"
+            ? "Respond in English."
+            : $"Respond in {responseLanguage}. Preserve source names, citation snippets, and identifiers exactly as provided in the SOP context.";
         var messages = new List<ChatMessage>
         {
             ChatMessage.CreateSystemMessage($"""
@@ -313,6 +341,9 @@ public sealed class OpenAIRetrievalChatService(
                 Answer the user's questions based ONLY on the provided SOP context.
                 If you don't know the answer, say you don't know based on the SOP.
                 Always provide helpful and concise answers.
+                The user may ask in any language, and the SOP context may be in a different language.
+                {languageInstruction}
+                {styleInstruction}
 
                 {roleInstruction}
 
@@ -330,6 +361,42 @@ public sealed class OpenAIRetrievalChatService(
         }
 
         return messages;
+    }
+
+    private static string NormalizeResponseLanguage(string? responseLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(responseLanguage))
+        {
+            return "en";
+        }
+
+        return responseLanguage.Trim();
+    }
+
+    private static string BuildStyleInstruction(ChatRequest request)
+    {
+        var toneInstruction = request.ResponseTone switch
+        {
+            "formal" => "Use a formal and policy-oriented tone.",
+            "friendly" => "Use a friendly and approachable tone.",
+            _ => "Use a neutral professional tone."
+        };
+
+        var lengthInstruction = request.ResponseLength switch
+        {
+            "short" => "Keep the answer short (about 2-4 sentences).",
+            "long" => "Provide an extended answer with clear detail and rationale.",
+            _ => "Use a medium-length answer with concise detail."
+        };
+
+        var formatInstruction = request.ResponseFormat switch
+        {
+            "bullets" => "Format the answer as bullet points.",
+            "checklist" => "Format the answer as a checklist with actionable items.",
+            _ => "Format the answer as a paragraph unless list formatting is clearly better."
+        };
+
+        return $"{toneInstruction} {lengthInstruction} {formatInstruction}";
     }
 
     private static List<ChatTool> BuildToolDefinitions() =>
@@ -455,7 +522,9 @@ public sealed class OpenAIRetrievalChatService(
                 completionText: string.Empty,
                 embeddingText: retrievalQuery,
                 source: OpenAiMode,
-                isExternalCost: true));
+                isExternalCost: true),
+            userRole: request.UserRole,
+            responseLanguage: request.ResponseLanguage);
 
     private ChatResponse BuildGuardrailResponse(ChatRequest request, GuardrailDecision decision, OpenAIUsageTracker usageTracker)
     {
@@ -472,7 +541,9 @@ public sealed class OpenAIRetrievalChatService(
                 promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                 completionText: decision.EscalationMessage,
                 source: "guardrail",
-                isExternalCost: false));
+                isExternalCost: false),
+            userRole: request.UserRole,
+            responseLanguage: request.ResponseLanguage);
     }
 
     private static ChatResponse BuildChatResponse(
@@ -493,7 +564,9 @@ public sealed class OpenAIRetrievalChatService(
             isPlaceholder: false,
             assistantMessage: assistantMessage,
             matches: matchList,
-            usage: usageTracker.BuildFromSdkOrEstimate(chatCompletion, model, promptText, assistantMessage, retrievalQuery));
+            usage: usageTracker.BuildFromSdkOrEstimate(chatCompletion, model, promptText, assistantMessage, retrievalQuery),
+            userRole: request.UserRole,
+            responseLanguage: request.ResponseLanguage);
     }
 
     private static string BuildTelemetryPromptText(ChatRequest request, IReadOnlyList<VectorSearchMatch> matches)

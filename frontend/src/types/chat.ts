@@ -15,6 +15,10 @@ import type {
 } from '../generated/api-types'
 
 export type ChatRole = 'user' | 'assistant' | 'system' | 'tool'
+export type ResponseLanguage = 'en' | 'es' | 'pt-BR' | 'fr'
+export type ResponseTone = 'neutral' | 'formal' | 'friendly'
+export type ResponseLength = 'short' | 'medium' | 'long'
+export type ResponseFormat = 'paragraph' | 'bullets' | 'checklist'
 
 export type StatusTone = 'info' | 'success' | 'warning' | 'error'
 
@@ -49,6 +53,10 @@ export interface ChatRequest {
   conversationId: string
   knowledgeBaseId?: string
   userRole?: 'cashier' | 'manager' | 'department_lead'
+  responseLanguage?: ResponseLanguage
+  responseTone?: ResponseTone
+  responseLength?: ResponseLength
+  responseFormat?: ResponseFormat
   messages: ChatApiMessage[]
 }
 
@@ -148,6 +156,117 @@ export interface SourceDocumentResponse {
   knowledgeBaseId: string
   documentVersion?: string
   chunks: SourceDocumentChunk[]
+}
+
+export interface SourceUpdateAlertResponse {
+  knowledgeBaseId: string
+  requiresReingestReview: boolean
+  currentSourceChecksum?: string
+  ingestedSourceChecksum?: string
+  detectedAtUtc: string
+  message: string
+}
+
+export interface SourceComparisonChunk {
+  index?: number
+  sectionTitle: string
+  startLine?: number
+  endLine?: number
+  ingestedChunkId?: string
+  currentChunkId?: string
+  changeType: 'unchanged' | 'modified' | 'added' | 'removed'
+  isImpactedCitation: boolean
+  ingestedContent?: string
+  currentContent?: string
+}
+
+export interface SourceComparisonResponse {
+  source: string
+  knowledgeBaseId: string
+  ingestedDocumentVersion?: string
+  currentDocumentVersion: string
+  changedChunkCount: number
+  totalComparedChunks: number
+  chunks: SourceComparisonChunk[]
+}
+
+export interface SourceQualityOutlier {
+  chunkId: string
+  sectionTitle: string
+  characterCount: number
+  startLine?: number
+  endLine?: number
+}
+
+export interface SourceQualityReportResponse {
+  source: string
+  knowledgeBaseId: string
+  totalChunks: number
+  duplicateSectionCount: number
+  weakExtractionZoneCount: number
+  shortestChunks: SourceQualityOutlier[]
+  longestChunks: SourceQualityOutlier[]
+}
+
+export interface SourceListItem {
+  source: string
+  knowledgeBaseId: string
+  chunkCount: number
+  documentVersion?: string
+  sourceChecksum?: string
+  ingestedAtUtc?: string
+}
+
+export interface SourceDeleteResponse {
+  source: string
+  knowledgeBaseId: string
+  removedChunks: number
+  message: string
+}
+
+export type OperatorAuditSeverity = 'info' | 'warning' | 'error'
+
+export interface OperatorAuditEntry {
+  timestampUtc: string
+  type: string
+  severity: OperatorAuditSeverity
+  conversationId: string
+  messageId: string
+  feedbackType: string
+  comment?: string
+  action: string
+  outcome: string
+  knowledgeBaseId: string
+  sourceName: string
+  safeSummary?: string
+}
+
+export interface OperatorAuditDashboardResponse {
+  generatedAtUtc: string
+  fromUtc: string
+  toUtc: string
+  knowledgeBaseId?: string
+  feedbackTypeFilter?: string
+  feedbackCount: number
+  lowConfidenceSignalCount: number
+  failedIngestCount: number
+  feedback: OperatorAuditEntry[]
+  lowConfidenceSignals: OperatorAuditEntry[]
+  failedIngests: OperatorAuditEntry[]
+}
+
+export interface RetrievalBenchmarkEntry {
+  runId: string
+  timestampUtc: string
+  commit: string
+  fixtureCount: number
+  precision: number
+  recall: number
+}
+
+export interface RetrievalBenchmarkDashboardResponse {
+  generatedAtUtc: string
+  entries: RetrievalBenchmarkEntry[]
 }
 
 export interface HealthResponse {

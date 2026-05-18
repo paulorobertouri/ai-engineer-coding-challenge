@@ -19,4 +19,6 @@ public sealed class IngestJobStatusResponse
     public IngestResponse? Result { get; init; }
 
     public string? ErrorMessage { get; init; }
+
+    public int Priority { get; init; }
 }

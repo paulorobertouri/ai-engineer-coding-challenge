@@ -24,6 +24,12 @@ public sealed class FallbackRetrievalChatService(
     private readonly bool _enableQueryRewriting = options.Value.EnableQueryRewriting;
     private const string NoRelevantContextMessage =
         "I could not find enough relevant information in the SOP to answer that question.";
+    private const string NoRelevantContextMessageEs =
+        "No encontre suficiente informacion relevante en el SOP para responder esa pregunta.";
+    private const string NoRelevantContextMessagePtBr =
+        "Nao encontrei informacao relevante suficiente no SOP para responder essa pergunta.";
+    private const string NoRelevantContextMessageFr =
+        "Je n'ai pas trouve assez d'informations pertinentes dans le SOP pour repondre a cette question.";
 
     public async Task<ChatResponse> GenerateResponseAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
@@ -67,15 +73,16 @@ public sealed class FallbackRetrievalChatService(
             queryText.Length);
 
         var queryEmbedding = await embeddingService.EmbedAsync(queryText, cancellationToken);
-        var candidateTopK = _enableReranking ? _retrievalTopK * _rerankCandidateMultiplier : _retrievalTopK;
+        var effectiveTopK = ResolveEffectiveTopK(request, queryText);
+        var candidateTopK = _enableReranking ? effectiveTopK * _rerankCandidateMultiplier : effectiveTopK;
         var rawMatches = await vectorStoreService.SearchAsync(
             queryEmbedding,
             topK: candidateTopK,
             KnowledgeBaseScope.BuildMetadataFilter(knowledgeBaseId),
             cancellationToken);
         var scoredMatches = _enableReranking
-            ? reranker.Rerank(queryText, rawMatches, _retrievalTopK)
-            : rawMatches.Take(_retrievalTopK).ToList();
+            ? reranker.Rerank(queryText, rawMatches, effectiveTopK)
+            : rawMatches.Take(effectiveTopK).ToList();
         var matches = scoredMatches.Where(m => m.Score >= _minSimilarityScore).ToList();
 
         if (rawMatches.Count == 0)
@@ -85,18 +92,25 @@ public sealed class FallbackRetrievalChatService(
                 request.ConversationId);
         }
 
-        var answer = BuildContextualAnswer(matches, request.UserRole);
+        var answer = BuildContextualAnswer(
+            matches,
+            request.UserRole,
+            request.ResponseLanguage,
+            request.ResponseTone,
+            request.ResponseLength,
+            request.ResponseFormat);
         stopwatch.Stop();
         AppTelemetry.ChatLatencyMs.Record(stopwatch.Elapsed.TotalMilliseconds);
         activity?.SetTag("chat.total_ms", stopwatch.Elapsed.TotalMilliseconds);
         activity?.SetTag("chat.citation_count", matches.Count);
 
         logger.LogInformation(
-            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, TopK={TopK}, Threshold={Threshold}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
+            "Fallback chat response generated. ConversationId={ConversationId}, Mode={Mode}, KnowledgeBaseId={KnowledgeBaseId}, BaseTopK={BaseTopK}, EffectiveTopK={EffectiveTopK}, Threshold={Threshold}, RerankingEnabled={RerankingEnabled}, Reranker={Reranker}, RetrievedChunkIds={ChunkIds}, RetrievedScores={Scores}, TotalLatencyMs={TotalLatencyMs}",
             request.ConversationId,
             "fallback",
             knowledgeBaseId,
             _retrievalTopK,
+            effectiveTopK,
             _minSimilarityScore,
             _enableReranking,
             reranker.Name,
@@ -117,6 +131,8 @@ public sealed class FallbackRetrievalChatService(
                 embeddingText: queryText,
                 source: "fallback",
                 isExternalCost: false),
+            userRole: request.UserRole,
+            responseLanguage: request.ResponseLanguage,
             notFoundReason: matches.Count == 0 ? StructuredAnswerDto.NotFoundReason : null);
     }
 
@@ -135,27 +151,131 @@ public sealed class FallbackRetrievalChatService(
                 promptText: string.Join("\n", request.Messages.Select(m => $"{m.Role}: {m.Content}")),
                 completionText: decision.EscalationMessage,
                 source: "guardrail",
-                isExternalCost: false));
+                isExternalCost: false),
+            userRole: request.UserRole,
+            responseLanguage: request.ResponseLanguage);
     }
 
-    private static string BuildContextualAnswer(IReadOnlyList<VectorSearchMatch> matches, string? userRole)
+    private static string BuildContextualAnswer(
+        IReadOnlyList<VectorSearchMatch> matches,
+        string? userRole,
+        string? responseLanguage,
+        string? responseTone,
+        string? responseLength,
+        string? responseFormat)
     {
+        var language = NormalizeResponseLanguage(responseLanguage);
+
         if (matches.Count == 0)
         {
-            return NoRelevantContextMessage;
+            return GetNoContextMessage(language);
         }
 
         var best = matches[0].Record.ChunkText;
-        var snippet = best.Length > 500 ? best[..500] + "..." : best;
-
-        var rolePrefix = userRole switch
+        var maxLength = responseLength switch
         {
-            "manager" => "Manager view: ",
-            "department_lead" => "Department lead view: ",
-            "cashier" => "Cashier view: ",
+            "short" => 220,
+            "long" => 900,
+            _ => 500
+        };
+        var snippet = best.Length > maxLength ? best[..maxLength] + "..." : best;
+
+        var rolePrefix = (userRole, language) switch
+        {
+            ("manager", "es") => "Vista de gerente: ",
+            ("department_lead", "es") => "Vista de lider de departamento: ",
+            ("cashier", "es") => "Vista de cajero: ",
+            ("manager", "pt-BR") => "Visao do gerente: ",
+            ("department_lead", "pt-BR") => "Visao do lider de departamento: ",
+            ("cashier", "pt-BR") => "Visao de caixa: ",
+            ("manager", "fr") => "Vue manager: ",
+            ("department_lead", "fr") => "Vue chef de departement: ",
+            ("cashier", "fr") => "Vue caissier: ",
+            ("manager", _) => "Manager view: ",
+            ("department_lead", _) => "Department lead view: ",
+            ("cashier", _) => "Cashier view: ",
             _ => string.Empty
         };
 
-        return $"{rolePrefix}Based on the SOP, this is the most relevant guidance:\n\n{snippet}";
+        var leadIn = language switch
+        {
+            "es" => "Basado en el SOP, esta es la guia mas relevante:",
+            "pt-BR" => "Com base no SOP, esta e a orientacao mais relevante:",
+            "fr" => "D'apres le SOP, voici la consigne la plus pertinente:",
+            _ => "Based on the SOP, this is the most relevant guidance:"
+        };
+
+        var tonePrefix = responseTone switch
+        {
+            "friendly" => language switch
+            {
+                "es" => "Claro, aqui tienes una guia rapida. ",
+                "pt-BR" => "Claro, aqui vai uma orientacao rapida. ",
+                "fr" => "Bien sur, voici un guide rapide. ",
+                _ => "Sure, here is a quick guide. "
+            },
+            "formal" => language switch
+            {
+                "es" => "Conforme al SOP, ",
+                "pt-BR" => "Conforme o SOP, ",
+                "fr" => "Conformement au SOP, ",
+                _ => "According to the SOP, "
+            },
+            _ => string.Empty
+        };
+
+        var paragraphAnswer = $"{tonePrefix}{rolePrefix}{leadIn}\n\n{snippet}";
+
+        if (string.Equals(responseFormat, "bullets", StringComparison.Ordinal))
+        {
+            return $"{tonePrefix}{rolePrefix}{leadIn}\n\n- {snippet}";
+        }
+
+        if (string.Equals(responseFormat, "checklist", StringComparison.Ordinal))
+        {
+            return $"{tonePrefix}{rolePrefix}{leadIn}\n\n[ ] {snippet}";
+        }
+
+        return paragraphAnswer;
+    }
+
+    private static string NormalizeResponseLanguage(string? responseLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(responseLanguage))
+        {
+            return "en";
+        }
+
+        return responseLanguage.Trim();
+    }
+
+    private static string GetNoContextMessage(string language)
+    {
+        return language switch
+        {
+            "es" => NoRelevantContextMessageEs,
+            "pt-BR" => NoRelevantContextMessagePtBr,
+            "fr" => NoRelevantContextMessageFr,
+            _ => NoRelevantContextMessage
+        };
+    }
+
+    private int ResolveEffectiveTopK(ChatRequest request, string retrievalQuery)
+    {
+        var userTurnCount = request.Messages.Count(message =>
+            string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase));
+
+        var complexityBoost = 0;
+        if (retrievalQuery.Length >= 160)
+        {
+            complexityBoost += 1;
+        }
+
+        if (userTurnCount >= 3)
+        {
+            complexityBoost += 1;
+        }
+
+        return Math.Clamp(_retrievalTopK + complexityBoost, 1, _retrievalTopK + 2);
     }
 }

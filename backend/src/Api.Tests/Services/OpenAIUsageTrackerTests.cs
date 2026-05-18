@@ -16,7 +16,7 @@ public class OpenAIUsageTrackerTests
             [
                 new OpenAIModelPricingOptions
                 {
-                    Model = "gpt-4o-mini",
+                    Model = "gpt-5.4-mini",
                     PromptTokensPerMillionUsd = 0.15m,
                     CompletionTokensPerMillionUsd = 0.6m,
                     EmbeddingTokensPerMillionUsd = 0m
@@ -42,7 +42,7 @@ public class OpenAIUsageTrackerTests
             [
                 new OpenAIModelPricingOptions
                 {
-                    Model = "gpt-4o-mini",
+                    Model = "gpt-5.4-mini",
                     PromptTokensPerMillionUsd = 0.15m,
                     CompletionTokensPerMillionUsd = 0.6m,
                     EmbeddingTokensPerMillionUsd = 0.02m
@@ -60,7 +60,7 @@ public class OpenAIUsageTrackerTests
             }
         };
 
-        var usage = tracker.BuildFromSdkOrEstimate(fakeChatCompletion, "gpt-4o-mini", "prompt text", "completion text", "embedding text");
+        var usage = tracker.BuildFromSdkOrEstimate(fakeChatCompletion, "gpt-5.4-mini", "prompt text", "completion text", "embedding text");
 
         Assert.Equal("sdk", usage.Source);
         Assert.Equal(12, usage.PromptTokens);

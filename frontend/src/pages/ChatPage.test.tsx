@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChatPage } from './ChatPage'
 import { apiClient } from '../services/apiClient'
@@ -10,8 +10,16 @@ vi.mock('../services/apiClient', () => ({
     chatStream: vi.fn(),
     ingest: vi.fn(),
     ingestFile: vi.fn(),
+    listSources: vi.fn(),
+    deleteSource: vi.fn(),
     submitFeedback: vi.fn(),
     getSourceDocument: vi.fn(),
+    getSourceUpdateAlert: vi.fn(),
+    getSourceComparison: vi.fn(),
+    getSourceQuality: vi.fn(),
+    getOperatorAuditDashboard: vi.fn(),
+    getRetrievalBenchmarkDashboard: vi.fn(),
+    runRetrievalBenchmark: vi.fn(),
   },
 }))
 
@@ -65,25 +73,130 @@ describe('ChatPage', () => {
         },
       ],
     })
+    vi.mocked(apiClient.getSourceUpdateAlert).mockResolvedValue({
+      knowledgeBaseId: 'default',
+      requiresReingestReview: false,
+      detectedAtUtc: '2026-05-15T16:00:00Z',
+      message: 'No source update alert detected.',
+    })
+    vi.mocked(apiClient.listSources).mockResolvedValue([])
+    vi.mocked(apiClient.deleteSource).mockResolvedValue({
+      source: 'Grocery_Store_SOP.md',
+      knowledgeBaseId: 'default',
+      removedChunks: 1,
+      message: "Removed 1 chunk(s) for source 'Grocery_Store_SOP.md'.",
+    })
+    vi.mocked(apiClient.getSourceComparison).mockResolvedValue({
+      source: 'Grocery_Store_SOP.md',
+      knowledgeBaseId: 'default',
+      ingestedDocumentVersion: 'sha256:old123',
+      currentDocumentVersion: 'sha256:new123',
+      changedChunkCount: 1,
+      totalComparedChunks: 1,
+      chunks: [
+        {
+          index: 1,
+          sectionTitle: 'Store Opening',
+          changeType: 'modified',
+          isImpactedCitation: true,
+          ingestedContent: 'Open at 6:30am.',
+          currentContent: 'Open at 7:00am.',
+        },
+      ],
+    })
+    vi.mocked(apiClient.getSourceQuality).mockResolvedValue({
+      source: 'Grocery_Store_SOP.md',
+      knowledgeBaseId: 'default',
+      totalChunks: 1,
+      duplicateSectionCount: 0,
+      weakExtractionZoneCount: 0,
+      shortestChunks: [],
+      longestChunks: [],
+    })
+    vi.mocked(apiClient.getOperatorAuditDashboard).mockResolvedValue({
+      generatedAtUtc: '2026-05-15T16:00:00Z',
+      fromUtc: '2026-05-14T16:00:00Z',
+      toUtc: '2026-05-15T16:00:00Z',
+      feedbackCount: 0,
+      lowConfidenceSignalCount: 0,
+      failedIngestCount: 0,
+      feedback: [],
+      lowConfidenceSignals: [],
+      failedIngests: [],
+    })
+    vi.mocked(apiClient.getRetrievalBenchmarkDashboard).mockResolvedValue({
+      generatedAtUtc: '2026-05-15T16:00:00Z',
+      entries: [
+        {
+          runId: 'run-1',
+          timestampUtc: '2026-05-15T16:00:00Z',
+          commit: 'local',
+          fixtureCount: 3,
+          precision: 0.8,
+          recall: 0.7,
+        },
+      ],
+    })
+    vi.mocked(apiClient.runRetrievalBenchmark).mockResolvedValue({
+      runId: 'run-2',
+      timestampUtc: '2026-05-15T16:01:00Z',
+      commit: 'local',
+      fixtureCount: 3,
+      precision: 0.82,
+      recall: 0.72,
+    })
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('renders the page header', () => {
+  it('renders the page header', async () => {
     render(<ChatPage />)
     expect(screen.getByRole('heading', { name: 'SOP Assistant' })).toBeInTheDocument()
     expect(
       screen.getByText('Grocery Store Operating Procedures · Powered by AI'),
     ).toBeInTheDocument()
-    expect(screen.getByText('GPT-4o-mini')).toBeInTheDocument()
+    expect(screen.getByText('GPT-5.4-mini')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(apiClient.getHealth).toHaveBeenCalled()
+    })
   })
 
-  it('shows initial checking health status before the request completes', () => {
-    vi.mocked(apiClient.getHealth).mockReturnValue(new Promise(() => {}))
+  it('loads operator audit dashboard after health check', async () => {
+    render(<ChatPage />)
+
+    await waitFor(() => {
+      expect(apiClient.getOperatorAuditDashboard).toHaveBeenCalledWith(
+        expect.objectContaining({ lookbackHours: 168 }),
+      )
+    })
+    expect(screen.getByRole('heading', { name: /operator audit/i })).toBeInTheDocument()
+  })
+
+  it('loads retrieval benchmark dashboard after health check', async () => {
+    render(<ChatPage />)
+
+    await waitFor(() => {
+      expect(apiClient.getRetrievalBenchmarkDashboard).toHaveBeenCalledWith(20)
+    })
+    expect(screen.getByRole('heading', { name: /retrieval benchmarks/i })).toBeInTheDocument()
+  })
+
+  it('shows initial checking health status before the request completes', async () => {
+    let resolveHealth!: (value: typeof healthIngested) => void
+    vi.mocked(apiClient.getHealth).mockReturnValue(
+      new Promise((resolve) => {
+        resolveHealth = resolve
+      }),
+    )
     render(<ChatPage />)
     expect(screen.getByText('Checking backend health…')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveHealth(healthIngested)
+    })
   })
 
   it('shows success status after health check succeeds', async () => {
@@ -101,6 +214,20 @@ describe('ChatPage', () => {
         screen.getByText(/Backend health check failed: Internal Server Error/i),
       ).toBeInTheDocument()
     })
+  })
+
+  it('keeps health success status when update alert request fails', async () => {
+    vi.mocked(apiClient.getSourceUpdateAlert).mockRejectedValueOnce(
+      new Error('Request failed with status 401'),
+    )
+
+    render(<ChatPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('SOP API is running. All systems operational')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText(/Backend health check failed/i)).not.toBeInTheDocument()
   })
 
   it('shows retry info message when health check fails with Failed to fetch', async () => {
@@ -155,6 +282,62 @@ describe('ChatPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hello! How can I help?')).toBeInTheDocument()
+    })
+  })
+
+  it('sends selected response language in chat payload', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
+    fireEvent.change(screen.getByLabelText(/answer language/i), {
+      target: { value: 'es' },
+    })
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'Que dice el SOP sobre reembolsos?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(apiClient.chatStream).toHaveBeenCalledWith(
+        expect.objectContaining({ responseLanguage: 'es' }),
+        expect.any(Object),
+        expect.any(AbortSignal),
+      )
+    })
+  })
+
+  it('sends selected tone, length, and format in chat payload', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+
+    fireEvent.change(screen.getByLabelText(/answer tone/i), {
+      target: { value: 'formal' },
+    })
+    fireEvent.change(screen.getByLabelText(/answer length/i), {
+      target: { value: 'long' },
+    })
+    fireEvent.change(screen.getByLabelText(/answer format/i), {
+      target: { value: 'bullets' },
+    })
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'Provide opening policy details.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(apiClient.chatStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          responseTone: 'formal',
+          responseLength: 'long',
+          responseFormat: 'bullets',
+        }),
+        expect.any(Object),
+        expect.any(AbortSignal),
+      )
     })
   })
 
@@ -280,6 +463,45 @@ describe('ChatPage', () => {
     })
   })
 
+  it('renders dynamic follow-up suggestions from structured output and lets users select one', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
+      ...chatOk,
+      structuredOutput: {
+        answerText: chatOk.assistantMessage,
+        citedChunkIds: ['chunk-1'],
+        followUpSuggestions: [
+          'Can you summarize the cited opening checklist points?',
+          'What common opening mistakes should I avoid?',
+        ],
+      },
+    })
+
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'What are opening steps?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Suggested follow-up questions/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Can you summarize the cited opening checklist points/i),
+      ).toBeInTheDocument()
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /What common opening mistakes should I avoid/i }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/ask about the grocery store sop/i)).toHaveValue(
+        'What common opening mistakes should I avoid?',
+      )
+    })
+  })
+
   it('loads source viewer content when a citation is selected', async () => {
     vi.mocked(apiClient.chatStream).mockResolvedValueOnce({
       ...chatOk,
@@ -307,7 +529,7 @@ describe('ChatPage', () => {
       expect(screen.getByText('Open the store at 7am.')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Grocery_Store_SOP.md/i }))
+    fireEvent.click(screen.getByText('Open the store at 7am.'))
 
     await waitFor(() => {
       expect(apiClient.getSourceDocument).toHaveBeenCalledWith(
@@ -315,8 +537,19 @@ describe('ChatPage', () => {
         'default',
         expect.any(AbortSignal),
       )
+      expect(apiClient.getSourceComparison).toHaveBeenCalledWith(
+        'Grocery_Store_SOP.md',
+        'default',
+        'chunk-1',
+        expect.any(AbortSignal),
+      )
+      expect(apiClient.getSourceQuality).toHaveBeenCalledWith(
+        'Grocery_Store_SOP.md',
+        'default',
+        expect.any(AbortSignal),
+      )
       expect(screen.getByRole('heading', { name: /source viewer/i })).toBeInTheDocument()
-      expect(screen.getByText(/Store Opening/)).toBeInTheDocument()
+      expect(screen.getAllByText(/Store Opening/).length).toBeGreaterThan(0)
     })
   })
 
@@ -523,6 +756,25 @@ describe('ChatPage', () => {
     })
   })
 
+  it('shows proactive SOP update alert when checksum drift is detected', async () => {
+    vi.mocked(apiClient.getSourceUpdateAlert).mockResolvedValueOnce({
+      knowledgeBaseId: 'default',
+      requiresReingestReview: true,
+      currentSourceChecksum: 'new-hash',
+      ingestedSourceChecksum: 'old-hash',
+      detectedAtUtc: '2026-05-15T16:00:00Z',
+      message:
+        'Source document checksum changed since the last ingest. Reingest/review is recommended.',
+    })
+
+    render(<ChatPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/reingest\/review is recommended/i)).toBeInTheDocument()
+      expect(document.querySelector('.status-banner')).toHaveAttribute('data-tone', 'warning')
+    })
+  })
+
   it('shows error message string from non-Error chat failure', async () => {
     vi.mocked(apiClient.chatStream).mockRejectedValueOnce('plain string error')
     render(<ChatPage />)
@@ -598,6 +850,33 @@ describe('ChatPage', () => {
     })
   })
 
+  it('exports the conversation transcript as a markdown download', async () => {
+    vi.mocked(apiClient.chatStream).mockResolvedValueOnce(chatOk)
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock')
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.change(screen.getByLabelText(/ask about the grocery store sop/i), {
+      target: { value: 'hello export' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /export conversation/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /export conversation/i }))
+
+    await waitFor(() => {
+      expect(createObjectUrlSpy).toHaveBeenCalled()
+      expect(clickSpy).toHaveBeenCalled()
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:mock')
+    })
+  })
+
   it('cancels an in-flight chat request when a new send starts', async () => {
     let resolveFirst!: (value: typeof chatOk) => void
     vi.mocked(apiClient.chatStream)
@@ -626,6 +905,18 @@ describe('ChatPage', () => {
 
     await waitFor(() => {
       expect(vi.mocked(apiClient.chatStream).mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  it('opens keyboard shortcut map when pressing question mark', async () => {
+    render(<ChatPage />)
+
+    await waitFor(() => screen.getByLabelText(/ask about the grocery store sop/i))
+    fireEvent.keyDown(globalThis, { key: '?' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /keyboard shortcut map/i })).toBeInTheDocument()
+      expect(screen.getByText(/Alt \+ N/i)).toBeInTheDocument()
     })
   })
 })

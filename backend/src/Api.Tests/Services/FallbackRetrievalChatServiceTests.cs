@@ -431,4 +431,52 @@ public class FallbackRetrievalChatServiceTests
         _mockEmbedding.Verify(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockVectorStore.Verify(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task GenerateResponseAsync_NoMatches_WithSpanishResponseLanguage_LocalizesMessage()
+    {
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-es",
+            ResponseLanguage = "es",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Que dice el SOP sobre devoluciones?" }]
+        };
+
+        var response = await _service.GenerateResponseAsync(request, CancellationToken.None);
+
+        Assert.Contains("No encontre suficiente informacion relevante", response.AssistantMessage, StringComparison.Ordinal);
+        Assert.Empty(response.Citations);
+    }
+
+    [Fact]
+    public async Task GenerateResponseAsync_WithMatches_AndPortugueseResponseLanguage_LocalizesLeadIn()
+    {
+        var record = new VectorRecord
+        {
+            Id = "1",
+            Source = "SOP.md",
+            ChunkText = "Checklist de abertura da loja.",
+            Embedding = new float[1536]
+        };
+
+        _mockVectorStore
+            .Setup(v => v.SearchAsync(It.IsAny<float[]>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new VectorSearchMatch { Record = record, Score = 0.9 }]);
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-pt",
+            ResponseLanguage = "pt-BR",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Como abrir a loja?" }]
+        };
+
+        var response = await _service.GenerateResponseAsync(request, CancellationToken.None);
+
+        Assert.Contains("Com base no SOP", response.AssistantMessage, StringComparison.Ordinal);
+        Assert.Single(response.Citations);
+    }
 }

@@ -119,6 +119,54 @@ describe('apiClient', () => {
     )
   })
 
+  it('getOperatorAuditDashboard sends GET to /api/v1/operators/audit with query params', async () => {
+    mockFetch({
+      generatedAtUtc: '2026-05-15T16:00:00Z',
+      fromUtc: '2026-05-14T16:00:00Z',
+      toUtc: '2026-05-15T16:00:00Z',
+      feedbackCount: 1,
+      lowConfidenceSignalCount: 1,
+      failedIngestCount: 1,
+      feedback: [],
+      lowConfidenceSignals: [],
+      failedIngests: [],
+    })
+
+    await apiClient.getOperatorAuditDashboard({ feedbackType: 'wrong-citation', lookbackHours: 24 })
+
+    const [url] = vi.mocked(fetch).mock.calls[0]
+    expect(toUrlString(url)).toContain(
+      '/api/v1/operators/audit?feedbackType=wrong-citation&lookbackHours=24',
+    )
+  })
+
+  it('getRetrievalBenchmarkDashboard sends GET to benchmark endpoint', async () => {
+    mockFetch({ generatedAtUtc: '2026-05-15T16:00:00Z', entries: [] })
+
+    await apiClient.getRetrievalBenchmarkDashboard(10)
+
+    const [url] = vi.mocked(fetch).mock.calls[0]
+    expect(toUrlString(url)).toContain('/api/v1/operators/retrieval-benchmarks?limit=10')
+  })
+
+  it('runRetrievalBenchmark sends POST to benchmark run endpoint', async () => {
+    mockFetch({
+      runId: 'run-1',
+      timestampUtc: '2026-05-15T16:00:00Z',
+      commit: 'local',
+      fixtureCount: 3,
+      precision: 0.8,
+      recall: 0.7,
+    })
+
+    await apiClient.runRetrievalBenchmark()
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/operators/retrieval-benchmarks/run'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
   it('chatStream emits deltas and returns the final response', async () => {
     const streamBody = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -175,6 +223,29 @@ describe('apiClient', () => {
       },
     } as unknown as Response)
     await expect(apiClient.getHealth()).rejects.toThrow(/500/)
+  })
+
+  it('handles non-JSON 401 responses without offline fallback message', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => {
+        throw new Error('Invalid JSON')
+      },
+      text: async () => 'Unauthorized',
+    } as unknown as Response)
+
+    try {
+      await apiClient.getHealth()
+      throw new Error('Expected unauthorized error')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError)
+      const apiError = error as ApiClientError
+      expect(apiError.status).toBe(401)
+      expect(apiError.code).toBe('request_failed')
+      expect(apiError.message).toMatch(/Request failed with status 401/i)
+      expect(apiError.message).not.toMatch(/backend may be offline/i)
+    }
   })
 
   it('parses ProblemDetails detail field from non-ok response', async () => {

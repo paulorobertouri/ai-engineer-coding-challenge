@@ -1,0 +1,9 @@
+{
+  "generatedAtUtc": "2026-05-18T17:17:43Z",
+  "algorithm": "sha256",
+  "signing": "unsigned",
+  "artifacts": [
+    {"path":"evidences/raw/evidence-generate-evidences-google-chrome/test-finished-1.png","sha256":"52139f867569235aa6dd1350ab72808e1b38d649f1a2145d08336479299f54f2"},
+    {"path":"evidences/raw/.last-run.json","sha256":"91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"}
+  ]
+}

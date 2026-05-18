@@ -309,3 +309,82 @@ jobs:
             security-reports/frontend-image.spdx.json
             security-reports/dotnet-licenses.json
           if-no-files-found: error
+
+  flaky-test-detector:
+    name: Flaky Test Detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore Backend
+        run: dotnet restore backend/AIEngineerCodingChallenge.Backend.slnx
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Backend test pass 1
+        id: backend-pass1
+        continue-on-error: true
+        run: dotnet test backend/src/Api.Tests/Api.Tests.csproj -c Release --no-restore
+
+      - name: Backend test pass 2 (rerun failed bucket)
+        id: backend-pass2
+        if: steps.backend-pass1.outcome == 'failure'
+        continue-on-error: true
+        run: dotnet test backend/src/Api.Tests/Api.Tests.csproj -c Release --no-restore
+
+      - name: Frontend test pass 1
+        id: frontend-pass1
+        continue-on-error: true
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Frontend test pass 2 (rerun failed bucket)
+        id: frontend-pass2
+        if: steps.frontend-pass1.outcome == 'failure'
+        continue-on-error: true
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Evaluate flaky signals
+        run: |
+          backend_first="${{ steps.backend-pass1.outcome }}"
+          backend_second="${{ steps.backend-pass2.outcome || 'skipped' }}"
+          frontend_first="${{ steps.frontend-pass1.outcome }}"
+          frontend_second="${{ steps.frontend-pass2.outcome || 'skipped' }}"
+
+          echo "Backend pass1=$backend_first pass2=$backend_second"
+          echo "Frontend pass1=$frontend_first pass2=$frontend_second"
+
+          deterministic_failure=0
+
+          if [[ "$backend_first" == "failure" && "$backend_second" == "success" ]]; then
+            echo "::warning::Flaky backend tests detected (failed first run, passed on rerun)."
+          fi
+          if [[ "$frontend_first" == "failure" && "$frontend_second" == "success" ]]; then
+            echo "::warning::Flaky frontend tests detected (failed first run, passed on rerun)."
+          fi
+
+          if [[ "$backend_first" == "failure" && "$backend_second" == "failure" ]]; then
+            echo "::error::Deterministic backend test failure (failed both runs)."
+            deterministic_failure=1
+          fi
+          if [[ "$frontend_first" == "failure" && "$frontend_second" == "failure" ]]; then
+            echo "::error::Deterministic frontend test failure (failed both runs)."
+            deterministic_failure=1
+          fi
+
+          exit $deterministic_failure

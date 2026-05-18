@@ -189,7 +189,7 @@ This applies to controller validation/ingest errors, rate-limit rejections, and 
 |---|---|---|
 | `OpenAI:ApiKey` | _(empty)_ | OpenAI API key — triggers fallback mode if absent |
 | `OpenAI:EnableTools` | `true` | Enables/disables OpenAI tool calling on the server |
-| `OpenAI:ChatModel` | `gpt-4o-mini` | Chat completion model |
+| `OpenAI:ChatModel` | `gpt-5.4-mini` | Chat completion model |
 | `OpenAI:EmbeddingModel` | `text-embedding-3-small` | Embedding model |
 | `OpenAI:CircuitBreaker:Enabled` | `true` | Enables OpenAI circuit-breaker behavior |
 | `OpenAI:CircuitBreaker:FailureRatio` | `0.5` | Fraction of handled failures needed to open the circuit |

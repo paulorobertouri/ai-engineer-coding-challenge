@@ -8,7 +8,7 @@ A Proof of Concept internal chatbot for a grocery store chain. Employees ask que
 |---|---|
 | Backend | .NET 10 Web API (C#) |
 | Frontend | React 19 + TypeScript + Vite |
-| AI | OpenAI SDK for .NET — `gpt-4o-mini` (chat), `text-embedding-3-small` (embeddings) |
+| AI | OpenAI SDK for .NET — `gpt-5.4-mini` (chat), `text-embedding-3-small` (embeddings) |
 | Vector Store | JSON file + in-memory cosine similarity (no external DB) |
 | Resilience | Polly — exponential backoff, 3 retries, 30 s timeout |
 | Validation | Data Annotations (backend) · Zod (frontend) |
@@ -67,6 +67,10 @@ Frontend API base URL resolution order:
 | `./scripts/generate-api-types.sh` | _n/a_ | Fetch backend Swagger and regenerate frontend OpenAPI/TypeScript contract files |
 | `./scripts/docker.sh <up\|down\|restart\|logs\|status> [service]` | `.\scripts\docker.ps1 <up\|down\|restart\|logs\|status> [service]` | Manage the Docker Compose stack |
 | `./scripts/e2e.sh [test\|evidence]` | `.\scripts\e2e.ps1 [test\|evidence]` | Run Playwright e2e tests or capture evidence screenshots |
+| `./scripts/diagnostics.sh` | `\.\scripts\diagnostics.ps1` | Collect local health/readiness, sanitized config summary, and recent logs for bug reports |
+| `./scripts/chaos.sh` | `.\scripts\chaos.ps1` | Run chaos-profile resilience tests with controlled synthetic failures |
+| `./scripts/sign-evidence.sh` | `.\scripts\sign-evidence.ps1` | Generate tamper-evident SHA-256 evidence manifest (optional HMAC signature) |
+| `./scripts/rollback.sh <app\|ingest> [backup-file]` | `.\scripts\rollback.ps1 <app\|ingest> [backup-file]` | Execute rollback procedures for stack restart or vector-store restore |
 
 ## Documentation
 
@@ -75,6 +79,9 @@ Frontend API base URL resolution order:
 - Request flow diagrams: `docs/architecture-flows.md`
 - Engineering standards: `docs/engineering-standards.md`
 - Architectural decisions: `docs/adr/ARCH_DECISIONS.md`
+- Release notes index: `docs/releases/README.md`
+- Rollback playbook: `docs/rollback-playbook.md`
+- Evidence report: `evidences/evidence.md`
 - Reviewer tradeoffs and future work: `docs/reviewer-notes.md`
 
 ## Current Version Snapshot (2026-05-17)

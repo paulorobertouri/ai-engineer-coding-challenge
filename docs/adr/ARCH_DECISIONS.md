@@ -255,3 +255,31 @@ The role is used as a hint for response emphasis only and does not bypass SOP gr
 - Validation ensures unsupported role values fail fast.
 - Fallback and OpenAI modes share the same role-aware behavior contract.
 
+---
+
+# ADR 011: Operator Reliability Controls And Governance Workflows
+
+## Status
+Accepted
+
+## Context
+The platform now supports background ingest jobs, operational observability, and SOP mutation workflows. As production usage grows, operators need explicit controls and governance checkpoints rather than relying only on logs and ad-hoc procedures.
+
+## Decision
+We introduced the following architecture changes:
+
+- Ingest queue controls: list, dead-letter visibility, cancel, retry, and queued-priority updates.
+- In-memory per-endpoint SLO tracker with a health-facing summary endpoint for local latency and error-rate insight.
+- Chaos profile middleware (opt-in) to inject synthetic failures on selected API paths for resilience tests.
+- SOP mutation approval workflow that blocks production ingest activation unless the source checksum is explicitly approved.
+- Retrieval benchmark dashboard endpoints with persisted run history to trend precision/recall over fixture queries.
+
+## Consequences
+- Operators can perform incident-response actions (retry/cancel/inspect failures) without direct datastore edits.
+- Reliability checks are visible through API contracts and testable in CI/local environments.
+- Governance controls reduce accidental unreviewed SOP mutations in production.
+- Retrieval quality regressions become trendable over time rather than anecdotal.
+
+## Revisit Trigger
+Re-evaluate when multi-tenant approval delegation, persistent job queues, or external SLO backends are introduced.
+

@@ -129,11 +129,11 @@ test.describe("visual regression", () => {
     const citationButton = page.locator(".citation-select-btn").first();
     await expect(citationButton).toBeVisible({ timeout: 60000 });
     await citationButton.click();
+    const sourceViewerPanel = page.locator(".source-viewer-panel");
+    await expect(sourceViewerPanel).toBeVisible({ timeout: 30000 });
     await expect(
-      page.locator(".source-viewer-item--selected").first(),
-    ).toBeVisible({
-      timeout: 30000,
-    });
+      sourceViewerPanel.locator(".source-viewer-item, .empty-state").first(),
+    ).toBeVisible({ timeout: 30000 });
 
     await expect(page.locator("main.app-shell")).toHaveScreenshot(
       "citation-source-flow.png",

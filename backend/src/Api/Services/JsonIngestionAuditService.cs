@@ -26,6 +26,19 @@ public sealed class JsonIngestionAuditService(IOptions<ChallengeOptions> options
         await AppendAsync(record with { Outcome = "failure" }, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<IngestionAuditRecord>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        await AuditLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await LoadExistingAsync(cancellationToken);
+        }
+        finally
+        {
+            AuditLock.Release();
+        }
+    }
+
     private async Task AppendAsync(IngestionAuditRecord record, CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_auditPath);
@@ -38,7 +51,11 @@ public sealed class JsonIngestionAuditService(IOptions<ChallengeOptions> options
         try
         {
             var records = await LoadExistingAsync(cancellationToken);
-            records.Add(record with { TimestampUtc = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc });
+            records.Add(record with
+            {
+                TimestampUtc = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc,
+                SafeSummary = SensitiveDataRedactor.Sanitize(record.SafeSummary)
+            });
             var json = JsonSerializer.Serialize(records, SerializerOptions);
             await File.WriteAllTextAsync(_auditPath, json, cancellationToken);
         }

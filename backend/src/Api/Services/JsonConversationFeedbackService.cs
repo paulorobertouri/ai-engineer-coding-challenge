@@ -29,9 +29,26 @@ public sealed class JsonConversationFeedbackService(IOptions<ChallengeOptions> o
         try
         {
             var records = await LoadExistingAsync(cancellationToken);
-            records.Add(record with { TimestampUtc = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc });
+            records.Add(record with
+            {
+                TimestampUtc = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc,
+                Comment = SensitiveDataRedactor.Sanitize(record.Comment)
+            });
             var json = JsonSerializer.Serialize(records, SerializerOptions);
             await File.WriteAllTextAsync(_feedbackPath, json, cancellationToken);
+        }
+        finally
+        {
+            FeedbackLock.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<ConversationFeedbackRecord>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        await FeedbackLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await LoadExistingAsync(cancellationToken);
         }
         finally
         {

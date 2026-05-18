@@ -1,0 +1,601 @@
+==> Backend: dotnet test...
+  Determining projects to restore...
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j [/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj]
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9 [/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj]
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+  All projects are up-to-date for restore.
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/Api.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.9.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+  Api -> /mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api/bin/Release/net10.0/GroceryStore.Chatbot.Api.dll
+  Api.Tests -> /mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/bin/Release/net10.0/Api.Tests.dll
+  [coverlet] _mapping file name: 'CoverletSourceRootsMapping_Api.Tests'
+Test run for /mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/src/Api.Tests/bin/Release/net10.0/Api.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.2 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   251, Skipped:     0, Total:   251, Duration: 9 s - Api.Tests.dll (net10.0)
+  [coverlet] 
+  Calculating coverage result...
+   Generating report '/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/coverage/coverage.cobertura.xml'
+
++--------------------------+--------+--------+--------+
+| Module                   | Line   | Branch | Method |
++--------------------------+--------+--------+--------+
+| GroceryStore.Chatbot.Api | 84.53% | 70.35% | 92.18% |
++--------------------------+--------+--------+--------+
+
++---------+--------+--------+--------+
+|         | Line   | Branch | Method |
++---------+--------+--------+--------+
+| Total   | 84.53% | 70.35% | 92.18% |
++---------+--------+--------+--------+
+| Average | 84.53% | 70.34% | 92.18% |
++---------+--------+--------+--------+
+
+
+Attachments:
+  /mnt/hd-ops/Projetos/ai-engineer-coding-challenge/backend/coverage/aafe07fe-1f48-46e1-aa23-cfce1317854e/coverage.cobertura.xml
+
+==> Frontend: vitest...
+
+> grocery-store-sop-chatbot-frontend@0.0.0 test
+> vitest run --coverage
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/mnt/hd-ops/Projetos/ai-engineer-coding-challenge/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/services/utils.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/services/apiClient.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/components/SuggestedPrompts.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 189[2mms[22m[39m
+ [32m✓[39m src/components/StatusBanner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+ [32m✓[39m src/components/AppErrorBoundary.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 188[2mms[22m[39m
+ [32m✓[39m src/components/MarkdownContent.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 298[2mms[22m[39m
+ [32m✓[39m src/components/ChatComposer.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 306[2mms[22m[39m
+ [32m✓[39m src/components/IngestPanel.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+ [32m✓[39m src/components/CitationsPanel.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 351[2mms[22m[39m
+ [32m✓[39m src/types/validation.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/ChatTranscript.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+ [31m❯[39m src/pages/ChatPage.test.tsx [2m([22m[2m40 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2408[2mms[22m[39m
+     [32m✓[39m renders the page header[32m 158[2mms[22m[39m
+     [32m✓[39m loads operator audit dashboard after health check[32m 46[2mms[22m[39m
+[31m     [31m×[31m loads retrieval benchmark dashboard after health check[39m[32m 79[2mms[22m[39m
+     [32m✓[39m shows initial checking health status before the request completes[32m 10[2mms[22m[39m
+     [32m✓[39m shows success status after health check succeeds[32m 24[2mms[22m[39m
+     [32m✓[39m shows warning status when health check fails with a server error[32m 16[2mms[22m[39m
+     [32m✓[39m keeps health success status when update alert request fails[32m 28[2mms[22m[39m
+     [32m✓[39m shows retry info message when health check fails with Failed to fetch[32m 13[2mms[22m[39m
+     [32m✓[39m shows the empty transcript state when ingested[32m 24[2mms[22m[39m
+     [32m✓[39m shows the ingest panel when not yet ingested[32m 11[2mms[22m[39m
+     [32m✓[39m appends the user message to the transcript after sending[32m 110[2mms[22m[39m
+     [32m✓[39m appends the assistant response to the transcript after sending[32m 87[2mms[22m[39m
+     [32m✓[39m sends selected response language in chat payload[32m 74[2mms[22m[39m
+     [32m✓[39m sends selected tone, length, and format in chat payload[32m 86[2mms[22m[39m
+     [32m✓[39m submits helpful feedback for an assistant message[32m 105[2mms[22m[39m
+     [32m✓[39m clears the draft after sending[32m 58[2mms[22m[39m
+     [32m✓[39m shows "Sending chat request…" status while the request is in flight[32m 68[2mms[22m[39m
+     [32m✓[39m shows a chat error status when the chat request fails[32m 73[2mms[22m[39m
+     [32m✓[39m adds a fallback assistant message in the transcript when the chat request fails[32m 68[2mms[22m[39m
+     [32m✓[39m shows citations in the panel after a chat response with citations[32m 70[2mms[22m[39m
+     [32m✓[39m renders dynamic follow-up suggestions from structured output and lets users select one[32m 107[2mms[22m[39m
+     [32m✓[39m loads source viewer content when a citation is selected[32m 120[2mms[22m[39m
+     [32m✓[39m updates status to success after ingest completes[32m 41[2mms[22m[39m
+     [32m✓[39m shows error status when ingest fails[32m 34[2mms[22m[39m
+     [32m✓[39m shows "Calling the ingest endpoint…" status while ingesting[32m 42[2mms[22m[39m
+     [32m✓[39m uploads a file and transitions to the chat layout on success[32m 37[2mms[22m[39m
+     [32m✓[39m shows uploading status message while uploading a file[32m 51[2mms[22m[39m
+     [32m✓[39m shows warning tone when ingest response is a placeholder[32m 44[2mms[22m[39m
+     [32m✓[39m handles "already been ingested" ingest error by marking as ingested[32m 40[2mms[22m[39m
+     [32m✓[39m dismisses the status banner when the dismiss button is clicked[32m 39[2mms[22m[39m
+     [32m✓[39m fills the draft when a suggested prompt chip is clicked[32m 57[2mms[22m[39m
+     [32m✓[39m shows warning tone when chat response is a placeholder[32m 54[2mms[22m[39m
+     [32m✓[39m shows proactive SOP update alert when checksum drift is detected[32m 16[2mms[22m[39m
+     [32m✓[39m shows error message string from non-Error chat failure[32m 63[2mms[22m[39m
+     [32m✓[39m shows offline badge when backend reports fallback mode[32m 17[2mms[22m[39m
+     [32m✓[39m retries the last failed chat without retyping[32m 135[2mms[22m[39m
+     [32m✓[39m starts a fresh conversation when New chat is clicked[32m 93[2mms[22m[39m
+     [32m✓[39m exports the conversation transcript as a markdown download[32m 95[2mms[22m[39m
+     [32m✓[39m cancels an in-flight chat request when a new send starts[32m 80[2mms[22m[39m
+     [32m✓[39m opens keyboard shortcut map when pressing question mark[32m 31[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/ChatPage.test.tsx[2m > [22mChatPage[2m > [22mloads retrieval benchmark dashboard after health check
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an accessible element with the role "heading" and name `/retrieval benchmarks/i`
+
+Here are the accessible roles:
+
+  main:
+
+  Name "":
+  [36m<main[39m
+    [33mclass[39m=[32m"app-shell app-shell--setup"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"app-header"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "SOP Assistant":
+  [36m<h1 />[39m
+
+  Name "Knowledge Base":
+  [36m<h2[39m
+    [33mid[39m=[32m"ingest-heading"[39m
+  [36m/>[39m
+
+  Name "Indexed Sources":
+  [36m<h2[39m
+    [33mid[39m=[32m"sources-heading"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"description"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"description"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"description"[39m
+    [33mstyle[39m=[32m"margin-top: 0.8rem;"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<section[39m
+    [33maria-live[39m=[32m"polite"[39m
+    [33mclass[39m=[32m"status-banner"[39m
+    [33mdata-tone[39m=[32m"info"[39m
+    [33mrole[39m=[32m"status"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Dismiss":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Dismiss"[39m
+    [33mclass[39m=[32m"status-banner__close"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Ingesting…":
+  [36m<button[39m
+    [33mclass[39m=[32m"ingest-button"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Choose .md or .txt file":
+  [36m<button[39m
+    [33mclass[39m=[32m"ingest-upload-area"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Refresh sources":
+  [36m<button[39m
+    [33mclass[39m=[32m"page-action-btn"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  region:
+
+  Name "Knowledge Base":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"ingest-heading"[39m
+    [33mclass[39m=[32m"sidebar-card"[39m
+  [36m/>[39m
+
+  Name "Indexed Sources":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"sources-heading"[39m
+    [33mclass[39m=[32m"sidebar-card"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<main[39m
+      [33mclass[39m=[32m"app-shell app-shell--setup"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"setup-layout"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"app-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"app-header-inner"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-icon"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-shopping-cart"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"white"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2.5"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"8"[39m
+                  [33mcy[39m=[32m"21"[39m
+                  [33mr[39m=[32m"1"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"19"[39m
+                  [33mcy[39m=[32m"21"[39m
+                  [33mr[39m=[32m"1"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-text"[39m
+            [36m>[39m
+              [36m<h1>[39m
+                [0mSOP Assistant[0m
+              [36m</h1>[39m
+              [36m<p>[39m
+                [0mGrocery Store Operating Procedures · Powered by AI[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"app-header-actions"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"app-header-badge"[39m
+              [36m>[39m
+                [0mGPT-5.4-mini[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</header>[39m
+        [36m<section[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"status-banner"[39m
+          [33mdata-tone[39m=[32m"info"[39m
+          [33mrole[39m=[32m"status"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-info"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"12"[39m
+              [33mcy[39m=[32m"12"[39m
+              [33mr[39m=[32m"10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 16v-4"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 8h.01"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<span[39m
+            [33mdata-tone[39m=[32m"info"[39m
+          [36m>[39m
+            [0mChecking backend health…[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Dismiss"[39m
+            [33mclass[39m=[32m"status-banner__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"12"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"12"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33maria-labelledby[39m=[32m"ingest-heading"[39m
+          [33mclass[39m=[32m"sidebar-card"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"sidebar-card-header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sidebar-card-icon"[39m
+              [33mstyle[39m=[32m"background: rgb(240, 253, 244);"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-database"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"#166534"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<ellipse[39m
+                  [33mcx[39m=[32m"12"[39m
+                  [33mcy[39m=[32m"5"[39m
+                  [33mrx[39m=[32m"9"[39m
+                  [33mry[39m=[32m"3"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 5V19A9 3 0 0 0 21 19V5"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 12A9 3 0 0 0 21 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</div>[39m
+            [36m<h2[39m
+              [33mid[39m=[32m"ingest-heading"[39m
+            [36m>[39m
+              [0mKnowledge Base[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"description"[39m
+          [36m>[39m
+            [0mIndex the built-in Grocery Store SOP to enable grounded, citation-backed responses.[0m
+          [36m</p>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"ingest-button"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-loader-circle animate-spin"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M21 12a9 9 0 1 1-6.219-8.56"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0mIngesting…[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"ingest-divider"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mor upload your own[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<input[39m
+            [33maccept[39m=[32m".md,.txt"[39m
+            [33maria-label[39m=[32m"Select a .md or .txt document"[39m
+            [33mclass[39m=[32m"ingest-file-input"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"file"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"ingest-upload-area"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-file-text"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M14 2v5a1 1 0 0 0 1 1h5"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M10 9H8"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M16 13H8"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M16 17H8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<span>[39m
+              [0mChoose .md or .txt file[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33maria-labelledby[39m=[32m"sources-heading"[39m
+          [33mclass[39m=[32m"sidebar-card"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"sidebar-card-header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"sidebar-card-icon"[39m
+              [33mstyle[39m=[32m"background: rgb(236, 254, 255);"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-file-text"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"15"[39m
+                [33mstroke[39m=[32m"#0f766e"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"15"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 2v5a1 1 0 0 0 1 1h5"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M10 9H8"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 13H8"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 17H8"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</div>[39m
+            [36m<h2[39m
+              [33mid[39m=[32m"sources-heading"[39m
+            [36m>[39m
+              [0mIndexed Sources[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"description"[39m
+          [36m>[39m
+            [0mList and remove ingested documents from the vector store.[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-action-row"[39m
+            [33mstyle[39m=[32m"margin-top: 0.5rem;"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"page-action-btn"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-refresh-ccw"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"14"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"14"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 3v5h5"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 16h5v5"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mRefresh sources[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"description"[39m
+            [33mstyle[39m=[32m"margin-top: 0.8rem;"[39m
+          [36m>[39m
+            [0mNo documents are currently indexed.[0m
+          [36m</p>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</main>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/pages/ChatPage.test.tsx:[2m184:19[22m[39m
+    [90m182|[39m       expect(apiClient.getRetrievalBenchmarkDashboard).toHaveBeenCalle…
+    [90m183|[39m     })
+    [90m184|[39m     expect(screen.getByRole('heading', { name: /retrieval benchmarks/i…
+    [90m   |[39m                   [31m^[39m
+    [90m185|[39m   })
+    [90m186|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (12)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m150 passed[39m[22m[90m (151)[39m
+[2m   Start at [22m 16:55:18
+[2m   Duration [22m 4.95s[2m (transform 1.08s, setup 1.14s, import 4.73s, tests 4.51s, environment 9.75s)[22m
+

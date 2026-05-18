@@ -1,5 +1,6 @@
 using Api.Application.Ingest;
 using Api.Contracts;
+using Api.Domain.Ingestion;
 using Api.Models;
 using Api.Observability;
 using Api.Options;
@@ -25,6 +26,7 @@ public sealed class IngestController(
     IChunkingService chunkingService,
     IDocumentExtractionService documentExtractionService,
     IVectorStoreService vectorStoreService,
+    ISopMutationApprovalService sopMutationApprovalService,
     IIngestionAuditService ingestionAuditService,
     IIngestJobDispatcher ingestJobDispatcher,
     IIngestJobStatusStore ingestJobStatusStore,
@@ -34,6 +36,10 @@ public sealed class IngestController(
     private static readonly SemaphoreSlim IngestLock = new(1, 1);
     private const int PreviewSampleLength = 180;
     private const int MaxUploadedLineLength = 10_000;
+    private const string DefaultIngestAction = "default-ingest";
+    private const string UploadIngestAction = "upload-ingest";
+    private const string InvalidUploadTitle = "Invalid upload.";
+    private const string SourceDocumentNotFoundMessage = "Source document not found.";
     private readonly ResetKnowledgeBaseHandler _resetKnowledgeBaseHandler =
         new(env, vectorStoreService, challengeOptions, logger);
 
@@ -73,12 +79,12 @@ public sealed class IngestController(
                 else
                 {
                     await RecordFailureAsync(
-                        action: "default-ingest",
+                        action: DefaultIngestAction,
                         knowledgeBaseId,
                         configuredSourcePath,
                         "source document not found",
                         cancellationToken);
-                    return NotFound(ApiErrorFactory.NotFound("Source document not found.", "Source document not found."));
+                    return NotFound(ApiErrorFactory.NotFound(SourceDocumentNotFoundMessage, SourceDocumentNotFoundMessage));
                 }
             }
 
@@ -92,7 +98,7 @@ public sealed class IngestController(
             catch (DocumentExtractionException ex)
             {
                 await RecordFailureAsync(
-                    action: "default-ingest",
+                    action: DefaultIngestAction,
                     knowledgeBaseId,
                     sourceName,
                     ex.Message,
@@ -101,11 +107,11 @@ public sealed class IngestController(
             }
 
             var sourceChecksum = DocumentVersioning.ComputeSourceChecksum(sourceText);
-            if (TryFindDuplicate(existingRecordsForKnowledgeBase, sourceChecksum, out var duplicateVersion))
+            if (IngestionDomainPolicy.TryFindDuplicateVersion(existingRecordsForKnowledgeBase, sourceChecksum, out var duplicateVersion))
             {
                 var duplicateMessage = $"This document has already been ingested as version '{duplicateVersion}' (checksum: {sourceChecksum}).";
                 await RecordFailureAsync(
-                    action: "default-ingest",
+                    action: DefaultIngestAction,
                     knowledgeBaseId,
                     sourceName,
                     duplicateMessage,
@@ -113,14 +119,14 @@ public sealed class IngestController(
                 return Conflict(ApiErrorFactory.Conflict("Document already ingested.", duplicateMessage));
             }
 
-            if (existingRecordsForKnowledgeBase.Count > 0 && !forceReingest)
+            if (!IngestionDomainPolicy.CanProceedWithIngest(existingRecordsForKnowledgeBase.Count, forceReingest))
             {
                 logger.LogWarning(
                     "[INGEST] Rejected: knowledge base '{KnowledgeBaseId}' already contains {Count} records.",
                     knowledgeBaseId,
                     existingRecordsForKnowledgeBase.Count);
                 await RecordFailureAsync(
-                    action: "default-ingest",
+                    action: DefaultIngestAction,
                     knowledgeBaseId,
                     configuredSourcePath,
                     "knowledge base already ingested",
@@ -139,15 +145,16 @@ public sealed class IngestController(
             }
 
             return await SubmitIngestJobAsync(
-                sourceText,
-                sourceName,
-                sourcePath,
-                knowledgeBaseId,
-                existingRecords,
-                existingRecordsForKnowledgeBase,
-                "default-ingest",
-                sourceChecksum,
-                forceReingest,
+                new SubmitIngestJobCommand(
+                    sourceText,
+                    sourceName,
+                    sourcePath,
+                    knowledgeBaseId,
+                    existingRecords,
+                    existingRecordsForKnowledgeBase,
+                    DefaultIngestAction,
+                    sourceChecksum,
+                    forceReingest),
                 operationToken);
         }, operationToken), cancellationToken);
     }
@@ -172,24 +179,24 @@ public sealed class IngestController(
             if (file is null || file.Length == 0)
             {
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     file?.FileName ?? "unknown",
                     "no file provided",
                     cancellationToken);
-                return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", "No file provided."));
+                return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, "No file provided."));
             }
 
             if (file.Length > uploadOptions.Value.MaxUploadBytes)
             {
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     file.FileName,
                     "file exceeds upload limit",
                     cancellationToken);
                 return BadRequest(ApiErrorFactory.BadRequest(
-                    "Invalid upload.",
+                    InvalidUploadTitle,
                     $"File exceeds the {uploadOptions.Value.MaxUploadBytes / (1024 * 1024)} MB limit."));
             }
 
@@ -197,13 +204,13 @@ public sealed class IngestController(
             if (!documentExtractionService.IsSupportedExtension(ext))
             {
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     file.FileName,
                     "unsupported file type",
                     cancellationToken);
                 return BadRequest(ApiErrorFactory.BadRequest(
-                    "Invalid upload.",
+                    InvalidUploadTitle,
                     $"Unsupported file type '{ext}'. Supported formats: {documentExtractionService.DescribeSupportedFormats()}"));
             }
 
@@ -216,34 +223,34 @@ public sealed class IngestController(
                 await using var uploadStream = file.OpenReadStream();
                 sourceText = await documentExtractionService.ExtractTextAsync(sourceName, uploadStream, operationToken);
 
-                if (!TryValidateUploadedText(sourceText, out var validationMessage))
+                if (!IngestionDomainPolicy.TryValidateUploadedText(sourceText, MaxUploadedLineLength, out var validationMessage))
                 {
                     await RecordFailureAsync(
-                        action: "upload-ingest",
+                        action: UploadIngestAction,
                         scopedKnowledgeBaseId,
                         sourceName,
                         validationMessage,
                         cancellationToken);
-                    return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", validationMessage));
+                    return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, validationMessage));
                 }
             }
             catch (DocumentExtractionException ex)
             {
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     sourceName,
                     ex.Message,
                     cancellationToken);
-                return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", ex.Message));
+                return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, ex.Message));
             }
 
             var sourceChecksum = DocumentVersioning.ComputeSourceChecksum(sourceText);
-            if (TryFindDuplicate(existingRecordsForKnowledgeBase, sourceChecksum, out var duplicateVersion))
+            if (IngestionDomainPolicy.TryFindDuplicateVersion(existingRecordsForKnowledgeBase, sourceChecksum, out var duplicateVersion))
             {
                 var duplicateMessage = $"This document has already been ingested as version '{duplicateVersion}' (checksum: {sourceChecksum}).";
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     sourceName,
                     duplicateMessage,
@@ -251,14 +258,14 @@ public sealed class IngestController(
                 return Conflict(ApiErrorFactory.Conflict("Document already ingested.", duplicateMessage));
             }
 
-            if (existingRecordsForKnowledgeBase.Count > 0)
+            if (!IngestionDomainPolicy.CanProceedWithIngest(existingRecordsForKnowledgeBase.Count, forceReingest: false))
             {
                 logger.LogWarning(
                     "[INGEST] Upload rejected: knowledge base '{KnowledgeBaseId}' already has {Count} records.",
                     scopedKnowledgeBaseId,
                     existingRecordsForKnowledgeBase.Count);
                 await RecordFailureAsync(
-                    action: "upload-ingest",
+                    action: UploadIngestAction,
                     scopedKnowledgeBaseId,
                     sourceName,
                     "knowledge base already ingested",
@@ -271,69 +278,57 @@ public sealed class IngestController(
             logger.LogInformation("[INGEST] Upload received: {FileName} ({Bytes} bytes)", sourceName, file.Length);
 
             return await SubmitIngestJobAsync(
-                sourceText,
-                sourceName,
-                sourceName,
-                scopedKnowledgeBaseId,
-                existingRecords,
-                existingRecordsForKnowledgeBase,
-                "upload-ingest",
-                sourceChecksum,
-                false,
+                new SubmitIngestJobCommand(
+                    sourceText,
+                    sourceName,
+                    sourceName,
+                    scopedKnowledgeBaseId,
+                    existingRecords,
+                    existingRecordsForKnowledgeBase,
+                    UploadIngestAction,
+                    sourceChecksum,
+                    false),
                 operationToken);
         }, operationToken), cancellationToken);
     }
 
-    private static bool TryValidateUploadedText(string sourceText, out string message)
+    [HttpPost("approvals/request")]
+    [Authorize(Policy = AuthorizationPolicies.Operator)]
+    public ActionResult<SopMutationApprovalStateResponse> RequestSopMutationApproval([FromBody] SopMutationApprovalRequest request)
     {
-        if (string.IsNullOrWhiteSpace(sourceText))
-        {
-            message = "The uploaded file did not contain readable text content.";
-            return false;
-        }
-
-        var lines = sourceText.Split('\n');
-        if (lines.Any(line => line.TrimEnd('\r').Length > MaxUploadedLineLength))
-        {
-            message = $"The uploaded file contains lines longer than {MaxUploadedLineLength} characters.";
-            return false;
-        }
-
-        message = string.Empty;
-        return true;
+        var state = sopMutationApprovalService.RequestApproval(
+            KnowledgeBaseScope.Normalize(request.KnowledgeBaseId),
+            request.SourceChecksum,
+            request.Note);
+        return Ok(state);
     }
 
-    [HttpGet("jobs/{jobId:guid}")]
+    [HttpPost("approvals/approve")]
     [Authorize(Policy = AuthorizationPolicies.KnowledgeAdmin)]
-    public ActionResult<IngestJobStatusResponse> GetJobStatus(Guid jobId)
+    public ActionResult<SopMutationApprovalStateResponse> ApproveSopMutation([FromBody] SopMutationApprovalRequest request)
     {
-        var job = ingestJobStatusStore.Get(jobId);
-        if (job is null)
+        var state = sopMutationApprovalService.Approve(
+            KnowledgeBaseScope.Normalize(request.KnowledgeBaseId),
+            request.SourceChecksum,
+            request.Note);
+        return Ok(state);
+    }
+
+    [HttpGet("approvals")]
+    [Authorize(Policy = AuthorizationPolicies.Operator)]
+    public ActionResult<SopMutationApprovalStateResponse> GetSopMutationApprovalState(
+        [FromQuery] string knowledgeBaseId,
+        [FromQuery] string sourceChecksum)
+    {
+        var state = sopMutationApprovalService.GetState(KnowledgeBaseScope.Normalize(knowledgeBaseId), sourceChecksum);
+        if (state is null)
         {
             return NotFound(ApiErrorFactory.NotFound(
-                "Ingest job not found.",
-                $"No ingest job exists for '{jobId}'."));
+                "SOP mutation approval state not found.",
+                "No approval workflow state exists for the given knowledge base and checksum."));
         }
 
-        return Ok(new IngestJobStatusResponse
-        {
-            JobId = job.JobId,
-            KnowledgeBaseId = job.KnowledgeBaseId,
-            Status = job.State.ToString().ToLowerInvariant(),
-            Message = job.State switch
-            {
-                IngestJobState.Queued => "Ingest job queued.",
-                IngestJobState.Running => "Ingest job is running.",
-                IngestJobState.Succeeded => job.Response?.Message ?? "Ingest job completed successfully.",
-                IngestJobState.Failed => job.ErrorMessage ?? "Ingest job failed.",
-                _ => "Unknown job state."
-            },
-            QueuedAtUtc = job.QueuedAtUtc,
-            StartedAtUtc = job.StartedAtUtc,
-            CompletedAtUtc = job.CompletedAtUtc,
-            Result = job.Response,
-            ErrorMessage = job.ErrorMessage
-        });
+        return Ok(state);
     }
 
     [HttpPost("preview")]
@@ -350,13 +345,13 @@ public sealed class IngestController(
             {
                 if (file.Length == 0)
                 {
-                    return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", "No file provided."));
+                    return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, "No file provided."));
                 }
 
                 if (file.Length > uploadOptions.Value.MaxUploadBytes)
                 {
                     return BadRequest(ApiErrorFactory.BadRequest(
-                        "Invalid upload.",
+                        InvalidUploadTitle,
                         $"File exceeds the {uploadOptions.Value.MaxUploadBytes / (1024 * 1024)} MB limit."));
                 }
 
@@ -364,7 +359,7 @@ public sealed class IngestController(
                 if (!documentExtractionService.IsSupportedExtension(extension))
                 {
                     return BadRequest(ApiErrorFactory.BadRequest(
-                        "Invalid upload.",
+                        InvalidUploadTitle,
                         $"Unsupported file type '{extension}'. Supported formats: {documentExtractionService.DescribeSupportedFormats()}"));
                 }
 
@@ -374,14 +369,14 @@ public sealed class IngestController(
                     await using var uploadStream = file.OpenReadStream();
                     sourceText = await documentExtractionService.ExtractTextAsync(sourceName, uploadStream, operationToken);
 
-                    if (!TryValidateUploadedText(sourceText, out var validationMessage))
+                    if (!IngestionDomainPolicy.TryValidateUploadedText(sourceText, MaxUploadedLineLength, out var validationMessage))
                     {
-                        return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", validationMessage));
+                        return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, validationMessage));
                     }
                 }
                 catch (DocumentExtractionException ex)
                 {
-                    return BadRequest(ApiErrorFactory.BadRequest("Invalid upload.", ex.Message));
+                    return BadRequest(ApiErrorFactory.BadRequest(InvalidUploadTitle, ex.Message));
                 }
             }
             else
@@ -400,7 +395,7 @@ public sealed class IngestController(
                     }
                     else
                     {
-                        return NotFound(ApiErrorFactory.NotFound("Source document not found.", "Source document not found."));
+                        return NotFound(ApiErrorFactory.NotFound(SourceDocumentNotFoundMessage, SourceDocumentNotFoundMessage));
                     }
                 }
 
@@ -505,47 +500,20 @@ public sealed class IngestController(
         }, cancellationToken);
     }
 
-    private static bool TryFindDuplicate(
-        IEnumerable<VectorRecord> existingRecords,
-        string sourceChecksum,
-        out string duplicateVersion)
-    {
-        var duplicate = existingRecords.FirstOrDefault(record =>
-            record.Metadata.TryGetValue(DocumentVersioning.SourceChecksumMetadataKey, out var existingChecksum)
-            && string.Equals(existingChecksum, sourceChecksum, StringComparison.Ordinal));
-
-        if (duplicate is null)
-        {
-            duplicateVersion = "unknown";
-            return false;
-        }
-
-        if (!duplicate.Metadata.TryGetValue(DocumentVersioning.DocumentVersionMetadataKey, out var version)
-            || string.IsNullOrWhiteSpace(version))
-        {
-            duplicateVersion = "unknown";
-        }
-        else
-        {
-            duplicateVersion = version;
-        }
-
-        return true;
-    }
-
     private async Task<ActionResult<IngestResponse>> SubmitIngestJobAsync(
-        string sourceText,
-        string sourceName,
-        string displayPath,
-        string knowledgeBaseId,
-        IReadOnlyList<VectorRecord> allExistingRecords,
-        IReadOnlyList<VectorRecord> existingRecords,
-        string action,
-        string? precomputedSourceChecksum,
-        bool forceReingest,
+        SubmitIngestJobCommand command,
         CancellationToken cancellationToken)
     {
-        if (ingestJobStatusStore.HasActiveJob(knowledgeBaseId))
+        var sourceChecksum = command.PrecomputedSourceChecksum ?? DocumentVersioning.ComputeSourceChecksum(command.SourceText);
+        if (!env.IsDevelopment()
+            && !sopMutationApprovalService.IsApproved(command.KnowledgeBaseId, sourceChecksum))
+        {
+            return Conflict(ApiErrorFactory.Conflict(
+                "SOP mutation requires approval.",
+                "This SOP checksum has not been approved for production activation yet."));
+        }
+
+        if (ingestJobStatusStore.HasActiveJob(command.KnowledgeBaseId))
         {
             return Conflict(ApiErrorFactory.Conflict(
                 "Knowledge base already has an active ingest job.",
@@ -554,15 +522,15 @@ public sealed class IngestController(
 
         var jobRequest = new IngestJobRequest(
             Guid.NewGuid(),
-            action,
-            knowledgeBaseId,
-            sourceText,
-            sourceName,
-            displayPath,
-            allExistingRecords,
-            existingRecords,
-            precomputedSourceChecksum,
-            forceReingest);
+            command.Action,
+            command.KnowledgeBaseId,
+            command.SourceText,
+            command.SourceName,
+            command.DisplayPath,
+            command.AllExistingRecords,
+            command.ExistingRecords,
+            sourceChecksum,
+            command.ForceReingest);
 
         try
         {
@@ -571,10 +539,12 @@ public sealed class IngestController(
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "Ingest job submission rejected. KnowledgeBaseId={KnowledgeBaseId}", knowledgeBaseId);
+            logger.LogWarning(ex, "Ingest job submission rejected. KnowledgeBaseId={KnowledgeBaseId}", command.KnowledgeBaseId);
             return Conflict(ApiErrorFactory.Conflict(
                 "Knowledge base already has an active ingest job.",
                 ex.Message));
         }
     }
+
+
 }

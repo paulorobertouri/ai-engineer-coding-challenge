@@ -131,6 +131,40 @@ public class ChatControllerTests
     }
 
     [Fact]
+    public async Task Post_InvalidResponseLanguage_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            ResponseLanguage = "english",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hello" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Post_InvalidResponseTone_ReturnsValidationProblem()
+    {
+        var request = new ChatRequest
+        {
+            ResponseTone = "casual",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Hello" }]
+        };
+
+        var result = await _controller.Post(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        _mockService.Verify(
+            s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task Post_ValidRequest_ReturnsOkWithChatResponse()
     {
         var chatResponse = new ChatResponse
@@ -177,6 +211,28 @@ public class ChatControllerTests
 
         Assert.NotNull(capturedRequest);
         Assert.Equal("test-id", capturedRequest!.ConversationId);
+    }
+
+    [Fact]
+    public async Task Post_ValidResponseLanguage_PassesRequestToService()
+    {
+        var capturedRequest = default(ChatRequest);
+        _mockService
+            .Setup(s => s.GenerateResponseAsync(It.IsAny<ChatRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ChatRequest, CancellationToken>((r, _) => capturedRequest = r)
+            .ReturnsAsync(new ChatResponse { Status = "success", ToolCalls = [], Citations = [] });
+
+        var request = new ChatRequest
+        {
+            ConversationId = "conv-lang",
+            ResponseLanguage = "pt-BR",
+            Messages = [new ChatMessageDto { Role = "user", Content = "Como abrir a loja?" }]
+        };
+
+        await _controller.Post(request, CancellationToken.None);
+
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("pt-BR", capturedRequest!.ResponseLanguage);
     }
 
     [Fact]

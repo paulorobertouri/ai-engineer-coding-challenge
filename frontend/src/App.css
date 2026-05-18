@@ -1,6 +1,7 @@
 /* ─── Layout ──────────────────────────────────────────────────── */
 .app-shell {
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
   gap: 1.1rem;
@@ -77,6 +78,9 @@
 
 .chat-layout {
   /* allow children to shrink and enable inner scrolling */
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 2.2rem);
   min-height: 0;
   border-radius: 1.5rem;
   background: rgba(255, 255, 255, 0.82);
@@ -221,8 +225,8 @@
 
 .composer-inner {
   display: flex;
-  gap: 0.625rem;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 0.65rem;
   background: rgba(255, 255, 255, 0.95);
   border: 1.5px solid rgba(148, 163, 184, 0.2);
   border-radius: 1.1rem;
@@ -240,6 +244,7 @@
 
 .composer textarea {
   flex: 1;
+  width: 100%;
   border: none;
   outline: none;
   background: transparent;
@@ -257,7 +262,44 @@
   color: #94a3b8;
 }
 
-.composer label {
+.composer-language {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.composer-main-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.625rem;
+}
+
+.composer-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.composer-language select {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  padding: 0.35rem 0.5rem;
+}
+
+.composer-language select:disabled {
+  opacity: 0.6;
+}
+
+.composer .composer-input-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -267,8 +309,8 @@
 }
 
 .send-button {
-  min-width: 5.3rem;
-  height: 2.3rem;
+  min-width: 6rem;
+  height: 2.45rem;
   border-radius: 0.625rem;
   background: linear-gradient(135deg, #166534, #0f766e);
   color: white;
@@ -313,6 +355,9 @@
 
 .page-action-row {
   padding: 0 1rem 0.8rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .page-action-btn {
@@ -328,6 +373,111 @@
 
 .page-action-btn:hover {
   background: rgba(240, 253, 244, 0.95);
+}
+
+.sources-manager-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sources-manager-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.8rem;
+  padding: 0.55rem 0.65rem;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.sources-manager-name {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sources-manager-meta {
+  margin: 0.18rem 0 0;
+  font-size: 0.73rem;
+  color: #64748b;
+}
+
+.shortcut-map-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.shortcut-map {
+  width: min(36rem, 100%);
+  background: #ffffff;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 20px 56px rgba(2, 6, 23, 0.28);
+  padding: 1rem;
+}
+
+.shortcut-map__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.shortcut-map__header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.shortcut-map__close {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #f8fafc;
+  border-radius: 0.6rem;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.shortcut-map__list {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shortcut-map__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.shortcut-map__row kbd {
+  min-width: 6.2rem;
+  text-align: center;
+  background: #e2e8f0;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.72rem;
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
@@ -405,6 +555,13 @@
   color: var(--heading);
   display: block;
   margin-bottom: 0.35rem;
+}
+
+.operator-audit-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
 }
 
 .source-input {
@@ -1092,7 +1249,7 @@
   .chat-layout {
     /* avoid forcing large fixed min-heights on small devices */
     height: auto;
-    min-height: 60vh;
+    min-height: 65vh;
     max-height: calc(100vh - 3.5rem);
   }
 
@@ -1106,5 +1263,37 @@
 
   .message-card {
     width: 100%;
+  }
+
+  .composer-main-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .send-button {
+    width: 100%;
+  }
+
+  .composer-controls-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 0.7rem;
+    gap: 0.7rem;
+  }
+
+  .composer {
+    padding: 0.75rem;
+  }
+
+  .composer-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    padding: 0.85rem 1rem;
   }
 }

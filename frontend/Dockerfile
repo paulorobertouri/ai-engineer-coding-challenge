@@ -8,6 +8,7 @@ RUN npm run build
 FROM nginx:stable-alpine3.21
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 RUN addgroup -S appgroup \
 	&& adduser -S appuser -G appgroup -u 10001 \

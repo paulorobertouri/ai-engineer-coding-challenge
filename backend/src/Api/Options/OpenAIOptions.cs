@@ -10,7 +10,7 @@ public sealed class OpenAIOptions
 
     [Required]
     [MinLength(1)]
-    public string ChatModel { get; init; } = "gpt-4o-mini";
+    public string ChatModel { get; init; } = "gpt-5.4-mini";
 
     [Required]
     [MinLength(1)]
