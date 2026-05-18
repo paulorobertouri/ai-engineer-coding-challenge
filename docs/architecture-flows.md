@@ -1,5 +1,37 @@
 # Request Flows
 
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+    U[Store Employee] --> FE[Frontend<br/>React + Vite]
+    FE -->|HTTP /api/v1/*| BE[Backend API<br/>.NET Web API]
+
+    subgraph Retrieval[Retrieval Layer]
+        CH[Chunking Service]
+        EMB[Embedding Service]
+        RAG[Retrieval Chat Service]
+        VS[(Vector Store<br/>JSON + Memory Index)]
+    end
+
+    BE --> CH
+    BE --> EMB
+    BE --> RAG
+    CH --> VS
+    EMB --> VS
+    RAG --> VS
+
+    RAG -->|Prompt + Context| LLM[OpenAI / Fallback Model]
+    LLM -->|Answer + Tool Results| RAG
+    RAG --> BE
+    BE --> FE
+
+    SOP[(SOP Knowledge Base)] -->|Ingest Source| CH
+
+    BE -. Telemetry .-> OBS[Logs + Metrics + Traces]
+    FE -. Static Assets + Runtime Config .-> NGINX[nginx Container]
+```
+
 ## Ingest Flow
 
 ```mermaid

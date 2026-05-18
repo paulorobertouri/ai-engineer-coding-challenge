@@ -274,6 +274,22 @@ We introduced the following architecture changes:
 - SOP mutation approval workflow that blocks production ingest activation unless the source checksum is explicitly approved.
 - Retrieval benchmark dashboard endpoints with persisted run history to trend precision/recall over fixture queries.
 
+```mermaid
+flowchart LR
+	OP[Operator] --> Q[Ingest Queue Controls]
+	Q --> JOB[Run Ingest Job]
+	JOB --> MUT[SOP Mutation Detected]
+	MUT --> CHK{Checksum Approved?}
+	CHK -- No --> BLK[Block Production Activation]
+	CHK -- Yes --> ACT[Activate Production Ingest]
+
+	JOB --> SLO[SLO Tracker\nLatency + Error Rate]
+	JOB --> CHAOS[Chaos Profile\nOptional Failure Injection]
+	JOB --> BENCH[Retrieval Benchmark\nPrecision/Recall Trend]
+
+	SLO --> HEALTH[Health Summary Endpoint]
+```
+
 ## Consequences
 - Operators can perform incident-response actions (retry/cancel/inspect failures) without direct datastore edits.
 - Reliability checks are visible through API contracts and testable in CI/local environments.

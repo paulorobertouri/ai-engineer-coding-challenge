@@ -304,7 +304,18 @@ The project follows a Clean Architecture approach with the following layers:
 - **Infrastructure**: External integrations (e.g., OpenAI, vector store).
 - **Presentation**: API controllers and frontend.
 
-![Architecture Diagram](docs/architecture-diagram.png)
+```mermaid
+flowchart TB
+   P[Presentation Layer\nFrontend + API Controllers]
+   A[Application Layer\nUse Cases + Service Contracts]
+   D[Domain Layer\nCore Rules + Entities]
+   I[Infrastructure Layer\nOpenAI Adapter + Vector Store + Persistence]
+
+   P --> A
+   A --> D
+   A --> I
+   I --> A
+```
 
 ## Testing Strategy
 
