@@ -19,9 +19,9 @@ import type {
   StatusMessage,
 } from '../types/chat'
 import { AppHeader } from '../components/AppHeader'
-import { ChatComposer } from '../components/ChatComposer'
-import { ChatTranscript } from '../components/ChatTranscript'
-import { CitationsPanel } from '../components/CitationsPanel'
+import { ChatComposer } from '../components/chat/ChatComposer'
+import { ChatTranscript } from '../components/chat/ChatTranscript'
+import { CitationsPanel } from '../components/chat/CitationsPanel'
 import { KeyboardShortcutMap } from '../components/KeyboardShortcutMap'
 import { SourceDocumentViewer } from '../components/SourceDocumentViewer'
 import { OperatorAuditPanel } from '../components/OperatorAuditPanel'

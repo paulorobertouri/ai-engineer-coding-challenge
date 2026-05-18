@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Bot, Clock, MessageSquareDashed, Copy, Check } from 'lucide-react'
-import type { ChatMessage, FeedbackKind } from '../types/chat'
+import type { ChatMessage, FeedbackKind } from '../../types/chat'
 import { format } from 'date-fns'
 import { MarkdownContent } from './MarkdownContent'
 import { TypingIndicator } from './TypingIndicator'
 import { SuggestedPrompts } from './SuggestedPrompts'
-import { cn } from '../services/utils'
+import { cn } from '../../services/utils'
 
 interface ChatTranscriptProps {
   messages: ChatMessage[]

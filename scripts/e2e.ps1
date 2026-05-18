@@ -47,7 +47,7 @@ switch ($Mode) {
             Pop-Location
         }
         Write-Host ""
-        Write-Host "Artifacts saved in evidences/raw/"
+        Write-Host "Artifacts saved in evidences/raw/ and .build/reports/playwright/"
     }
     default {
         Write-Error "Usage: .\scripts\e2e.ps1 [test|evidence]"

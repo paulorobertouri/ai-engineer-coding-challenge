@@ -67,10 +67,19 @@ Thumbs.db
 # =========================
 # Other
 # =========================
+.build/
 evidences/raw/
 playwright-report/
 test-results/
 coverage/
+format_output.txt
+lint_output.txt
+lint_result.txt
+test_output.txt
+test_results.txt
+format_output.log
+lint_output.log
+test_output.log
 
 
 # =========================

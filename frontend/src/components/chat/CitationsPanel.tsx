@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BookOpen, FileText, ChevronDown, ChevronUp } from 'lucide-react'
-import type { Citation, ConfidenceIndicator } from '../types/chat'
+import type { Citation, ConfidenceIndicator } from '../../types/chat'
 
 interface CitationsPanelProps {
   citations: Citation[]

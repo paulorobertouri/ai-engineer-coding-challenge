@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ChatTranscript } from './ChatTranscript'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { ChatMessage } from '../types/chat'
+import type { ChatMessage } from '../../types/chat'
 
 describe('ChatTranscript', () => {
   beforeEach(() => {

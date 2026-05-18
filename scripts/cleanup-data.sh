@@ -38,8 +38,9 @@ run_find_delete "$LOGS_DIR" "$LOG_DAYS" "API logs"
 run_find_delete "$DATA_DIR/ingestion-audit.json" "$AUDIT_DAYS" "Ingestion audit"
 run_find_delete "$DATA_DIR/conversation-feedback.json" "$FEEDBACK_DAYS" "Conversation feedback"
 run_find_delete "$ROOT/evidences/raw" "$UPLOAD_ARTIFACT_DAYS" "Evidence raw artifacts"
-run_find_delete "$ROOT/e2e/test-results" "$UPLOAD_ARTIFACT_DAYS" "E2E test results"
-run_find_delete "$ROOT/e2e/playwright-report" "$UPLOAD_ARTIFACT_DAYS" "Playwright reports"
+run_find_delete "$ROOT/.build/test-results" "$UPLOAD_ARTIFACT_DAYS" "Test results"
+run_find_delete "$ROOT/.build/reports" "$UPLOAD_ARTIFACT_DAYS" "Generated reports"
+run_find_delete "$ROOT/.build/coverage" "$UPLOAD_ARTIFACT_DAYS" "Coverage reports"
 
 if [[ "$INCLUDE_VECTOR_STORE" == "1" ]]; then
   run_find_delete "$DATA_DIR/vector-store.json" "$VECTOR_STORE_DAYS" "Vector store"

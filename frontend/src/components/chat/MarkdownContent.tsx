@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { cn } from '../services/utils'
+import { cn } from '../../services/utils'
 
 interface MarkdownContentProps {
   content: string

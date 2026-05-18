@@ -20,11 +20,11 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
-      reportsDirectory: './coverage',
+      reportsDirectory: '../.build/coverage/frontend',
       include: [
         'src/pages/ChatPage.tsx',
-        'src/components/ChatComposer.tsx',
-        'src/components/CitationsPanel.tsx',
+        'src/components/chat/ChatComposer.tsx',
+        'src/components/chat/CitationsPanel.tsx',
         'src/services/apiClient.ts',
       ],
       thresholds: {

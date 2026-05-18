@@ -38,15 +38,15 @@ Output locations:
 
 - Human-readable evidence: `evidences/evidence.md`
 - Raw artifacts: `evidences/raw/`
-- Playwright report: `e2e/playwright-report/`
+- Playwright report: `.build/reports/playwright/`
 
 ## Coverage Expectations
 
 - Backend test runs collect coverage artifacts (Cobertura).
 - Frontend CI runs coverage with thresholds on core files:
   - `src/pages/ChatPage.tsx`
-  - `src/components/ChatComposer.tsx`
-  - `src/components/CitationsPanel.tsx`
+  - `src/components/chat/ChatComposer.tsx`
+  - `src/components/chat/CitationsPanel.tsx`
   - `src/services/apiClient.ts`
 
 ## Troubleshooting

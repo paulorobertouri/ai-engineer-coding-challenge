@@ -1,6 +1,6 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useRef } from 'react'
 import { SendHorizonal } from 'lucide-react'
-import type { ResponseLanguage } from '../types/chat'
+import type { ResponseLanguage } from '../../types/chat'
 
 interface ChatComposerProps {
   value: string

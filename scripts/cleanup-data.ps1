@@ -73,8 +73,9 @@ Invoke-RetentionCleanup -Target $LogsDir -AgeDays $LogDays -Label "API logs"
 Invoke-RetentionCleanup -Target (Join-Path $DataDir "ingestion-audit.json") -AgeDays $AuditDays -Label "Ingestion audit"
 Invoke-RetentionCleanup -Target (Join-Path $DataDir "conversation-feedback.json") -AgeDays $FeedbackDays -Label "Conversation feedback"
 Invoke-RetentionCleanup -Target (Join-Path $Root "evidences\raw") -AgeDays $UploadArtifactDays -Label "Evidence raw artifacts"
-Invoke-RetentionCleanup -Target (Join-Path $Root "e2e\test-results") -AgeDays $UploadArtifactDays -Label "E2E test results"
-Invoke-RetentionCleanup -Target (Join-Path $Root "e2e\playwright-report") -AgeDays $UploadArtifactDays -Label "Playwright reports"
+Invoke-RetentionCleanup -Target (Join-Path $Root ".build\test-results") -AgeDays $UploadArtifactDays -Label "Test results"
+Invoke-RetentionCleanup -Target (Join-Path $Root ".build\reports") -AgeDays $UploadArtifactDays -Label "Generated reports"
+Invoke-RetentionCleanup -Target (Join-Path $Root ".build\coverage") -AgeDays $UploadArtifactDays -Label "Coverage reports"
 
 if ($IncludeVectorStore -eq "1") {
     Invoke-RetentionCleanup -Target (Join-Path $DataDir "vector-store.json") -AgeDays $VectorStoreDays -Label "Vector store"

@@ -5,6 +5,7 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$BuildDir = Join-Path $Root ".build"
 $Target = if ($args.Count -gt 0) { $args[0] } else { "all" }
 
 function Invoke-Checked {
@@ -24,12 +25,17 @@ function Invoke-Checked {
 
 function Run-BackendTests {
     Write-Host "==> Backend: dotnet test..."
+    $BackendCoverageDir = Join-Path $BuildDir "coverage\backend"
+    $BackendResultsDir = Join-Path $BuildDir "test-results\backend"
+    New-Item -ItemType Directory -Force -Path $BackendCoverageDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $BackendResultsDir | Out-Null
+
     Invoke-Checked dotnet test (Join-Path $Root "backend\src\Api.Tests\Api.Tests.csproj") -c Release `
         "--collect:XPlat Code Coverage" `
-        --results-directory (Join-Path $Root "backend\coverage") `
+        --results-directory $BackendResultsDir `
         "/p:CollectCoverage=true" `
         "/p:CoverletOutputFormat=cobertura" `
-        "/p:CoverletOutput=$(Join-Path $Root "backend\coverage\")" `
+        "/p:CoverletOutput=$(Join-Path $BackendCoverageDir "")" `
         "/p:ReportTypes=Html" `
         "/p:Exclude=[GroceryStore.Chatbot.Api]Api.Services.OpenAIRetrievalChatService%2C[GroceryStore.Chatbot.Api]Api.Services.OpenAIEmbeddingService"
 }

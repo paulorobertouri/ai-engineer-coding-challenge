@@ -8,7 +8,7 @@ This document defines local data locations, retention defaults, and cleanup comm
 - Ingestion audit records: `backend/src/Api/Data/ingestion-audit.json`
 - Conversation feedback records: `backend/src/Api/Data/conversation-feedback.json`
 - Backend rolling logs: `backend/src/Api/Logs/`
-- E2E artifacts: `e2e/test-results/`, `e2e/playwright-report/`
+- Generated test artifacts: `.build/test-results/`, `.build/reports/`, `.build/coverage/`
 - Evidence artifacts: `evidences/raw/`
 
 ## Retention defaults

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CitationsPanel } from './CitationsPanel'
 import { describe, it, expect, vi } from 'vitest'
-import type { Citation } from '../types/chat'
+import type { Citation } from '../../types/chat'
 
 describe('CitationsPanel', () => {
   it('shows empty state when no citations', () => {

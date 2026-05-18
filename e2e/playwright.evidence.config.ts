@@ -5,7 +5,8 @@ const root = path.resolve(__dirname, "..");
 
 export default defineConfig({
   testDir: "./tests",
-  reporter: [["html", { open: "never" }]],
+  outputDir: "../.build/test-results/e2e-evidence",
+  reporter: [["html", { open: "never", outputFolder: "../.build/reports/playwright" }]],
   use: {
     baseURL: "http://127.0.0.1:49321",
     screenshot: "on",

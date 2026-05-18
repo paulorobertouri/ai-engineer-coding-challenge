@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { FileSearch } from 'lucide-react'
-import { MarkdownContent } from './MarkdownContent'
+import { MarkdownContent } from './chat/MarkdownContent'
 import type {
   Citation,
   SourceComparisonResponse,

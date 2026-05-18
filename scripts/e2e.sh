@@ -22,7 +22,7 @@ case "$MODE" in
     cd "$E2E_DIR"
     npx playwright test --config=playwright.evidence.config.ts tests/evidence.spec.ts
     echo ""
-    echo "Artifacts saved in evidences/raw/"
+    echo "Artifacts saved in evidences/raw/ and .build/reports/playwright/"
     ;;
   *)
     echo "Usage: $0 [test|evidence]" >&2
