@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+async function resetIngestion(page: Page): Promise<void> {
+  await page.request.delete(
+    "http://127.0.0.1:5199/api/v1/Ingest/reset?confirm=RESET",
+  );
+}
+
 async function stabilizePageForScreenshots(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -63,14 +69,21 @@ async function completeIngest(page: Page): Promise<void> {
   }
 }
 
+async function waitForChatToBecomeIdle(page: Page): Promise<void> {
+  const typingIndicator = page.locator(".typing-indicator");
+  await expect(typingIndicator).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.locator("#chat-input")).toBeEnabled({ timeout: 60_000 });
+}
+
 test.describe("visual regression", () => {
   test.describe.configure({ mode: "serial" });
 
+  test.beforeEach(async ({ page }) => {
+    await resetIngestion(page);
+  });
+
   test("visual: setup flow", async ({ page }) => {
     test.setTimeout(120000);
-    await page.request.delete(
-      "http://127.0.0.1:5199/api/v1/Ingest/reset?confirm=RESET",
-    );
     await page.goto("/");
     await stabilizePageForScreenshots(page);
 
@@ -93,7 +106,7 @@ test.describe("visual regression", () => {
 
     const chatInput = page.locator("#chat-input");
     await chatInput.fill("What are the store hours on Monday?");
-    await page.click('button:has-text("Send")');
+    await page.getByRole("button", { name: /send/i }).click();
 
     const assistantMessages = page.locator(
       '.message-card[data-role="assistant"]',
@@ -104,6 +117,7 @@ test.describe("visual regression", () => {
         timeout: 60000,
       },
     );
+    await waitForChatToBecomeIdle(page);
     await expect(page.locator(".citations-panel")).not.toBeEmpty();
 
     await expect(page.locator("main.app-shell")).toHaveScreenshot(
@@ -124,10 +138,11 @@ test.describe("visual regression", () => {
 
     const chatInput = page.locator("#chat-input");
     await chatInput.fill("What are the store hours on Monday?");
-    await page.click('button:has-text("Send")');
+    await page.getByRole("button", { name: /send/i }).click();
 
     const citationButton = page.locator(".citation-select-btn").first();
     await expect(citationButton).toBeVisible({ timeout: 60000 });
+    await waitForChatToBecomeIdle(page);
     await citationButton.click();
     const sourceViewerPanel = page.locator(".source-viewer-panel");
     await expect(sourceViewerPanel).toBeVisible({ timeout: 30000 });

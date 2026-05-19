@@ -15,7 +15,7 @@ case "$MODE" in
   test)
     echo "==> Running e2e tests..."
     cd "$E2E_DIR"
-    npx playwright test
+    CI=true npx playwright test
     ;;
   evidence)
     echo "==> Generating evidence (screenshots)..."
